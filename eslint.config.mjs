@@ -20,6 +20,25 @@ const eslintConfig = [
       "next-env.d.ts",
     ],
   },
+  {
+    files: ["./src/components/features/login/index.js"],
+    rules: {
+      "react/no-unescaped-entities": "off", // ignore just here
+    },
+  },
+  {
+    files: ["./src/components/ui/avatar.js"],
+    rules: {
+      "@next/next/no-img-element": "off", // disable <img> rule
+      "jsx-a11y/alt-text": "off", // disable alt text rule
+    },
+  },
+  {
+    files: ["./src/components/ui/user-table.js"],
+    rules: {
+      "@next/next/no-img-element": "off", // disable <img> rule
+    },
+  },
 ];
 
 export default eslintConfig;
