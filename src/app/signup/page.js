@@ -30,29 +30,51 @@ export default function LoginPage() {
     setError('')
 
     try {
-      const { error } = await supabase.auth.signUp({
-        options:{
-          data:{
-            display_name: username, 
-            full_name: username, 
-            role:'admin',
-          }
-        },
-        email,
-        password,
-        
-      })
-
-      if (error) {
-        setError(error.message)
-      } else {
-        router.push('/')
+    // Destructure both data and error from auth.signUp
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          display_name: username, 
+          full_name: username, 
+          role: 'admin',
+        }
       }
-    } catch (err) {
-      setError('An unexpected error occurred')
-    } finally {
-      setLoading(false)
+    })
+
+    if (authError) {
+      setError(authError.message)
+    } else if (authData?.user) { // Check if user was created successfully
+      // Insert into user_account_tbl
+      const { data: insertData, error: insertError } = await supabase
+        .from('user_account_tbl')
+        .insert([
+          {
+            username: username,
+            email: email,
+            role_id: '398202d3-a468-4763-8ca3-a330b9146b3d',
+            status: 'active',
+          }
+        ])
+        .select('*') // Fixed: should be .select(), not .SELECT()
+        .single()
+
+
+      if (insertError) {
+        setError(insertError.message)
+      } else {
+        // Uncomment when ready to redirect
+       router.push('/')
+      }
     }
+  } catch (err) {
+    console.error('Unexpected error:', err)
+    setError('An unexpected error occurred')
+  } finally {
+    setLoading(false)
+  }
+    
   }
 
 
@@ -66,7 +88,7 @@ export default function LoginPage() {
           <div className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center">
             <div className="w-4 h-4 bg-white rounded-full"></div>
           </div>
-          <span className="text-white font-semibold text-lg">Camella Homes</span>
+          <span className="text-white font-semibold text-lg">Futura Homes</span>
         </div>
       </div>
 
@@ -85,7 +107,7 @@ export default function LoginPage() {
           <div className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center">
             <div className="w-4 h-4 bg-white rounded-full"></div>
           </div>
-          <span className="text-white font-semibold text-lg">Camella Homes</span>
+          <span className="text-white font-semibold text-lg">Futura Homes</span>
         </div>
 
         {/* Main Content */}

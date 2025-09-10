@@ -1,14 +1,20 @@
 'use client';
 
-import  { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Calendar, Clock, CheckCircle, XCircle, Users, Home, Building } from "lucide-react";
+import { Plus, Search, Calendar, Clock, CheckCircle, XCircle, Users, Home, Building, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
-import { Homeowner, Reservation } from "@/lib/data";
+import { createClient } from '@supabase/supabase-js';
+
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
 
 export default function Reservations() {
   const [reservations, setReservations] = useState([]);
@@ -17,6 +23,20 @@ export default function Reservations() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [facilityFilter, setFacilityFilter] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  
+  // Form state
+  const [formData, setFormData] = useState({
+    homeowner_id: '',
+    facility_name: '',
+    reservation_date: '',
+    start_time: '',
+    end_time: '',
+    purpose: '',
+    fee: 0,
+    status: 'pending'
+  });
 
   useEffect(() => {
     loadData();
@@ -28,12 +48,30 @@ export default function Reservations() {
 
   const loadData = async () => {
     try {
-      const [reservationData, homeownerData] = await Promise.all([
-        Reservation,
-        Homeowner
-      ]);
-      setReservations(reservationData);
-      setHomeowners(homeownerData);
+      // Fetch reservations with homeowner details
+      const { data: reservationData, error: reservationError } = await supabase
+        .from('reservation_tbl')
+        .select(`
+          *,
+          homeowner:homeowner_id (
+            id,
+            full_name
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (reservationError) throw reservationError;
+
+      // Fetch homeowners for dropdown
+      const { data: homeownerData, error: homeownerError } = await supabase
+        .from('homeowner_tbl')
+        .select('id, full_name')
+        .order('full_name');
+
+      if (homeownerError) throw homeownerError;
+
+      setReservations(reservationData || []);
+      setHomeowners(homeownerData || []);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -52,7 +90,10 @@ export default function Reservations() {
     setFilteredReservations(filtered);
   };
   
-  const getHomeownerName = (id) => homeowners.find(h => h.id === id)?.full_name || 'N/A';
+  const getHomeownerName = (id) => {
+    const homeowner = homeowners.find(h => h.id === id);
+    return homeowner?.full_name || 'N/A';
+  };
   
   const getStatusProps = (status) => {
     switch (status) {
@@ -66,12 +107,81 @@ export default function Reservations() {
   
   const getFacilityIcon = (facility) => {
     switch(facility) {
-        case 'clubhouse': return <Home className="w-5 h-5"/>;
-        case 'swimming_pool': return <Users className="w-5 h-5"/>;
-        case 'basketball_court': return <Building className="w-5 h-5"/>;
-        default: return <Building className="w-5 h-5"/>;
+      case 'clubhouse': return <Home className="w-5 h-5"/>;
+      case 'swimming_pool': return <Users className="w-5 h-5"/>;
+      case 'basketball_court': return <Building className="w-5 h-5"/>;
+      default: return <Building className="w-5 h-5"/>;
     }
-  }
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value, type } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'number' ? parseFloat(value) || 0 : value
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+
+    try {
+      const { data, error } = await supabase
+        .from('reservation_tbl')
+        .insert([{
+          homeowner_id: formData.homeowner_id,
+          facility_name: formData.facility_name,
+          reservation_date: formData.reservation_date,
+          start_time: formData.start_time,
+          end_time: formData.end_time,
+          purpose: formData.purpose,
+          fee: formData.fee,
+          status: formData.status,
+          created_at: new Date().toISOString()
+        }])
+        .select();
+
+      if (error) throw error;
+
+      // Reset form
+      setFormData({
+        homeowner_id: '',
+        facility_name: '',
+        reservation_date: '',
+        start_time: '',
+        end_time: '',
+        purpose: '',
+        fee: 0,
+        status: 'pending'
+      });
+
+      setIsModalOpen(false);
+      loadData(); // Refresh the data
+      
+      // Show success message (you can integrate with your preferred toast library)
+      alert('Reservation created successfully!');
+    } catch (error) {
+      console.error('Error creating reservation:', error);
+      alert('Error creating reservation. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setFormData({
+      homeowner_id: '',
+      facility_name: '',
+      reservation_date: '',
+      start_time: '',
+      end_time: '',
+      purpose: '',
+      fee: 0,
+      status: 'pending'
+    });
+  };
 
   return (
     <div className="min-h-screen p-6 md:p-8">
@@ -81,13 +191,16 @@ export default function Reservations() {
             <h1 className="text-4xl font-bold text-slate-900 mb-2">Reservations</h1>
             <p className="text-lg text-slate-600">Manage facility bookings and events</p>
           </div>
-          <Button className="bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg">
+          <Button 
+            onClick={() => setIsModalOpen(true)}
+            className="bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200"
+          >
             <Plus className="w-5 h-5 mr-2" /> New Reservation
           </Button>
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-2xl p-6 shadow-lg">
-          <div className="flex flex-col md:flex-row gap-4 items-center">
+          <div className="flex flex-col md:flex-row gap-4 items-center tex">
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-48"><SelectValue placeholder="All Statuses" /></SelectTrigger>
               <SelectContent>
@@ -111,10 +224,16 @@ export default function Reservations() {
         </motion.div>
 
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
-          {loading ? ( <div className="text-center py-12">Loading reservations...</div> ) 
-          : filteredReservations.length === 0 ? (
+          {loading ? ( 
+            <div className="text-center py-12">
+              <div className="loading loading-spinner loading-lg"></div>
+              <p className="mt-4 text-slate-600">Loading reservations...</p>
+            </div> 
+          ) : filteredReservations.length === 0 ? (
             <div className="text-center py-16">
-              <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6"><Calendar className="w-12 h-12 text-slate-400" /></div>
+              <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Calendar className="w-12 h-12 text-slate-400" />
+              </div>
               <h3 className="text-xl font-semibold text-slate-900 mb-2">No Reservations Found</h3>
               <p className="text-slate-600">No reservations match your filters.</p>
             </div>
@@ -127,21 +246,34 @@ export default function Reservations() {
                     <Card className="bg-white/80 backdrop-blur-sm border-slate-200 hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-500 hover:-translate-y-1">
                       <CardHeader>
                         <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-3">
-                               <div className="p-3 bg-slate-100 rounded-lg">{getFacilityIcon(reservation.facility_name)}</div>
-                               <div>
-                                  <CardTitle className="text-lg text-slate-900 capitalize">{reservation.facility_name.replace('_', ' ')}</CardTitle>
-                                  <p className="text-sm text-slate-600">{reservation.purpose}</p>
-                               </div>
+                          <div className="flex items-center gap-3">
+                            <div className="p-3 bg-slate-100 rounded-lg">
+                              {getFacilityIcon(reservation.facility_name)}
                             </div>
-                           <Badge className={`${color} border capitalize`}>{reservation.status}</Badge>
+                            <div>
+                              <CardTitle className="text-lg text-slate-900 capitalize">
+                                {reservation.facility_name.replace('_', ' ')}
+                              </CardTitle>
+                              <p className="text-sm text-slate-600">{reservation.purpose}</p>
+                            </div>
+                          </div>
+                          <Badge className={`${color} border capitalize`}>{reservation.status}</Badge>
                         </div>
                       </CardHeader>
                       <CardContent className="space-y-3">
                         <div className="text-sm space-y-2 bg-slate-50 rounded-lg p-3">
-                          <div className="flex items-center gap-2"><Users className="w-4 h-4"/><span>Booked by: {getHomeownerName(reservation.homeowner_id)}</span></div>
-                          <div className="flex items-center gap-2"><Calendar className="w-4 h-4"/><span>{format(new Date(reservation.reservation_date), 'EEE, MMM d, yyyy')}</span></div>
-                          <div className="flex items-center gap-2"><Clock className="w-4 h-4"/><span>{reservation.start_time} - {reservation.end_time}</span></div>
+                          <div className="flex items-center gap-2">
+                            <Users className="w-4 h-4"/>
+                            <span>Booked by: {getHomeownerName(reservation.homeowner_id)}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4"/>
+                            <span>{format(new Date(reservation.reservation_date), 'EEE, MMM d, yyyy')}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-4 h-4"/>
+                            <span>{reservation.start_time} - {reservation.end_time}</span>
+                          </div>
                         </div>
                         {reservation.fee > 0 && 
                           <div className="flex justify-between items-center pt-2 border-t">
@@ -158,6 +290,183 @@ export default function Reservations() {
           )}
         </motion.div>
       </div>
+
+      {/* DaisyUI Modal */}
+      {isModalOpen && (
+        <div className="modal modal-open">
+          <div className="modal-box max-w-2xl bg-white">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-bold text-gray-800">New Reservation</h3>
+              <button 
+                onClick={closeModal}
+                className="btn btn-sm btn-circle btn-ghost hover:bg-gray-100"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Homeowner Selection */}
+                <div className="form-control w-full">
+                  <label className="label">
+                    <span className="label-text font-semibold text-gray-700">Homeowner *</span>
+                  </label>
+                  <select 
+                    name="homeowner_id"
+                    value={formData.homeowner_id}
+                    onChange={handleInputChange}
+                    className="text-black bg-white select select-bordered w-full focus:select-primary"
+                    required
+                  >
+                    <option value="">Select homeowner</option>
+                    {homeowners.map(homeowner => (
+                      <option key={homeowner.id} value={homeowner.id}>
+                        {homeowner.full_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Facility Selection */}
+                <div className="form-control w-full">
+                  <label className="label">
+                    <span className="label-text font-semibold text-gray-700">Facility *</span>
+                  </label>
+                  <select 
+                    name="facility_name"
+                    value={formData.facility_name}
+                    onChange={handleInputChange}
+                    className="text-black bg-white select select-bordered w-full focus:select-primary"
+                    required
+                  >
+                    <option value="">Select facility</option>
+                    <option value="clubhouse">Clubhouse</option>
+                    <option value="swimming_pool">Swimming Pool</option>
+                    <option value="basketball_court">Basketball Court</option>
+                  </select>
+                </div>
+
+                {/* Date */}
+                <div className="form-control w-full">
+                  <label className="label">
+                    <span className="label-text font-semibold text-gray-700">Reservation Date *</span>
+                  </label>
+                  <input 
+                    type="date"
+                    name="reservation_date"
+                    value={formData.reservation_date}
+                    onChange={handleInputChange}
+                    className="text-black bg-white input input-bordered w-full focus:input-primary"
+                    required
+                  />
+                </div>
+
+                {/* Status */}
+                <div className="form-control w-full">
+                  <label className="label">
+                    <span className="label-text font-semibold text-gray-700">Status</span>
+                  </label>
+                  <select 
+                    name="status"
+                    value={formData.status}
+                    onChange={handleInputChange}
+                    className="text-black bg-white select select-bordered w-full focus:select-primary"
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="confirmed">Confirmed</option>
+                    <option value="cancelled">Cancelled</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                </div>
+
+                {/* Start Time */}
+                <div className="form-control w-full">
+                  <label className="label">
+                    <span className="label-text font-semibold text-gray-700">Start Time *</span>
+                  </label>
+                  <input 
+                    type="time"
+                    name="start_time"
+                    value={formData.start_time}
+                    onChange={handleInputChange}
+                    className="text-black bg-white input input-bordered w-full focus:input-primary"
+                    required
+                  />
+                </div>
+
+                {/* End Time */}
+                <div className="form-control w-full">
+                  <label className="label">
+                    <span className="label-text font-semibold text-gray-700">End Time *</span>
+                  </label>
+                  <input 
+                    type="time"
+                    name="end_time"
+                    value={formData.end_time}
+                    onChange={handleInputChange}
+                    className="text-black bg-white input input-bordered w-full focus:input-primary"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Purpose */}
+              <div className="form-control w-full">
+                <label className="label">
+                  <span className="label-text font-semibold text-gray-700">Purpose *</span>
+                </label>
+                <textarea 
+                  name="purpose"
+                  value={formData.purpose}
+                  onChange={handleInputChange}
+                  placeholder="Describe the purpose of this reservation..."
+                  className="text-black bg-white textarea textarea-bordered h-20 w-full focus:textarea-primary resize-none"
+                  required
+                />
+              </div>
+
+              {/* Fee */}
+              <div className="form-control w-full">
+                <label className="label">
+                  <span className="label-text font-semibold text-gray-700">Reservation Fee (₱)</span>
+                </label>
+                <input 
+                  type="number"
+                  name="fee"
+                  value={formData.fee}
+                  onChange={handleInputChange}
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  className="text-black bg-white input input-bordered w-full focus:input-primary"
+                />
+              </div>
+
+              {/* Modal Actions */}
+              <div className="modal-action">
+                <button 
+                  type="button"
+                  onClick={closeModal}
+                  className="btn btn-ghost"
+                  disabled={submitting}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="btn btn-primary bg-gradient-to-r from-blue-600 to-blue-700 border-0 text-white"
+                  disabled={submitting}
+                >
+                  {submitting && <span className="loading loading-spinner loading-sm"></span>}
+                  {submitting ? 'Creating...' : 'Create Reservation'}
+                </button>
+              </div>
+            </form>
+          </div>
+          <div className="modal-backdrop bg-black/50" onClick={closeModal}></div>
+        </div>
+      )}
     </div>
   );
 }

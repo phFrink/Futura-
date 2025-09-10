@@ -30,7 +30,7 @@ export default function Signup() {
     setError('')
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const data = await supabase.auth.signUp({
         options:{
           data:{
             display_name: username, 
@@ -41,17 +41,38 @@ export default function Signup() {
         email,
         password,
         
-      })
+      });
 
-      if (error) {
-        setError(error.message)
-      } else {
-        router.push('/')
+
+      if(data){
+         const { data, error } = await supabase
+          .from('user_account_tbl')
+          .insert([
+            {
+             username: username,
+              email: email,
+              password: password,
+              role_id:'398202d3-a468-4763-8ca3-a330b9146b3d',
+              status: 'active',
+            }
+          ]).SELECT('*')
+          .single()
+
+          console.log(error,'get error');
+          console.log(data,'get error');
+
+          // if (error) {
+          // setError(error.message)
+          // } else {
+          //   router.push('/')
+          // }
       }
+
+    
     } catch (err) {
       setError('An unexpected error occurred')
     } finally {
-      setLoading(false)
+      // setLoading(false)
     }
   }
 
