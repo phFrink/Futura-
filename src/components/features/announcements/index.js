@@ -5,10 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Megaphone, Pin, Users, Calendar, X } from "lucide-react";
+import { Plus, Search, Megaphone, Pin, Users, Calendar, X, Edit, Trash2, AlertTriangle, Loader2, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { createClient } from '@supabase/supabase-js';
+import { isNewItem, getRelativeTime } from '@/lib/utils';
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -23,7 +24,11 @@ export default function Announcements() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [formSubmitting, setFormSubmitting] = useState(false);
+  const [editingAnnouncement, setEditingAnnouncement] = useState(null);
+  const [deletingAnnouncement, setDeletingAnnouncement] = useState(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -121,15 +126,121 @@ export default function Announcements() {
     }));
   };
 
+  // Handle opening edit modal
+  const handleEditAnnouncement = (announcement) => {
+    setEditingAnnouncement(announcement);
+    setFormData({
+      title: announcement.title,
+      content: announcement.content,
+      category: announcement.category,
+      priority: announcement.priority,
+      target_audience: announcement.target_audience,
+      author: announcement.author,
+      status: announcement.status,
+      is_pinned: announcement.is_pinned,
+      publish_date: new Date(announcement.publish_date).toISOString().split('T')[0]
+    });
+    setIsEditModalOpen(true);
+  };
+
+  // Handle opening delete modal
+  const handleDeleteAnnouncement = (announcement) => {
+    setDeletingAnnouncement(announcement);
+    setIsDeleteModalOpen(true);
+  };
+
+  // Handle confirming delete
+  const handleConfirmDelete = async () => {
+    if (!deletingAnnouncement) return;
+
+    setFormSubmitting(true);
+    try {
+      await deleteAnnouncement(deletingAnnouncement.id, deletingAnnouncement.title);
+      alert('Announcement deleted successfully!');
+      setIsDeleteModalOpen(false);
+      setDeletingAnnouncement(null);
+    } catch (error) {
+      console.error('Error deleting announcement:', error);
+      alert('Error deleting announcement: ' + error.message);
+    } finally {
+      setFormSubmitting(false);
+    }
+  };
+
+  // Update announcement function
+  const updateAnnouncement = async (announcementId, updateData) => {
+    try {
+      const { data, error } = await supabase
+        .from('announcement_tbl')
+        .update({ 
+          ...updateData, 
+          updated_date: new Date().toISOString() 
+        })
+        .eq('id', announcementId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Update local state
+      setAnnouncements(prev => 
+        prev.map(announcement => 
+          announcement.id === announcementId 
+            ? { ...announcement, ...data }
+            : announcement
+        )
+      );
+
+      return data;
+    } catch (error) {
+      console.error('Error updating announcement:', error);
+      throw error;
+    }
+  };
+
+  // Delete announcement function
+  const deleteAnnouncement = async (announcementId, announcementTitle) => {
+    try {
+      const { error } = await supabase
+        .from('announcement_tbl')
+        .delete()
+        .eq('id', announcementId);
+
+      if (error) throw error;
+
+      // Remove from local state
+      setAnnouncements(prev => prev.filter(announcement => announcement.id !== announcementId));
+      
+      return true;
+    } catch (error) {
+      console.error('Error deleting announcement:', error);
+      throw error;
+    }
+  };
+
+  // Reset form data
+  const resetForm = () => {
+    setFormData({
+      title: '',
+      content: '',
+      category: 'general',
+      priority: 'normal',
+      target_audience: 'all_residents',
+      author: '',
+      status: 'published',
+      is_pinned: false,
+      publish_date: new Date().toISOString().split('T')[0]
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormSubmitting(true);
 
     try {
-      // Insert announcement into Supabase
-      const { data, error } = await supabase
-        .from('announcement_tbl')
-        .insert([{
+      if (editingAnnouncement) {
+        // Update existing announcement
+        const updateData = {
           title: formData.title,
           content: formData.content,
           category: formData.category,
@@ -138,33 +249,44 @@ export default function Announcements() {
           author: formData.author,
           status: formData.status,
           is_pinned: formData.is_pinned,
-          publish_date: new Date(formData.publish_date).toISOString(),
-          created_date: new Date().toISOString(),
-          updated_date: new Date().toISOString()
-        }])
-        .select();
+          publish_date: new Date(formData.publish_date).toISOString()
+        };
+        
+        const data = await updateAnnouncement(editingAnnouncement.id, updateData);
+        alert('Announcement updated successfully!');
+        setIsEditModalOpen(false);
+        setEditingAnnouncement(null);
+      } else {
+        // Insert new announcement into Supabase
+        const { data, error } = await supabase
+          .from('announcement_tbl')
+          .insert([{
+            title: formData.title,
+            content: formData.content,
+            category: formData.category,
+            priority: formData.priority,
+            target_audience: formData.target_audience,
+            author: formData.author,
+            status: formData.status,
+            is_pinned: formData.is_pinned,
+            publish_date: new Date(formData.publish_date).toISOString(),
+            created_date: new Date().toISOString(),
+            updated_date: new Date().toISOString()
+          }])
+          .select();
 
-      if (error) throw error;
+        if (error) throw error;
 
-      // Reset form and close modal
-      setFormData({
-        title: '',
-        content: '',
-        category: 'general',
-        priority: 'normal',
-        target_audience: 'all_residents',
-        author: '',
-        status: 'published',
-        is_pinned: false,
-        publish_date: new Date().toISOString().split('T')[0]
-      });
-      
-      setIsModalOpen(false);
-      
-      // Reload data to show new announcement
-      await loadData();
-      
-      alert('Announcement created successfully!');
+        setIsModalOpen(false);
+        
+        // Reload data to show new announcement
+        await loadData();
+        
+        alert('Announcement created successfully!');
+      }
+
+      // Reset form
+      resetForm();
     } catch (error) {
       console.error('Error creating announcement:', error);
       alert('Error creating announcement. Please try again.');
@@ -239,6 +361,12 @@ export default function Announcements() {
                       </div>
                       <div className="flex flex-wrap items-center gap-3 mb-4">
                         <Badge className={`${getPriorityColor(announcement.priority)} border capitalize`}>{announcement.priority}</Badge>
+                        {isNewItem(announcement.created_date) && (
+                          <Badge className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-0 shadow-md animate-pulse">
+                            <Sparkles className="w-3 h-3 mr-1" />
+                            New
+                          </Badge>
+                        )}
                         <Badge variant="outline" className="capitalize">{announcement.category}</Badge>
                         <div className="flex items-center gap-1 text-sm text-slate-500">
                           <Calendar className="w-4 h-4"/>
@@ -254,6 +382,28 @@ export default function Announcements() {
                       </div>
                       <div className="text-xs text-slate-500 pt-4 mt-4 border-t border-slate-200">
                         Authored by: {announcement.author}
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex gap-2 pt-3 mt-3 border-t border-slate-200">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1 text-blue-600 border-blue-200 hover:bg-blue-50"
+                          onClick={() => handleEditAnnouncement(announcement)}
+                        >
+                          <Edit className="w-4 h-4 mr-1" />
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1 text-red-600 border-red-200 hover:bg-red-50"
+                          onClick={() => handleDeleteAnnouncement(announcement)}
+                        >
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          Delete
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -451,6 +601,321 @@ export default function Announcements() {
         </div>
         <div className="modal-backdrop" onClick={() => setIsModalOpen(false)}></div>
       </div>
+
+      {/* Edit Announcement Modal */}
+      <div className={`modal ${isEditModalOpen ? 'modal-open' : ''}`}>
+        <div className="modal-box max-w-3xl bg-white border border-gray-200 shadow-2xl">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-2xl font-bold text-gray-900">Edit Announcement</h3>
+            <button 
+              onClick={() => {
+                setIsEditModalOpen(false);
+                setEditingAnnouncement(null);
+                resetForm();
+              }}
+              className="btn btn-sm btn-circle btn-ghost"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="form-control">
+              <label className="label">
+                <span className="label-text font-medium">Title*</span>
+              </label>
+              <input
+                type="text"
+                name="title"
+                value={formData.title}
+                onChange={handleInputChange}
+                className="text-black bg-white input input-bordered w-full focus:input-primary"
+                placeholder="Enter announcement title"
+                required
+              />
+            </div>
+
+            <div className="form-control">
+              <label className="label">
+                <span className="label-text font-medium">Content*</span>
+              </label>
+              <textarea
+                name="content"
+                value={formData.content}
+                onChange={handleInputChange}
+                className="text-black bg-white textarea textarea-bordered h-32 focus:textarea-primary resize-none"
+                placeholder="Write your announcement content here..."
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-medium">Category*</span>
+                </label>
+                <select
+                  name="category"
+                  value={formData.category}
+                  onChange={handleInputChange}
+                  className="text-black bg-white select select-bordered w-full focus:select-primary"
+                  required
+                >
+                  <option value="general">General</option>
+                  <option value="maintenance">Maintenance</option>
+                  <option value="events">Events</option>
+                  <option value="emergency">Emergency</option>
+                </select>
+              </div>
+
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-medium">Priority</span>
+                </label>
+                <select
+                  name="priority"
+                  value={formData.priority}
+                  onChange={handleInputChange}
+                  className="text-black bg-white select select-bordered w-full focus:select-primary"
+                >
+                  <option value="normal">Normal</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-medium">Target Audience</span>
+                </label>
+                <select
+                  name="target_audience"
+                  value={formData.target_audience}
+                  onChange={handleInputChange}
+                  className="text-black bg-white select select-bordered w-full focus:select-primary"
+                >
+                  <option value="all_residents">All Residents</option>
+                  <option value="homeowners">Homeowners Only</option>
+                  <option value="tenants">Tenants Only</option>
+                  <option value="board_members">Board Members</option>
+                </select>
+              </div>
+
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-medium">Author*</span>
+                </label>
+                <input
+                  type="text"
+                  name="author"
+                  value={formData.author}
+                  onChange={handleInputChange}
+                  className="text-black bg-white input input-bordered w-full focus:input-primary"
+                  placeholder="Enter author name"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-medium">Publish Date</span>
+                </label>
+                <input
+                  type="date"
+                  name="publish_date"
+                  value={formData.publish_date}
+                  onChange={handleInputChange}
+                  className="text-black bg-white input input-bordered w-full focus:input-primary"
+                />
+              </div>
+
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-medium">Status</span>
+                </label>
+                <select
+                  name="status"
+                  value={formData.status}
+                  onChange={handleInputChange}
+                  className="text-black bg-white select select-bordered w-full focus:select-primary"
+                >
+                  <option value="draft">Draft</option>
+                  <option value="published">Published</option>
+                  <option value="archived">Archived</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="form-control">
+              <label className="label cursor-pointer">
+                <span className="label-text font-medium">Pin to top</span>
+                <input
+                  type="checkbox"
+                  name="is_pinned"
+                  checked={formData.is_pinned}
+                  onChange={handleInputChange}
+                  className="toggle toggle-primary"
+                />
+              </label>
+              <div className="label">
+                <span className="label-text-alt text-gray-500">Pinned announcements appear at the top of the list</span>
+              </div>
+            </div>
+
+            <div className="modal-action pt-6">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsEditModalOpen(false);
+                  setEditingAnnouncement(null);
+                  resetForm();
+                }}
+                className="btn btn-ghost"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={formSubmitting}
+                className="btn btn-primary bg-gradient-to-r from-blue-600 to-blue-700 text-white border-none"
+              >
+                {formSubmitting ? (
+                  <>
+                    <span className="loading loading-spinner loading-sm"></span>
+                    Updating...
+                  </>
+                ) : (
+                  <>
+                    <Edit className="w-4 h-4 mr-2" />
+                    Update Announcement
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+        <div className="modal-backdrop" onClick={() => {
+          setIsEditModalOpen(false);
+          setEditingAnnouncement(null);
+          resetForm();
+        }}></div>
+      </div>
+
+      {/* Delete Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={(e) => e.target === e.currentTarget && setIsDeleteModalOpen(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md"
+          >
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-4 text-white rounded-t-2xl">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                    <AlertTriangle className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold">Delete Announcement</h3>
+                    <p className="text-red-100 text-sm mt-1">This action cannot be undone</p>
+                  </div>
+                </div>
+                <button 
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                  onClick={() => {
+                    setIsDeleteModalOpen(false);
+                    setDeletingAnnouncement(null);
+                  }}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6">
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Trash2 className="w-8 h-8 text-red-500" />
+                </div>
+                <h4 className="text-lg font-semibold text-slate-900 mb-2">
+                  Are you sure you want to delete this announcement?
+                </h4>
+                {deletingAnnouncement && (
+                  <div className="bg-slate-50 rounded-lg p-4 mb-4 text-left">
+                    <div className="flex items-center gap-2 mb-2">
+                      <h5 className="font-medium text-slate-900">{deletingAnnouncement.title}</h5>
+                      {deletingAnnouncement.is_pinned && <Pin className="w-4 h-4 text-blue-600" />}
+                    </div>
+                    <p className="text-sm text-slate-600 mb-2 line-clamp-2">{deletingAnnouncement.content}</p>
+                    <div className="flex items-center justify-between text-xs text-slate-500">
+                      <span className="capitalize">{deletingAnnouncement.category}</span>
+                      <div className="flex gap-2">
+                        <span className={`px-2 py-1 rounded capitalize ${getPriorityColor(deletingAnnouncement.priority)}`}>
+                          {deletingAnnouncement.priority}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="mt-2 text-xs text-slate-500">
+                      <p>Author: {deletingAnnouncement.author}</p>
+                      <p>Target: {deletingAnnouncement.target_audience.replace('_', ' ')}</p>
+                    </div>
+                  </div>
+                )}
+                <p className="text-slate-600">
+                  This will permanently delete the announcement and all associated data. This action cannot be reversed.
+                </p>
+              </div>
+
+              {/* Modal Actions */}
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  className="px-6 py-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg font-medium transition-colors"
+                  onClick={() => {
+                    setIsDeleteModalOpen(false);
+                    setDeletingAnnouncement(null);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className={`px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg font-medium transition-all duration-200 flex items-center gap-2 ${
+                    formSubmitting ? 'opacity-80 cursor-not-allowed' : ''
+                  }`}
+                  onClick={handleConfirmDelete}
+                  disabled={formSubmitting}
+                >
+                  {formSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      Delete Announcement
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
     </div>
   );
 }

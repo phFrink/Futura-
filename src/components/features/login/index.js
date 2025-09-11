@@ -76,7 +76,7 @@ export default function LoginComponent() {
           <div className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center">
             <div className="w-4 h-4 bg-white rounded-full"></div>
           </div>
-          <span className="text-white font-semibold text-lg">Camella Homes</span>
+          <span className="text-white font-semibold text-lg">Futura Homes</span>
         </div>
       </div>
 
@@ -95,7 +95,7 @@ export default function LoginComponent() {
           <div className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center">
             <div className="w-4 h-4 bg-white rounded-full"></div>
           </div>
-          <span className="text-white font-semibold text-lg">Camella Homes</span>
+          <span className="text-white font-semibold text-lg">Futura Homes</span>
         </div>
 
         {/* Main Content */}
@@ -131,7 +131,7 @@ export default function LoginComponent() {
         <div className="w-full max-w-sm sm:max-w-md">
           <div className="mb-6 sm:mb-8">
             <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900 mb-2">
-              Welcome to Camella Homes
+              Welcome to Futura Homes
             </h1>
             <p className="text-gray-600 text-sm sm:text-base">Please enter your correct email address to verify</p>
           </div>

@@ -16,8 +16,11 @@ import {
   Calendar,
   DollarSign,
   Settings,
-  MapPin
+  MapPin,
+  Power
 } from "lucide-react";
+import NotificationBell from "@/components/ui/NotificationBell";
+import { useNewItemCounts } from "@/hooks/useNewItemCounts";
 import {
   Sidebar,
   SidebarContent,
@@ -31,6 +34,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { useState } from "react";
 
 
 const navigationItems = [
@@ -38,63 +42,95 @@ const navigationItems = [
     title: "Dashboard",
     url: '/dashboard',
     icon: LayoutDashboard,
+    countKey: null,
   },
   {
     title: "Properties",
     url: '/properties',
     icon: Home,
+    countKey: 'properties',
   },
   {
     title: "Homeowners", 
     url: '/homeowners',
     icon: Users,
+    countKey: 'homeowners',
   },
   {
     title: "Billing",
     url: '/billing',
     icon: FileText,
+    countKey: null,
   },
   {
     title: "Service Requests",
     url: '/service-requests',
     icon: Wrench,
+    countKey: 'serviceRequests',
   },
   {
     title: "Inquiries",
     url: '/inquiries',
     icon: MessageSquare,
+    countKey: 'inquiries',
   },
   {
     title: "Complaints",
     url: '/complaints',
     icon: AlertTriangle,
+    countKey: 'complaints',
   },
   {
     title: "Announcements",
     url: '/announcements',
     icon: Megaphone,
+    countKey: 'announcements',
   },
   {
     title: "Reservations",
     url: '/reservations',
     icon: Calendar,
+    countKey: 'reservations',
   },
   {
     title: "Transactions",
     url: '/transactions',
     icon: DollarSign,
+    countKey: 'transactions',
   },
   {
     title: "Property Map",
     url: '/property-map',
     icon: MapPin,
+    countKey: null,
   }
 ];
 
 export default function MainLayout({ children, currentPageName }) {
 const pathname = usePathname();
+const { counts, loading } = useNewItemCounts();
+
+ const [showLogout, setShowLogout] = useState(false);
+
+  const handleContainerClick = () => {
+    setShowLogout(!showLogout);
+  };
+
+   const handleLogout = () => {
+    // Add your logout logic here
+    alert('Logging out...');
+    setShowLogout(false);
+    
+    // Check if we're on the client side before accessing localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('user');
+      window.location.href = '/login'; // Redirect to login page
+    }
+  };
+
 
   console.log("Current location:", pathname);
+  console.log("New item counts:", counts);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -128,11 +164,23 @@ const pathname = usePathname();
                               : 'text-slate-700 hover:text-blue-700'
                           }`}
                         >
-                          <Link href={item.url} className="flex items-center gap-3 px-4 py-3">
-                            <item.icon className={`w-5 h-5 ${
-                              pathname === item.url ? 'text-amber-300' : 'text-slate-500 group-hover:text-blue-600'
-                            }`} />
-                            <span className="font-medium">{item.title}</span>
+                          <Link href={item.url} className="flex items-center justify-between px-4 py-3 w-full">
+                            <div className="flex items-center gap-3">
+                              <item.icon className={`w-5 h-5 ${
+                                pathname === item.url ? 'text-amber-300' : 'text-slate-500 group-hover:text-blue-600'
+                              }`} />
+                              <span className="font-medium">{item.title}</span>
+                            </div>
+                            {/* New Items Badge */}
+                            {item.countKey && counts[item.countKey] > 0 && (
+                              <span className={`w-4 h-4 p-2 flex justify-center items-center rounded-full text-xs font-bold ${
+                                pathname === item.url 
+                                  ? 'bg-amber-400 text-amber-900' 
+                                  : 'bg-red-500 text-white group-hover:bg-red-600'
+                              } animate-pulse`}>
+                                {counts[item.countKey] > 99 ? '99+' : counts[item.countKey]}
+                              </span>
+                            )}
                           </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
@@ -159,17 +207,39 @@ const pathname = usePathname();
               </div>
             </SidebarContent>
 
-            <SidebarFooter className="border-t border-slate-200 p-4 bg-slate-50">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-blue-700 rounded-full flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">CM</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-slate-900 text-sm truncate">Futura Management</p>
-                  <p className="text-xs text-slate-500 truncate">Property Administration</p>
-                </div>
-              </div>
-            </SidebarFooter>
+            <SidebarFooter className="border-t border-slate-200 p-4 bg-slate-50 relative">
+        <div 
+          className="flex items-center justify-between cursor-pointer hover:bg-slate-100 rounded-lg p-2 transition-colors"
+          onClick={handleContainerClick}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-blue-700 rounded-full flex items-center justify-center">
+              <span className="text-white font-bold text-sm">FM</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-slate-900 text-sm truncate">Futura Management</p>
+              <p className="text-xs text-slate-500 truncate">Property Administration</p>
+            </div>
+          </div>
+          {/* Desktop Notification Bell */}
+          <div className="hidden md:block">
+            <NotificationBell />
+          </div>
+        </div>
+
+        {/* Logout Button - appears when container is clicked */}
+        {showLogout && (
+          <div className="absolute bottom-full left-0 right-0 bg-white border border-slate-200 rounded-lg shadow-lg mb-1 overflow-hidden z-50">
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-red-50 transition-colors text-red-600 hover:text-red-700"
+            >
+              <Power size={18} />
+              <span className="font-medium text-sm">Logout</span>
+            </button>
+          </div>
+        )}
+      </SidebarFooter>
           </Sidebar>
 
           <main className="flex-1 flex flex-col">
@@ -181,6 +251,8 @@ const pathname = usePathname();
                   <Home className="w-6 h-6 text-blue-800" />
                   <h1 className="text-lg font-bold text-blue-900">Futura Homes</h1>
                 </div>
+                {/* Mobile Notification Bell */}
+                <NotificationBell />
               </div>
             </header>
 

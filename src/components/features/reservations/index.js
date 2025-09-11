@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Calendar, Clock, CheckCircle, XCircle, Users, Home, Building, X } from "lucide-react";
+import { Plus, Search, Calendar, Clock, CheckCircle, XCircle, Users, Home, Building, X, Edit, Trash2, AlertTriangle, Loader2, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { createClient } from '@supabase/supabase-js';
+import { isNewItem, getRelativeTime } from '@/lib/utils';
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -24,7 +25,11 @@ export default function Reservations() {
   const [facilityFilter, setFacilityFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [editingReservation, setEditingReservation] = useState(null);
+  const [deletingReservation, setDeletingReservation] = useState(null);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -122,55 +127,105 @@ export default function Reservations() {
     }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  // Handle opening edit modal
+  const handleEditReservation = (reservation) => {
+    setEditingReservation(reservation);
+    setFormData({
+      homeowner_id: reservation.homeowner_id?.toString() || '',
+      facility_name: reservation.facility_name,
+      reservation_date: reservation.reservation_date,
+      start_time: reservation.start_time,
+      end_time: reservation.end_time,
+      purpose: reservation.purpose,
+      fee: reservation.fee || 0,
+      status: reservation.status
+    });
+    setIsEditModalOpen(true);
+  };
+
+  // Handle opening delete modal
+  const handleDeleteReservation = (reservation) => {
+    setDeletingReservation(reservation);
+    setIsDeleteModalOpen(true);
+  };
+
+  // Handle confirming delete
+  const handleConfirmDelete = async () => {
+    if (!deletingReservation) return;
+
     setSubmitting(true);
-
     try {
-      const { data, error } = await supabase
-        .from('reservation_tbl')
-        .insert([{
-          homeowner_id: formData.homeowner_id,
-          facility_name: formData.facility_name,
-          reservation_date: formData.reservation_date,
-          start_time: formData.start_time,
-          end_time: formData.end_time,
-          purpose: formData.purpose,
-          fee: formData.fee,
-          status: formData.status,
-          created_at: new Date().toISOString()
-        }])
-        .select();
-
-      if (error) throw error;
-
-      // Reset form
-      setFormData({
-        homeowner_id: '',
-        facility_name: '',
-        reservation_date: '',
-        start_time: '',
-        end_time: '',
-        purpose: '',
-        fee: 0,
-        status: 'pending'
-      });
-
-      setIsModalOpen(false);
-      loadData(); // Refresh the data
-      
-      // Show success message (you can integrate with your preferred toast library)
-      alert('Reservation created successfully!');
+      await deleteReservation(deletingReservation.id, deletingReservation.facility_name);
+      alert('Reservation deleted successfully!');
+      setIsDeleteModalOpen(false);
+      setDeletingReservation(null);
     } catch (error) {
-      console.error('Error creating reservation:', error);
-      alert('Error creating reservation. Please try again.');
+      console.error('Error deleting reservation:', error);
+      alert('Error deleting reservation: ' + error.message);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const closeModal = () => {
-    setIsModalOpen(false);
+  // Update reservation function
+  const updateReservation = async (reservationId, updateData) => {
+    try {
+      const { data, error } = await supabase
+        .from('reservation_tbl')
+        .update({ 
+          ...updateData, 
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', reservationId)
+        .select(`
+          *,
+          homeowner:homeowner_id (
+            id,
+            full_name
+          )
+        `)
+        .single();
+
+      if (error) throw error;
+
+      // Update local state
+      setReservations(prev => 
+        prev.map(reservation => 
+          reservation.id === reservationId 
+            ? { ...reservation, ...data }
+            : reservation
+        )
+      );
+
+      return data;
+    } catch (error) {
+      console.error('Error updating reservation:', error);
+      throw error;
+    }
+  };
+
+  // Delete reservation function
+  const deleteReservation = async (reservationId, facilityName) => {
+    try {
+      const { error } = await supabase
+        .from('reservation_tbl')
+        .delete()
+        .eq('id', reservationId);
+
+      if (error) throw error;
+
+      // Remove from local state
+      setReservations(prev => prev.filter(reservation => reservation.id !== reservationId));
+      
+      return true;
+    } catch (error) {
+      console.error('Error deleting reservation:', error);
+      throw error;
+    }
+  };
+
+  // Reset form data
+  const resetForm = () => {
     setFormData({
       homeowner_id: '',
       facility_name: '',
@@ -181,6 +236,68 @@ export default function Reservations() {
       fee: 0,
       status: 'pending'
     });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+
+    try {
+      if (editingReservation) {
+        // Update existing reservation
+        const updateData = {
+          homeowner_id: formData.homeowner_id,
+          facility_name: formData.facility_name,
+          reservation_date: formData.reservation_date,
+          start_time: formData.start_time,
+          end_time: formData.end_time,
+          purpose: formData.purpose,
+          fee: formData.fee,
+          status: formData.status
+        };
+        
+        const data = await updateReservation(editingReservation.id, updateData);
+        alert('Reservation updated successfully!');
+        setIsEditModalOpen(false);
+        setEditingReservation(null);
+      } else {
+        // Create new reservation
+        const { data, error } = await supabase
+          .from('reservation_tbl')
+          .insert([{
+            homeowner_id: formData.homeowner_id,
+            facility_name: formData.facility_name,
+            reservation_date: formData.reservation_date,
+            start_time: formData.start_time,
+            end_time: formData.end_time,
+            purpose: formData.purpose,
+            fee: formData.fee,
+            status: formData.status,
+            created_at: new Date().toISOString()
+          }])
+          .select();
+
+        if (error) throw error;
+
+        setIsModalOpen(false);
+        loadData(); // Refresh the data
+        
+        alert('Reservation created successfully!');
+      }
+
+      // Reset form
+      resetForm();
+    } catch (error) {
+      console.error('Error creating reservation:', error);
+      alert('Error creating reservation. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    resetForm();
   };
 
   return (
@@ -257,7 +374,15 @@ export default function Reservations() {
                               <p className="text-sm text-slate-600">{reservation.purpose}</p>
                             </div>
                           </div>
-                          <Badge className={`${color} border capitalize`}>{reservation.status}</Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge className={`${color} border capitalize`}>{reservation.status}</Badge>
+                            {isNewItem(reservation.created_at) && (
+                              <Badge className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-0 shadow-md animate-pulse">
+                                <Sparkles className="w-3 h-3 mr-1" />
+                                New
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                       </CardHeader>
                       <CardContent className="space-y-3">
@@ -281,6 +406,28 @@ export default function Reservations() {
                             <span className="text-md font-bold">₱{reservation.fee.toLocaleString()}</span>
                           </div>
                         }
+                        
+                        {/* Action Buttons */}
+                        <div className="flex gap-2 pt-3 mt-3 border-t border-slate-200">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 text-blue-600 border-blue-200 hover:bg-blue-50"
+                            onClick={() => handleEditReservation(reservation)}
+                          >
+                            <Edit className="w-4 h-4 mr-1" />
+                            Edit
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 text-red-600 border-red-200 hover:bg-red-50"
+                            onClick={() => handleDeleteReservation(reservation)}
+                          >
+                            <Trash2 className="w-4 h-4 mr-1" />
+                            Delete
+                          </Button>
+                        </div>
                       </CardContent>
                     </Card>
                   </motion.div>
@@ -466,6 +613,331 @@ export default function Reservations() {
           </div>
           <div className="modal-backdrop bg-black/50" onClick={closeModal}></div>
         </div>
+      )}
+
+      {/* Edit Reservation Modal */}
+      {isEditModalOpen && (
+        <div className="modal modal-open">
+          <div className="modal-box max-w-2xl bg-white">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-bold text-gray-800">Edit Reservation</h3>
+              <button 
+                onClick={() => {
+                  setIsEditModalOpen(false);
+                  setEditingReservation(null);
+                  resetForm();
+                }}
+                className="btn btn-sm btn-circle btn-ghost hover:bg-gray-100"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Homeowner Selection */}
+                <div className="form-control w-full">
+                  <label className="label">
+                    <span className="label-text font-semibold text-gray-700">Homeowner *</span>
+                  </label>
+                  <select 
+                    name="homeowner_id"
+                    value={formData.homeowner_id}
+                    onChange={handleInputChange}
+                    className="text-black bg-white select select-bordered w-full focus:select-primary"
+                    required
+                  >
+                    <option value="">Select homeowner</option>
+                    {homeowners.map(homeowner => (
+                      <option key={homeowner.id} value={homeowner.id}>
+                        {homeowner.full_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Facility Selection */}
+                <div className="form-control w-full">
+                  <label className="label">
+                    <span className="label-text font-semibold text-gray-700">Facility *</span>
+                  </label>
+                  <select 
+                    name="facility_name"
+                    value={formData.facility_name}
+                    onChange={handleInputChange}
+                    className="text-black bg-white select select-bordered w-full focus:select-primary"
+                    required
+                  >
+                    <option value="">Select facility</option>
+                    <option value="clubhouse">Clubhouse</option>
+                    <option value="swimming_pool">Swimming Pool</option>
+                    <option value="basketball_court">Basketball Court</option>
+                  </select>
+                </div>
+
+                {/* Date */}
+                <div className="form-control w-full">
+                  <label className="label">
+                    <span className="label-text font-semibold text-gray-700">Reservation Date *</span>
+                  </label>
+                  <input 
+                    type="date"
+                    name="reservation_date"
+                    value={formData.reservation_date}
+                    onChange={handleInputChange}
+                    className="text-black bg-white input input-bordered w-full focus:input-primary"
+                    required
+                  />
+                </div>
+
+                {/* Status */}
+                <div className="form-control w-full">
+                  <label className="label">
+                    <span className="label-text font-semibold text-gray-700">Status</span>
+                  </label>
+                  <select 
+                    name="status"
+                    value={formData.status}
+                    onChange={handleInputChange}
+                    className="text-black bg-white select select-bordered w-full focus:select-primary"
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="confirmed">Confirmed</option>
+                    <option value="cancelled">Cancelled</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                </div>
+
+                {/* Start Time */}
+                <div className="form-control w-full">
+                  <label className="label">
+                    <span className="label-text font-semibold text-gray-700">Start Time *</span>
+                  </label>
+                  <input 
+                    type="time"
+                    name="start_time"
+                    value={formData.start_time}
+                    onChange={handleInputChange}
+                    className="text-black bg-white input input-bordered w-full focus:input-primary"
+                    required
+                  />
+                </div>
+
+                {/* End Time */}
+                <div className="form-control w-full">
+                  <label className="label">
+                    <span className="label-text font-semibold text-gray-700">End Time *</span>
+                  </label>
+                  <input 
+                    type="time"
+                    name="end_time"
+                    value={formData.end_time}
+                    onChange={handleInputChange}
+                    className="text-black bg-white input input-bordered w-full focus:input-primary"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Purpose */}
+              <div className="form-control w-full">
+                <label className="label">
+                  <span className="label-text font-semibold text-gray-700">Purpose *</span>
+                </label>
+                <textarea 
+                  name="purpose"
+                  value={formData.purpose}
+                  onChange={handleInputChange}
+                  placeholder="Describe the purpose of this reservation..."
+                  className="text-black bg-white textarea textarea-bordered h-20 w-full focus:textarea-primary resize-none"
+                  required
+                />
+              </div>
+
+              {/* Fee */}
+              <div className="form-control w-full">
+                <label className="label">
+                  <span className="label-text font-semibold text-gray-700">Reservation Fee (₱)</span>
+                </label>
+                <input 
+                  type="number"
+                  name="fee"
+                  value={formData.fee}
+                  onChange={handleInputChange}
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  className="text-black bg-white input input-bordered w-full focus:input-primary"
+                />
+              </div>
+
+              {/* Modal Actions */}
+              <div className="modal-action">
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setIsEditModalOpen(false);
+                    setEditingReservation(null);
+                    resetForm();
+                  }}
+                  className="btn btn-ghost"
+                  disabled={submitting}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="btn btn-primary bg-gradient-to-r from-blue-600 to-blue-700 border-0 text-white"
+                  disabled={submitting}
+                >
+                  {submitting && <span className="loading loading-spinner loading-sm"></span>}
+                  {submitting ? 'Updating...' : (
+                    <>
+                      <Edit className="w-4 h-4 mr-2" />
+                      Update Reservation
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+          <div className="modal-backdrop bg-black/50" onClick={() => {
+            setIsEditModalOpen(false);
+            setEditingReservation(null);
+            resetForm();
+          }}></div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={(e) => e.target === e.currentTarget && setIsDeleteModalOpen(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md"
+          >
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-4 text-white rounded-t-2xl">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                    <AlertTriangle className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold">Delete Reservation</h3>
+                    <p className="text-red-100 text-sm mt-1">This action cannot be undone</p>
+                  </div>
+                </div>
+                <button 
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                  onClick={() => {
+                    setIsDeleteModalOpen(false);
+                    setDeletingReservation(null);
+                  }}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6">
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Trash2 className="w-8 h-8 text-red-500" />
+                </div>
+                <h4 className="text-lg font-semibold text-slate-900 mb-2">
+                  Are you sure you want to delete this reservation?
+                </h4>
+                {deletingReservation && (
+                  <div className="bg-slate-50 rounded-lg p-4 mb-4 text-left">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="p-2 bg-slate-100 rounded-lg">
+                        {getFacilityIcon(deletingReservation.facility_name)}
+                      </div>
+                      <div>
+                        <h5 className="font-medium text-slate-900 capitalize">
+                          {deletingReservation.facility_name.replace('_', ' ')}
+                        </h5>
+                        <p className="text-sm text-slate-600">{deletingReservation.purpose}</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs text-slate-500">
+                      <div className="flex items-center gap-1">
+                        <Users className="w-3 h-3" />
+                        <span>{getHomeownerName(deletingReservation.homeowner_id)}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        <span>{format(new Date(deletingReservation.reservation_date), 'MMM d, yyyy')}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        <span>{deletingReservation.start_time} - {deletingReservation.end_time}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className={`px-2 py-1 rounded text-xs ${getStatusProps(deletingReservation.status).color}`}>
+                          {deletingReservation.status}
+                        </span>
+                      </div>
+                    </div>
+                    {deletingReservation.fee > 0 && (
+                      <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-200">
+                        <span className="text-xs font-medium">Fee:</span>
+                        <span className="text-sm font-bold">₱{deletingReservation.fee.toLocaleString()}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+                <p className="text-slate-600">
+                  This will permanently delete the reservation and all associated data. This action cannot be reversed.
+                </p>
+              </div>
+
+              {/* Modal Actions */}
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  className="px-6 py-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg font-medium transition-colors"
+                  onClick={() => {
+                    setIsDeleteModalOpen(false);
+                    setDeletingReservation(null);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className={`px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg font-medium transition-all duration-200 flex items-center gap-2 ${
+                    submitting ? 'opacity-80 cursor-not-allowed' : ''
+                  }`}
+                  onClick={handleConfirmDelete}
+                  disabled={submitting}
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      Delete Reservation
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
       )}
     </div>
   );

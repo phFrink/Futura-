@@ -6,6 +6,7 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
+    "futura": "concurrently \"npm run build\" \"npm start\"",
     "lint": "eslint"
   },
   "dependencies": {
@@ -31,6 +32,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
+    "concurrently": "^9.2.1",
     "daisyui": "^5.0.50",
     "eslint": "^9",
     "eslint-config-next": "15.5.2",

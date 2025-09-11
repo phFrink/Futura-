@@ -6,10 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Plus, Search, Mail, Phone, Calendar, Home, User, X } from "lucide-react";
+import { Plus, Search, Mail, Phone, Calendar, Home, User, X, Edit, Trash2, AlertTriangle, Loader2, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { createClient } from '@supabase/supabase-js';
+import { isNewItem, getRelativeTime } from '@/lib/utils';
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -24,7 +25,11 @@ export default function Homeowners() {
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingHomeowner, setEditingHomeowner] = useState(null);
+  const [deletingHomeowner, setDeletingHomeowner] = useState(null);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -188,13 +193,113 @@ export default function Homeowners() {
     });
   };
 
+  // Handle opening edit modal
+  const handleEditHomeowner = (homeowner) => {
+    setEditingHomeowner(homeowner);
+    setFormData({
+      full_name: homeowner.full_name,
+      email: homeowner.email,
+      phone: homeowner.phone || '',
+      unit_number: homeowner.unit_number,
+      property_id: homeowner.property_id?.toString() || '',
+      monthly_dues: homeowner.monthly_dues?.toString() || '',
+      move_in_date: homeowner.move_in_date ? homeowner.move_in_date.split('T')[0] : '',
+      emergency_contact_name: homeowner.emergency_contact_name || '',
+      emergency_contact_phone: homeowner.emergency_contact_phone || '',
+      status: homeowner.status
+    });
+    setIsEditModalOpen(true);
+  };
+
+  // Handle opening delete modal
+  const handleDeleteHomeowner = (homeowner) => {
+    setDeletingHomeowner(homeowner);
+    setIsDeleteModalOpen(true);
+  };
+
+  // Handle confirming delete
+  const handleConfirmDelete = async () => {
+    if (!deletingHomeowner) return;
+
+    setIsSubmitting(true);
+    try {
+      await deleteHomeowner(deletingHomeowner.id, deletingHomeowner.full_name);
+      alert('Homeowner deleted successfully!');
+      setIsDeleteModalOpen(false);
+      setDeletingHomeowner(null);
+    } catch (error) {
+      console.error('Error deleting homeowner:', error);
+      alert('Error deleting homeowner: ' + error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Update homeowner function
+  const updateHomeowner = async (homeownerId, updateData) => {
+    try {
+      const { data, error } = await supabase
+        .from('homeowner_tbl')
+        .update({ 
+          ...updateData, 
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', homeownerId)
+        .select(`
+          *,
+          properties (
+            id,
+            name,
+            address
+          )
+        `)
+        .single();
+
+      if (error) throw error;
+
+      // Update local state
+      setHomeowners(prev => 
+        prev.map(homeowner => 
+          homeowner.id === homeownerId 
+            ? { ...homeowner, ...data }
+            : homeowner
+        )
+      );
+
+      return data;
+    } catch (error) {
+      console.error('Error updating homeowner:', error);
+      throw error;
+    }
+  };
+
+  // Delete homeowner function
+  const deleteHomeowner = async (homeownerId, homeownerName) => {
+    try {
+      const { error } = await supabase
+        .from('homeowner_tbl')
+        .delete()
+        .eq('id', homeownerId);
+
+      if (error) throw error;
+
+      // Remove from local state
+      setHomeowners(prev => prev.filter(homeowner => homeowner.id !== homeownerId));
+      
+      return true;
+    } catch (error) {
+      console.error('Error deleting homeowner:', error);
+      throw error;
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
-      // Prepare data for insertion
-      const insertData = {
+      // Prepare data for insertion or update
+      const homeownerData = {
         full_name: formData.full_name.trim(),
         email: formData.email.trim().toLowerCase(),
         phone: formData.phone.trim() || null,
@@ -204,47 +309,58 @@ export default function Homeowners() {
         move_in_date: formData.move_in_date || null,
         emergency_contact_name: formData.emergency_contact_name.trim() || null,
         emergency_contact_phone: formData.emergency_contact_phone.trim() || null,
-        status: formData.status
+        status: formData.status,
+        updated_at: new Date().toISOString()
       };
 
-      // Insert into Supabase homeowner_tbl table with actual field mapping
-      const { data, error } = await supabase
-        .from('homeowner_tbl')
-        .insert([insertData])
-        .select(`
-          id,
-          full_name,
-          email,
-          phone,
-          unit_number,
-          property_id,
-          monthly_dues,
-          move_in_date,
-          emergency_contact_name,
-          emergency_contact_phone,
-          status,
-          created_at,
-          updated_at,
-          properties (
+      if (editingHomeowner) {
+        // Update existing homeowner
+        const data = await updateHomeowner(editingHomeowner.id, homeownerData);
+        alert('Homeowner updated successfully!');
+        setIsEditModalOpen(false);
+        setEditingHomeowner(null);
+      } else {
+        // Create new homeowner
+        homeownerData.created_at = new Date().toISOString();
+        
+        const { data, error } = await supabase
+          .from('homeowner_tbl')
+          .insert([homeownerData])
+          .select(`
             id,
-            name,
-            address
-          )
-        `);
+            full_name,
+            email,
+            phone,
+            unit_number,
+            property_id,
+            monthly_dues,
+            move_in_date,
+            emergency_contact_name,
+            emergency_contact_phone,
+            status,
+            created_at,
+            updated_at,
+            properties (
+              id,
+              name,
+              address
+            )
+          `);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      // Success - close modal and refresh data
-      setIsModalOpen(false);
-      resetForm();
-      
-      // Add the new homeowner to the current list
-      if (data && data[0]) {
-        setHomeowners(prev => [...prev, data[0]]);
+        // Success - close modal and refresh data
+        setIsModalOpen(false);
+        
+        // Add the new homeowner to the current list
+        if (data && data[0]) {
+          setHomeowners(prev => [...prev, data[0]]);
+        }
+        
+        alert('Homeowner added successfully!');
       }
       
-      // Show success message (replace with your preferred notification system)
-      alert('Homeowner added successfully!');
+      resetForm();
       
     } catch (error) {
       console.error('Error adding homeowner:', error);
@@ -407,9 +523,17 @@ export default function Homeowners() {
                           </Avatar>
                           <div>
                             <CardTitle className="text-xl text-slate-900">{homeowner.full_name}</CardTitle>
-                            <Badge className={`${getStatusColor(homeowner.status)} border font-medium mt-1`}>
-                              {homeowner.status}
-                            </Badge>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge className={`${getStatusColor(homeowner.status)} border font-medium`}>
+                                {homeowner.status}
+                              </Badge>
+                              {isNewItem(homeowner.created_at) && (
+                                <Badge className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-0 shadow-md animate-pulse">
+                                  <Sparkles className="w-3 h-3 mr-1" />
+                                  New
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -468,6 +592,28 @@ export default function Homeowners() {
                           )}
                         </div>
                       )}
+
+                      {/* Action Buttons */}
+                      <div className="flex gap-2 pt-3 border-t border-slate-200">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1 text-blue-600 border-blue-200 hover:bg-blue-50"
+                          onClick={() => handleEditHomeowner(homeowner)}
+                        >
+                          <Edit className="w-4 h-4 mr-1" />
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1 text-red-600 border-red-200 hover:bg-red-50"
+                          onClick={() => handleDeleteHomeowner(homeowner)}
+                        >
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          Delete
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -711,6 +857,351 @@ export default function Homeowners() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Edit Homeowner Modal */}
+      {isEditModalOpen && (
+        <div className="modal modal-open">
+          <div className="modal-box max-w-2xl bg-white">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-slate-900">Edit Homeowner</h2>
+              <button 
+                onClick={() => {
+                  setIsEditModalOpen(false);
+                  setEditingHomeowner(null);
+                  resetForm();
+                }}
+                className="btn btn-sm btn-circle btn-ghost hover:bg-slate-100"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Personal Information */}
+              <div className="card bg-slate-50 p-6">
+                <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                  <User className="w-5 h-5 text-blue-600" />
+                  Personal Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text font-medium">Full Name *</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="full_name"
+                      value={formData.full_name}
+                      onChange={handleInputChange}
+                      className="input input-bordered bg-white focus:input-primary"
+                      placeholder="Enter full name"
+                      required
+                    />
+                  </div>
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text font-medium">Status</span>
+                    </label>
+                    <select
+                      name="status"
+                      value={formData.status}
+                      onChange={handleInputChange}
+                      className="select select-bordered bg-white focus:select-primary"
+                    >
+                      <option value="active">Active</option>
+                      <option value="pending">Pending</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Contact Information */}
+              <div className="card bg-slate-50 p-6">
+                <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                  <Mail className="w-5 h-5 text-blue-600" />
+                  Contact Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text font-medium">Email *</span>
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      className="input input-bordered bg-white focus:input-primary"
+                      placeholder="Enter email address"
+                      required
+                    />
+                  </div>
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text font-medium">Phone</span>
+                    </label>
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      className="input input-bordered bg-white focus:input-primary"
+                      placeholder="Enter phone number"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Property Information */}
+              <div className="card bg-slate-50 p-6">
+                <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                  <Home className="w-5 h-5 text-blue-600" />
+                  Property Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text font-medium">Property *</span>
+                    </label>
+                    <select
+                      name="property_id"
+                      value={formData.property_id}
+                      onChange={handleInputChange}
+                      className="select select-bordered bg-white focus:select-primary"
+                      required
+                    >
+                      <option value="">Select a property</option>
+                      {properties.map(property => (
+                        <option key={property.id} value={property.id}>
+                          {property.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text font-medium">Unit Number *</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="unit_number"
+                      value={formData.unit_number}
+                      onChange={handleInputChange}
+                      className="input input-bordered bg-white focus:input-primary"
+                      placeholder="Enter unit number"
+                      required
+                    />
+                  </div>
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text font-medium">Monthly Dues (₱)</span>
+                    </label>
+                    <input
+                      type="number"
+                      name="monthly_dues"
+                      value={formData.monthly_dues}
+                      onChange={handleInputChange}
+                      className="input input-bordered bg-white focus:input-primary"
+                      placeholder="Enter monthly dues"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text font-medium">Move-in Date</span>
+                    </label>
+                    <input
+                      type="date"
+                      name="move_in_date"
+                      value={formData.move_in_date}
+                      onChange={handleInputChange}
+                      className="input input-bordered bg-white focus:input-primary"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Emergency Contact */}
+              <div className="card bg-slate-50 p-6">
+                <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                  <Phone className="w-5 h-5 text-blue-600" />
+                  Emergency Contact
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text font-medium">Contact Name</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="emergency_contact_name"
+                      value={formData.emergency_contact_name}
+                      onChange={handleInputChange}
+                      className="input input-bordered bg-white focus:input-primary"
+                      placeholder="Enter emergency contact name"
+                    />
+                  </div>
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text font-medium">Contact Phone</span>
+                    </label>
+                    <input
+                      type="tel"
+                      name="emergency_contact_phone"
+                      value={formData.emergency_contact_phone}
+                      onChange={handleInputChange}
+                      className="input input-bordered bg-white focus:input-primary"
+                      placeholder="Enter emergency contact phone"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Form Actions */}
+              <div className="modal-action pt-4">
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setIsEditModalOpen(false);
+                    setEditingHomeowner(null);
+                    resetForm();
+                  }}
+                  className="btn btn-outline"
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="btn btn-primary bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 border-none"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <span className="loading loading-spinner loading-sm"></span>
+                      Updating...
+                    </>
+                  ) : (
+                    <>
+                      <Edit className="w-4 h-4 mr-2" />
+                      Update Homeowner
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={(e) => e.target === e.currentTarget && setIsDeleteModalOpen(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md"
+          >
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-4 text-white">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                    <AlertTriangle className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold">Delete Homeowner</h3>
+                    <p className="text-red-100 text-sm mt-1">This action cannot be undone</p>
+                  </div>
+                </div>
+                <button 
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                  onClick={() => {
+                    setIsDeleteModalOpen(false);
+                    setDeletingHomeowner(null);
+                  }}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6">
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Trash2 className="w-8 h-8 text-red-500" />
+                </div>
+                <h4 className="text-lg font-semibold text-slate-900 mb-2">
+                  Are you sure you want to delete this homeowner?
+                </h4>
+                {deletingHomeowner && (
+                  <div className="bg-slate-50 rounded-lg p-4 mb-4">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Avatar className="w-10 h-10 bg-gradient-to-br from-blue-100 to-blue-200">
+                        <AvatarFallback className="text-blue-700 font-semibold">
+                          {getInitials(deletingHomeowner.full_name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="text-left">
+                        <p className="font-medium text-slate-900">{deletingHomeowner.full_name}</p>
+                        <p className="text-sm text-slate-600">{deletingHomeowner.email}</p>
+                      </div>
+                    </div>
+                    <p className="text-sm text-slate-600">Unit {deletingHomeowner.unit_number}</p>
+                  </div>
+                )}
+                <p className="text-slate-600">
+                  This will permanently delete the homeowner record and all associated data. This action cannot be reversed.
+                </p>
+              </div>
+
+              {/* Modal Actions */}
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  className="px-6 py-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg font-medium transition-colors"
+                  onClick={() => {
+                    setIsDeleteModalOpen(false);
+                    setDeletingHomeowner(null);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className={`px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg font-medium transition-all duration-200 flex items-center gap-2 ${
+                    isSubmitting ? 'opacity-80 cursor-not-allowed' : ''
+                  }`}
+                  onClick={handleConfirmDelete}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      Delete Homeowner
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
       )}
     </div>
   );
