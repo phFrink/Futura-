@@ -24,6 +24,7 @@ const eslintConfig = [
     files: ["./src/components/features/login/index.js"],
     rules: {
       "react/no-unescaped-entities": "off", // ignore just here
+      "react-hooks/exhaustive-deps"
     },
   },
   {
