@@ -117,14 +117,17 @@ const navigationItems = [
 
 export default function MainLayout({ children, currentPageName }) {
 const pathname = usePathname();
+// custom hook
 const { counts, loading } = useNewItemCounts();
 
  const [showLogout, setShowLogout] = useState(false);
 
+//  event handlers
   const handleContainerClick = () => {
     setShowLogout(!showLogout);
   };
 
+  //  event handlers
    const handleLogout = () => {
     // Add your logout logic here
     alert('Logging out...');
