@@ -356,7 +356,7 @@ export default function Complaints() {
           </div>
           <Button 
             onClick={() => setIsModalOpen(true)}
-            className="bg-gradient-to-r from-slate-800 to-slate-900 text-white shadow-lg"
+            className="bg-gradient-to-r from-red-400 to-red-500 text-white shadow-lg"
           >
             <Plus className="w-5 h-5 mr-2" /> File Complaint
           </Button>
@@ -632,7 +632,7 @@ export default function Complaints() {
               <button
                 type="submit"
                 disabled={formSubmitting}
-                className="btn btn-primary bg-gradient-to-r from-slate-800 to-slate-900 text-white border-none"
+                className="btn btn-primary bg-gradient-to-r from-red-400 to-red-500 text-white border-none"
               >
                 {formSubmitting ? (
                   <>
@@ -814,7 +814,7 @@ export default function Complaints() {
               <button
                 type="submit"
                 disabled={formSubmitting}
-                className="btn btn-primary bg-gradient-to-r from-slate-800 to-slate-900 text-white border-none"
+                className="btn btn-primary bg-gradient-to-r from-red-400 to-red-500 text-white border-none"
               >
                 {formSubmitting ? (
                   <>

@@ -397,7 +397,7 @@ export default function ServiceRequests() {
           </div>
           <Button
             onClick={openModal}
-            className="bg-gradient-to-r from-slate-800 to-slate-900 text-white shadow-lg hover:from-slate-900 hover:to-black transition-all duration-300"
+            className="bg-gradient-to-r from-red-400 to-red-500 text-white shadow-lg hover:from-slate-900 hover:to-black transition-all duration-300"
           >
             <Plus className="w-5 h-5 mr-2" /> New Request
           </Button>
@@ -1069,7 +1069,7 @@ export default function ServiceRequests() {
                     !formData.homeowner_id ||
                     !formData.property_id
                   }
-                  className="bg-gradient-to-r from-slate-800 to-slate-900 text-white px-8 hover:from-slate-900 hover:to-black"
+                  className="bg-gradient-to-r from-red-400 to-red-500 text-white px-8 hover:from-red-600 hover:to-red-700"
                 >
                   {submitting ? (
                     <>

@@ -514,7 +514,7 @@ export default function Properties() {
           </div>
           <Button 
             onClick={() => setShowModal(true)}
-            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+            className="bg-gradient-to-r from-red-400 to-red-500 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-200"
           >
             <Plus className="w-5 h-5 mr-2" />
             Add Property
@@ -758,7 +758,7 @@ export default function Properties() {
               className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden"
             >
               {/* Modal Header */}
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 text-white">
+              <div className="bg-gradient-to-r from-red-400 to-red-500 px-6 py-4 text-white">
                 <div className="flex justify-between items-center">
                   <div>
                     <h3 className="text-xl font-bold">Add New Property</h3>
@@ -960,7 +960,7 @@ export default function Properties() {
                     </button>
                     <button
                       type="submit"
-                      className={`px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg font-medium transition-all duration-200 flex items-center gap-2 ${
+                      className={`px-6 py-3 bg-gradient-to-r from-red-400 to-red-500 hover:from-red-700 hover:to-blue-800 text-white rounded-lg font-medium transition-all duration-200 flex items-center gap-2 ${
                         formSubmitting ? 'opacity-80 cursor-not-allowed' : ''
                       }`}
                       disabled={formSubmitting}
@@ -1000,7 +1000,7 @@ export default function Properties() {
               className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden"
             >
               {/* Modal Header */}
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 text-white">
+              <div className="bg-gradient-to-r from-red-400 to-red-500 px-6 py-4 text-white">
                 <div className="flex justify-between items-center">
                   <div>
                     <h3 className="text-xl font-bold">Edit Property</h3>
@@ -1210,7 +1210,7 @@ export default function Properties() {
                     </button>
                     <button
                       type="submit"
-                      className={`px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg font-medium transition-all duration-200 flex items-center gap-2 ${
+                      className={`px-6 py-3 bg-gradient-to-r from-red-400 to-red-500 hover:from-from-red-400 hover:to-blue-800 text-white rounded-lg font-medium transition-all duration-200 flex items-center gap-2 ${
                         formSubmitting ? 'opacity-80 cursor-not-allowed' : ''
                       }`}
                       disabled={formSubmitting}

@@ -393,7 +393,7 @@ export default function Inquiries() {
 
             {/* New Inquiry Button */}
             <button
-              className="btn btn-primary btn-lg gap-2 shadow-lg hover:shadow-xl transition-all duration-300 bg-blue-600 hover:bg-blue-700 border-blue-600 hover:border-blue-700"
+              className="btn btn-primary  gap-2 shadow-lg hover:shadow-xl transition-all duration-300 bg-red-400 hover:bg-red-500 border-none text-white"
               onClick={openModal}
             >
               <Plus className="w-5 h-5" />
@@ -901,7 +901,7 @@ export default function Inquiries() {
               <div className="modal-action pt-4">
                 <button
                   type="button"
-                  className="btn btn-outline btn-lg gap-2 hover:bg-slate-100 transition-colors"
+                  className="btn btn-outline gap-2 hover:bg-slate-100 transition-colors hover:text-slate-900"
                   onClick={() => {
                     setIsEditModalOpen(false);
                     setEditingInquiry(null);
@@ -913,7 +913,7 @@ export default function Inquiries() {
                 </button>
                 <button
                   type="button"
-                  className="btn btn-primary btn-lg gap-2 shadow-lg hover:shadow-xl transition-all bg-blue-600 hover:bg-blue-700 border-blue-600 hover:border-blue-700"
+                  className="btn btn-primary gap-2 shadow-lg hover:shadow-xl transition-all bg-red-600 hover:bg-red-700 border-none text-white"
                   disabled={
                     submitting ||
                     !formData.name ||

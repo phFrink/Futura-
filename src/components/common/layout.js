@@ -4,12 +4,12 @@
 import { usePathname } from "next/navigation";
 
 import Link from "next/link";
-import { 
-  LayoutDashboard, 
-  Home, 
-  Users, 
-  FileText, 
-  Wrench, 
+import {
+  LayoutDashboard,
+  Home,
+  Users,
+  FileText,
+  Wrench,
   MessageSquare,
   AlertTriangle,
   Megaphone,
@@ -17,9 +17,12 @@ import {
   DollarSign,
   Settings,
   MapPin,
-  Power
+  Power,
+  FileBarChart
 } from "lucide-react";
-import NotificationBell from "@/components/ui/NotificationBell";
+// import NotificationBell from "@/components/ui/NotificationBell";
+// import MockNotificationBell from "@/components/ui/MockNotificationBell";
+import RealNotificationBell from "@/components/ui/RealNotificationBell";
 import { useNewItemCounts } from "@/hooks/useNewItemCounts";
 import {
   Sidebar,
@@ -103,6 +106,12 @@ const navigationItems = [
     url: '/property-map',
     icon: MapPin,
     countKey: null,
+  },
+  {
+    title: "Reports",
+    url: '/reports',
+    icon: FileBarChart,
+    countKey: null,
   }
 ];
 
@@ -138,9 +147,9 @@ const { counts, loading } = useNewItemCounts();
       <SidebarProvider>
         <div className="flex min-h-screen w-full">
           <Sidebar className="border-r border-slate-200 bg-white/90 backdrop-blur-sm shadow-xl">
-            <SidebarHeader className="border-b border-slate-200 p-6 bg-gradient-to-r from-blue-800 to-blue-900">
+            <SidebarHeader className="border-b border-slate-200 p-6 bg-gradient-to-r from-red-400 to-red-500">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-amber-400 to-amber-600 rounded-xl flex items-center justify-center shadow-lg">
+                <div className="w-12 h-12 bg-gradient-to-br from-red-400 to-red-500 rounded-xl flex items-center justify-center shadow-lg">
                   <Home className="w-7 h-7 text-white" />
                 </div>
                 <div>
@@ -160,7 +169,7 @@ const { counts, loading } = useNewItemCounts();
                           asChild 
                           className={`group hover:bg-blue-50 transition-all duration-200 rounded-xl mb-1 ${
                             pathname === item.url 
-                              ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md hover:from-blue-500 hover:to-blue-600' 
+                              ? 'bg-gradient-to-r from-red-400 to-red-500 text-white shadow-md hover:from-red-400 to-red-500 hover:to-blue-600' 
                               : 'text-slate-700 hover:text-blue-700'
                           }`}
                         >
@@ -213,17 +222,13 @@ const { counts, loading } = useNewItemCounts();
           onClick={handleContainerClick}
         >
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-blue-700 rounded-full flex items-center justify-center">
+            <div className="w-10 h-10 bg-gradient-to-r from-red-400 to-red-500 rounded-full flex items-center justify-center">
               <span className="text-white font-bold text-sm">FM</span>
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-slate-900 text-sm truncate">Futura Management</p>
               <p className="text-xs text-slate-500 truncate">Property Administration</p>
             </div>
-          </div>
-          {/* Desktop Notification Bell */}
-          <div className="hidden md:block">
-            <NotificationBell />
           </div>
         </div>
 
@@ -243,21 +248,46 @@ const { counts, loading } = useNewItemCounts();
           </Sidebar>
 
           <main className="flex-1 flex flex-col">
-            {/* Mobile header */}
-            <header className="bg-white/90 backdrop-blur-sm border-b border-slate-200 px-6 py-4 md:hidden shadow-sm">
+            {/* Main Header - Visible on all screen sizes */}
+            <header className="relative bg-white/95 backdrop-blur-sm border-b border-slate-200 px-4 sm:px-6 py-3 sm:py-4 shadow-sm z-10">
               <div className="flex items-center justify-between">
-                <SidebarTrigger className="hover:bg-slate-100 p-2 rounded-lg transition-colors duration-200" />
-                <div className="flex items-center gap-2">
-                  <Home className="w-6 h-6 text-blue-800" />
-                  <h1 className="text-lg font-bold text-blue-900">Futura Homes</h1>
+                {/* Left side - Mobile menu trigger and title */}
+                <div className="flex items-center gap-3">
+                  <SidebarTrigger className="md:hidden hover:bg-slate-100 p-2 rounded-lg transition-colors duration-200" />
+                  <div className="flex items-center gap-2 md:hidden">
+                    <Home className="w-5 h-5 text-red-600" />
+                    <h1 className="text-base font-bold text-slate-900">Futura Homes</h1>
+                  </div>
+                  {/* Desktop page title */}
+                  <div className="hidden md:block">
+                    <h1 className="text-xl font-semibold text-slate-900">
+                      {currentPageName || 'Dashboard'}
+                    </h1>
+                    <p className="text-sm text-slate-600">Futura Homes Koronadal Property Management</p>
+                  </div>
                 </div>
-                {/* Mobile Notification Bell */}
-                <NotificationBell />
+
+                {/* Right side - Notification Bell and User Info */}
+                <div className="flex items-center gap-3">
+                  {/* Notification Bell */}
+                  <RealNotificationBell />
+
+                  {/* User Avatar - Desktop only */}
+                  <div className="hidden md:flex items-center gap-3 pl-3 border-l border-slate-200">
+                    <div className="text-right">
+                      <p className="text-sm font-medium text-slate-900">Futura Management</p>
+                      <p className="text-xs text-slate-500">Administrator</p>
+                    </div>
+                    <div className="w-8 h-8 bg-gradient-to-r from-red-400 to-red-500 rounded-full flex items-center justify-center">
+                      <span className="text-white font-bold text-sm">FM</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </header>
 
             {/* Main content */}
-            <div className="flex-1 overflow-auto">
+            <div className="flex-1 overflow-auto bg-gradient-to-br from-blue-50/30 to-indigo-100/30">
               {children}
             </div>
           </main>

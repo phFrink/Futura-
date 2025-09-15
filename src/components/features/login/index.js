@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useRouter } from 'next/navigation'
+import { Home } from 'lucide-react'
 
 export default function LoginComponent() {
   const [email, setEmail] = useState('')
@@ -70,18 +71,26 @@ export default function LoginComponent() {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Mobile Header */}
-      <div className="lg:hidden bg-gradient-to-br from-gray-900 to-gray-800 p-4 relative">
+      <div className="lg:hidden bg-gradient-to-br from-red-400 to-red-500 p-4 relative">
         {/* Logo */}
         <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center">
-            <div className="w-4 h-4 bg-white rounded-full"></div>
+          <div className="w-8 h-8 flex items-center justify-center">
+            <div className="bg-gradient-to-br from-red-400 to-red-500 px-1 py-1 rounded-md">
+              <Home className="w-7 h-7 text-white" />
+            </div>
           </div>
           <span className="text-white font-semibold text-lg">Futura Homes</span>
         </div>
       </div>
 
-      {/* Left Side - Hero Section */}
-      <div className="hidden lg:flex lg:flex-1 bg-gradient-to-br from-gray-900 to-gray-800 relative overflow-hidden">
+
+      <div className="relative hidden lg:flex lg:flex-1 overflow-hidden">
+        {/* Background Image */}
+        <div className="absolute inset-0 bg-[url('https://res.cloudinary.com/dzqr64ynb/image/upload/v1757853197/367682534_728117842057400_2673269750727514222_n_rdhagt.jpg')] bg-cover bg-center bg-no-repeat" />
+
+        {/* Gradient Overlay */}
+        <div className="absolute inset-0 bg-[rgba(0,0,0,0.)]" />
+
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-10 left-10 w-20 h-20 border border-white/20 rounded-full"></div>
@@ -91,41 +100,23 @@ export default function LoginComponent() {
         </div>
 
         {/* Logo */}
-        <div className="absolute top-8 left-8 flex items-center space-x-2">
-          <div className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center">
-            <div className="w-4 h-4 bg-white rounded-full"></div>
+        <div className="absolute top-8 left-8 flex items-center space-x-2 z-10">
+          <div className="w-8 h-8 flex items-center justify-center">
+            <div className="bg-gradient-to-br from-red-400 to-red-500 px-1 py-1 rounded-md">
+              <Home className="w-7 h-7 text-white" />
+            </div>
           </div>
           <span className="text-white font-semibold text-lg">Futura Homes</span>
         </div>
 
-        {/* Main Content */}
-        <div className="flex flex-col justify-center h-full px-6 xl:px-12 max-w-lg xl:max-w-xl 2xl:max-w-2xl mx-auto">
-          <div className="mb-8">
-            <div className="w-64 h-64 xl:w-80 xl:h-80 relative mb-8 mx-auto lg:mx-0">
-              <div className="w-full h-full bg-gradient-to-br from-amber-200 to-orange-300 rounded-2xl relative overflow-hidden">
-                {/* Placeholder for woman image */}
-                <div className="absolute inset-0 bg-gradient-to-t from-gray-800/60 to-transparent"></div>
-                <div className="absolute bottom-6 left-6 right-6">
-                  <div className="w-16 h-16 bg-amber-400 rounded-full mb-4 flex items-center justify-center">
-                    <span className="text-2xl">👩‍💼</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            {/* <blockquote className="text-white text-center lg:text-left">
-              <p className="text-xl xl:text-2xl font-light leading-relaxed mb-6">
-                Simply all the tools that my team and I need.
-              </p>
-              <footer className="text-white/80">
-                <div className="font-medium">Alisha Fox</div>
-                <div className="text-sm">Director of Digital Marketing Technology</div>
-              </footer>
-            </blockquote> */}
-          </div>
-        </div>
+        {/* Optional Main Content */}
+        {/* <div className="flex flex-col justify-center h-full px-6 xl:px-12 max-w-lg xl:max-w-xl 2xl:max-w-2xl mx-auto z-10">
+          ...your main content here...
+        </div> */}
       </div>
 
+
+    
       {/* Right Side - Login Form */}
       <div className="flex-1 bg-white flex items-center justify-center p-4 sm:p-6 lg:p-8 min-h-[calc(100vh-80px)] lg:min-h-screen">
         <div className="w-full max-w-sm sm:max-w-md">
@@ -203,7 +194,7 @@ export default function LoginComponent() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-purple-600 text-white py-2.5 sm:py-3 px-4 rounded-lg font-medium hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
+              className="w-full bg-gradient-to-br from-red-400 to-red-500 text-white py-2.5 sm:py-3 px-4 rounded-lg font-medium hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
             >
               {loading ? 'Signing in...' : 'Log in'}
             </button>

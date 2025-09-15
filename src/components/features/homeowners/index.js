@@ -424,7 +424,7 @@ export default function Homeowners() {
           </div>
           <Button 
             onClick={() => setIsModalOpen(true)}
-            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg"
+            className="bg-gradient-to-r from-red-400 to-red-500 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg"
           >
             <Plus className="w-5 h-5 mr-2" />
             Add Homeowner
@@ -838,7 +838,7 @@ export default function Homeowners() {
                 </button>
                 <button 
                   type="submit"
-                  className="btn btn-primary bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 border-none"
+                  className="btn btn-primary bg-gradient-to-r from-red-400 to-red-500 hover:from-blue-700 hover:to-blue-800 border-none"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? (
@@ -1076,7 +1076,7 @@ export default function Homeowners() {
                 </button>
                 <button 
                   type="submit"
-                  className="btn btn-primary bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 border-none"
+                  className="btn btn-primary bg-gradient-to-r from-red-400 to-red-500 hover:from-blue-700 hover:to-blue-800 border-none"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? (

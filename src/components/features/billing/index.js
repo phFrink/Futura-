@@ -310,7 +310,7 @@ export default function Billings() {
           </div>
           <Button 
             onClick={() => setIsModalOpen(true)}
-            className="bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg"
+            className="bg-gradient-to-r from-red-400 to-red-500 text-white shadow-lg"
           >
             <Plus className="w-5 h-5 mr-2" />
             New Bill
@@ -592,7 +592,7 @@ export default function Billings() {
                 </button>
                 <button 
                   type="submit"
-                  className="btn btn-primary bg-gradient-to-r from-blue-600 to-blue-700 border-0 text-white"
+                  className="btn btn-primary bg-gradient-to-r from-red-400 to-red-500 border-0 text-white"
                   disabled={submitting}
                 >
                   {submitting && <span className="loading loading-spinner loading-sm"></span>}
@@ -746,7 +746,7 @@ export default function Billings() {
                 </button>
                 <button 
                   type="submit"
-                  className="btn btn-primary bg-gradient-to-r from-blue-600 to-blue-700 border-0 text-white"
+                  className="btn btn-primary bg-gradient-to-r from-red-400 to-red-500 border-0 text-white"
                   disabled={submitting}
                 >
                   {submitting && <span className="loading loading-spinner loading-sm"></span>}
