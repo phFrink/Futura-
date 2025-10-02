@@ -43,6 +43,8 @@ export default function Users() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [selectedPhotoFile, setSelectedPhotoFile] = useState(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [viewingUser, setViewingUser] = useState(null);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -417,6 +419,11 @@ export default function Users() {
     }
   };
 
+  const handleViewUser = (user) => {
+    setViewingUser(user);
+    setIsViewModalOpen(true);
+  };
+
   const handleDeleteUser = (user) => {
     setDeletingUser(user);
     setIsDeleteModalOpen(true);
@@ -450,8 +457,8 @@ export default function Users() {
   };
 
   return (
-    <div className="min-h-screen p-6 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div className="min-h-screen p-4 md:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto space-y-4 md:space-y-6 lg:space-y-8">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -459,18 +466,18 @@ export default function Users() {
           className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
         >
           <div>
-            <h1 className="text-4xl font-bold text-slate-900 mb-2 flex items-center gap-3">
-              <UsersIcon className="w-10 h-10 text-blue-600" />
+            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-slate-900 mb-2 flex items-center gap-2 md:gap-3">
+              <UsersIcon className="w-8 h-8 md:w-10 md:h-10 text-blue-600" />
               System Users
             </h1>
-            <p className="text-lg text-slate-600">
+            <p className="text-sm md:text-base lg:text-lg text-slate-600">
               Manage authentication and user accounts ({filteredUsers.length}{" "}
               total)
             </p>
           </div>
           <Button
             onClick={handleAddUser}
-            className="bg-gradient-to-r from-red-400 to-red-500 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg"
+            className="bg-gradient-to-r from-red-400 to-red-500 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg w-full md:w-auto"
           >
             <Plus className="w-5 h-5 mr-2" />
             Add User
@@ -482,20 +489,20 @@ export default function Users() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-2xl p-6 shadow-lg"
+          className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-2xl p-4 md:p-6 shadow-lg"
         >
-          <div className="flex flex-col md:flex-row gap-4 items-center">
-            <div className="relative flex-1 max-w-md">
+          <div className="flex flex-col gap-4">
+            <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
               <Input
                 placeholder="Search users by name or email..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 border-slate-200 focus:border-blue-400"
+                className="pl-10 border-slate-200 focus:border-blue-400 w-full"
               />
             </div>
             <div className="flex gap-2 items-center flex-wrap">
-              <Filter className="w-4 h-4 text-slate-500" />
+              <Filter className="w-4 h-4 text-slate-500 flex-shrink-0" />
               <Button
                 variant="outline"
                 size="sm"
@@ -528,7 +535,7 @@ export default function Users() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="grid grid-cols-1 md:grid-cols-4 gap-6"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6"
         >
           <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
             <CardContent className="p-6">
@@ -628,36 +635,38 @@ export default function Users() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                      User
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                      Contact
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                      Role
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                      Verified
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                      Last Sign In
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                      Created
-                    </th>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
+            <>
+              {/* Desktop Table View - Only show on very large screens (1536px+) */}
+              <div className="hidden 2xl:block">
+                <table className="w-full">
+                  <thead className="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
+                    <tr>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                        User
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                        Contact
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                        Role
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                        Verified
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                        Last Sign In
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                        Created
+                      </th>
+                      <th className="px-6 py-4 text-right text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
                 <tbody className="divide-y divide-slate-200">
                   {paginatedUsers.map((user, index) => (
                     <motion.tr
@@ -804,9 +813,7 @@ export default function Users() {
                             size="sm"
                             variant="ghost"
                             className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                            onClick={() =>
-                              toast.info("View user details coming soon")
-                            }
+                            onClick={() => handleViewUser(user)}
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
@@ -832,10 +839,144 @@ export default function Users() {
                   ))}
                 </tbody>
               </table>
+              </div>
+
+              {/* Mobile/Tablet Card View - Show on screens below 1536px */}
+              <div className="2xl:hidden divide-y divide-slate-200">
+                {paginatedUsers.map((user, index) => (
+                  <motion.div
+                    key={user.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.02 }}
+                    className="p-4 hover:bg-blue-50/50 transition-colors"
+                  >
+                    <div className="flex items-start gap-3 mb-3">
+                      <Avatar className="w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-200 flex-shrink-0">
+                        {user.profile_photo ? (
+                          <img
+                            src={user.profile_photo}
+                            alt={`${user.first_name} ${user.last_name}`}
+                            className="w-full h-full object-cover rounded-full"
+                            onError={(e) => {
+                              e.target.style.display = "none";
+                              e.target.nextSibling.style.display = "flex";
+                            }}
+                          />
+                        ) : null}
+                        <AvatarFallback
+                          className="text-blue-700 font-semibold text-sm"
+                          style={{
+                            display: user.profile_photo ? "none" : "flex",
+                          }}
+                        >
+                          {getInitials(user)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-base font-semibold text-slate-900 truncate">
+                            {user.first_name && user.last_name
+                              ? `${user.first_name} ${user.last_name}`
+                              : user.email.split("@")[0]}
+                          </p>
+                          {isNewItem(user.created_at) && (
+                            <Badge className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-0 shadow-md animate-pulse px-1.5 py-0">
+                              <Sparkles className="w-3 h-3" />
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-slate-600 mb-1">
+                          <Mail className="w-3.5 h-3.5 flex-shrink-0" />
+                          <span className="truncate">{user.email}</span>
+                        </div>
+                        {user.phone && (
+                          <div className="flex items-center gap-2 text-sm text-slate-600">
+                            <Phone className="w-3.5 h-3.5 flex-shrink-0" />
+                            <span>{user.phone}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      <Badge
+                        className={`${getRoleColor(user.role)} border font-medium`}
+                      >
+                        <Shield className="w-3 h-3 mr-1" />
+                        {getRoleName(user.role)}
+                      </Badge>
+                      <Badge
+                        className={`${getStatusColor(user.status)} border font-medium capitalize`}
+                      >
+                        {user.status}
+                      </Badge>
+                      <Badge className="bg-slate-100 text-slate-700 border-slate-200">
+                        {user.email_verified ? (
+                          <>
+                            <CheckCircle2 className="w-3 h-3 mr-1 text-green-600" />
+                            Verified
+                          </>
+                        ) : (
+                          <>
+                            <XCircle className="w-3 h-3 mr-1 text-red-500" />
+                            Not Verified
+                          </>
+                        )}
+                      </Badge>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 mb-3">
+                      <div>
+                        <p className="font-medium text-slate-700">Last Sign In</p>
+                        {user.last_sign_in_at ? (
+                          <p>{format(new Date(user.last_sign_in_at), "MMM d, yyyy h:mm a")}</p>
+                        ) : (
+                          <p className="text-slate-400">Never</p>
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-medium text-slate-700">Created</p>
+                        <p>{format(new Date(user.created_at), "MMM d, yyyy h:mm a")}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 flex-1"
+                        onClick={() => handleViewUser(user)}
+                      >
+                        <Eye className="w-4 h-4 mr-1" />
+                        View
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-slate-600 hover:text-slate-700 hover:bg-slate-100 flex-1"
+                        onClick={() => handleEditUser(user)}
+                      >
+                        <Edit className="w-4 h-4 mr-1" />
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 flex-1"
+                        onClick={() => handleDeleteUser(user)}
+                      >
+                        <Trash2 className="w-4 h-4 mr-1" />
+                        Delete
+                      </Button>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
 
               {/* Pagination */}
               {filteredUsers.length > 0 && (
-                <div className="border-t border-slate-200 bg-slate-50 px-6 py-4">
+                <div className="border-t border-slate-200 bg-slate-50 px-4 md:px-6 py-4">
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                     {/* Items per page */}
                     <div className="flex items-center gap-2">
@@ -874,13 +1015,13 @@ export default function Users() {
                     </div>
 
                     {/* Pagination controls */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 md:gap-2 flex-wrap justify-center">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => handlePageChange(1)}
                         disabled={currentPage === 1}
-                        className="disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="disabled:opacity-50 disabled:cursor-not-allowed hidden sm:inline-flex"
                       >
                         First
                       </Button>
@@ -891,7 +1032,8 @@ export default function Users() {
                         disabled={currentPage === 1}
                         className="disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        Previous
+                        <span className="hidden sm:inline">Previous</span>
+                        <span className="sm:hidden">Prev</span>
                       </Button>
 
                       {/* Page numbers */}
@@ -910,7 +1052,7 @@ export default function Users() {
                             <div key={page} className="flex items-center">
                               {/* Add ellipsis if there's a gap */}
                               {index > 0 && array[index - 1] !== page - 1 && (
-                                <span className="px-2 text-slate-400">...</span>
+                                <span className="px-1 md:px-2 text-slate-400">...</span>
                               )}
                               <Button
                                 variant={
@@ -920,8 +1062,8 @@ export default function Users() {
                                 onClick={() => handlePageChange(page)}
                                 className={
                                   currentPage === page
-                                    ? "bg-gradient-to-r from-red-400 to-red-500 text-white hover:from-red-500 hover:to-red-600"
-                                    : ""
+                                    ? "bg-gradient-to-r from-red-400 to-red-500 text-white hover:from-red-500 hover:to-red-600 min-w-[2rem]"
+                                    : "min-w-[2rem]"
                                 }
                               >
                                 {page}
@@ -944,7 +1086,7 @@ export default function Users() {
                         size="sm"
                         onClick={() => handlePageChange(totalPages)}
                         disabled={currentPage === totalPages}
-                        className="disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="disabled:opacity-50 disabled:cursor-not-allowed hidden sm:inline-flex"
                       >
                         Last
                       </Button>
@@ -952,7 +1094,7 @@ export default function Users() {
                   </div>
                 </div>
               )}
-            </div>
+            </>
           )}
         </motion.div>
 
@@ -962,20 +1104,20 @@ export default function Users() {
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+              className="bg-white rounded-xl md:rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
             >
               {/* Modal Header */}
-              <div className="sticky top-0 bg-gradient-to-r from-red-400 to-red-500 px-6 py-4 text-white rounded-t-2xl">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                      <UsersIcon className="w-5 h-5" />
+              <div className="sticky top-0 bg-gradient-to-r from-red-400 to-red-500 px-4 md:px-6 py-3 md:py-4 text-white rounded-t-xl md:rounded-t-2xl">
+                <div className="flex justify-between items-center gap-2">
+                  <div className="flex items-center gap-2 md:gap-3 min-w-0">
+                    <div className="w-8 h-8 md:w-10 md:h-10 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
+                      <UsersIcon className="w-4 h-4 md:w-5 md:h-5" />
                     </div>
-                    <div>
-                      <h3 className="text-xl font-bold">
+                    <div className="min-w-0">
+                      <h3 className="text-lg md:text-xl font-bold truncate">
                         {isEditMode ? "Edit User" : "Add New User"}
                       </h3>
-                      <p className="text-red-100 text-sm mt-1">
+                      <p className="text-red-100 text-xs md:text-sm mt-0.5 md:mt-1 truncate">
                         {isEditMode
                           ? "Update user information"
                           : "Create a new user account"}
@@ -983,35 +1125,35 @@ export default function Users() {
                     </div>
                   </div>
                   <button
-                    className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                    className="p-1.5 md:p-2 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
                     onClick={() => {
                       setIsModalOpen(false);
                       resetForm();
                     }}
                   >
-                    <XCircle className="w-5 h-5" />
+                    <XCircle className="w-5 h-5 md:w-6 md:h-6" />
                   </button>
                 </div>
               </div>
 
               {/* Modal Body */}
-              <form onSubmit={handleSubmit} className="p-6 space-y-6">
+              <form onSubmit={handleSubmit} className="p-4 md:p-6 space-y-4 md:space-y-6">
                 {/* Profile Photo */}
-                <div className="bg-slate-50 rounded-xl p-6">
-                  <h4 className="text-lg font-semibold text-slate-800 flex items-center gap-2 mb-4">
+                <div className="bg-slate-50 rounded-xl p-4 md:p-6">
+                  <h4 className="text-base md:text-lg font-semibold text-slate-800 flex items-center gap-2 mb-4">
                     <UsersIcon className="w-5 h-5 text-blue-600" />
                     Profile Photo
                   </h4>
 
-                  <div className="flex items-center gap-6">
+                  <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 md:gap-6">
                     {/* Photo Preview */}
-                    <div className="relative">
+                    <div className="relative flex-shrink-0">
                       {photoPreview ? (
                         <div className="relative">
                           <img
                             src={photoPreview}
                             alt="Profile preview"
-                            className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
+                            className="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover border-4 border-white shadow-lg"
                           />
                           <button
                             type="button"
@@ -1022,14 +1164,14 @@ export default function Users() {
                           </button>
                         </div>
                       ) : (
-                        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center border-4 border-white shadow-lg">
-                          <UsersIcon className="w-12 h-12 text-blue-600" />
+                        <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center border-4 border-white shadow-lg">
+                          <UsersIcon className="w-10 h-10 md:w-12 md:h-12 text-blue-600" />
                         </div>
                       )}
                     </div>
 
                     {/* Upload Button */}
-                    <div className="flex-1">
+                    <div className="flex-1 text-center sm:text-left">
                       <label className="cursor-pointer">
                         <input
                           type="file"
@@ -1038,7 +1180,7 @@ export default function Users() {
                           className="hidden"
                           disabled={isSubmitting}
                         />
-                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm md:text-base">
                           <Plus className="w-4 h-4" />
                           {photoPreview ? "Change Photo" : "Select Photo"}
                         </div>
@@ -1051,13 +1193,13 @@ export default function Users() {
                 </div>
 
                 {/* Personal Information */}
-                <div className="bg-slate-50 rounded-xl p-6 space-y-4">
-                  <h4 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                <div className="bg-slate-50 rounded-xl p-4 md:p-6 space-y-4">
+                  <h4 className="text-base md:text-lg font-semibold text-slate-800 flex items-center gap-2">
                     <UsersIcon className="w-5 h-5 text-blue-600" />
                     Personal Information
                   </h4>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">
                         First Name *
@@ -1091,8 +1233,8 @@ export default function Users() {
                 </div>
 
                 {/* Account Information */}
-                <div className="bg-slate-50 rounded-xl p-6 space-y-4">
-                  <h4 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                <div className="bg-slate-50 rounded-xl p-4 md:p-6 space-y-4">
+                  <h4 className="text-base md:text-lg font-semibold text-slate-800 flex items-center gap-2">
                     <Mail className="w-5 h-5 text-blue-600" />
                     Account Information
                   </h4>
@@ -1138,7 +1280,7 @@ export default function Users() {
                     </div>
                   )}
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">
                         Role *
@@ -1149,7 +1291,7 @@ export default function Users() {
                         onChange={handleInputChange}
                         required
                         disabled={roles.length === 0}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white disabled:bg-slate-100 disabled:cursor-not-allowed"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white disabled:bg-slate-100 disabled:cursor-not-allowed text-sm md:text-base"
                       >
                         <option value="">
                           {roles.length === 0
@@ -1202,8 +1344,8 @@ export default function Users() {
                 </div>
 
                 {/* Contact Information */}
-                <div className="bg-slate-50 rounded-xl p-6 space-y-4">
-                  <h4 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                <div className="bg-slate-50 rounded-xl p-4 md:p-6 space-y-4">
+                  <h4 className="text-base md:text-lg font-semibold text-slate-800 flex items-center gap-2">
                     <Phone className="w-5 h-5 text-blue-600" />
                     Contact Information
                   </h4>
@@ -1282,6 +1424,269 @@ export default function Users() {
                   </Button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+
+        {/* View User Modal */}
+        {isViewModalOpen && viewingUser && (
+          <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-white rounded-xl md:rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto relative z-40"
+            >
+              {/* Modal Header */}
+              <div className="sticky top-0 bg-gradient-to-r from-blue-500 to-blue-600 px-4 md:px-6 py-3 md:py-4 text-white rounded-t-xl md:rounded-t-2xl z-50 shadow-lg">
+                <div className="flex justify-between items-center gap-2">
+                  <div className="flex items-center gap-2 md:gap-3 min-w-0">
+                    <div className="w-8 h-8 md:w-10 md:h-10 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
+                      <Eye className="w-4 h-4 md:w-5 md:h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-lg md:text-xl font-bold truncate">
+                        User Details
+                      </h3>
+                      <p className="text-blue-100 text-xs md:text-sm mt-0.5 md:mt-1 truncate">
+                        View complete user information
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    className="p-1.5 md:p-2 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
+                    onClick={() => {
+                      setIsViewModalOpen(false);
+                      setViewingUser(null);
+                    }}
+                  >
+                    <XCircle className="w-5 h-5 md:w-6 md:h-6" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-4 md:p-6 space-y-4 md:space-y-6">
+                {/* Profile Section */}
+                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 md:gap-6 bg-gradient-to-br from-blue-50 to-slate-50 rounded-xl p-4 md:p-6">
+                  <Avatar className="w-24 h-24 md:w-32 md:h-32 bg-gradient-to-br from-blue-100 to-blue-200 flex-shrink-0 border-4 border-white shadow-lg">
+                    {viewingUser.profile_photo ? (
+                      <img
+                        src={viewingUser.profile_photo}
+                        alt={`${viewingUser.first_name} ${viewingUser.last_name}`}
+                        className="w-full h-full object-cover rounded-full"
+                      />
+                    ) : (
+                      <AvatarFallback className="text-blue-700 font-bold text-2xl md:text-4xl">
+                        {getInitials(viewingUser)}
+                      </AvatarFallback>
+                    )}
+                  </Avatar>
+                  <div className="flex-1 text-center sm:text-left">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                      <h2 className="text-2xl md:text-3xl font-bold text-slate-900">
+                        {viewingUser.first_name && viewingUser.last_name
+                          ? `${viewingUser.first_name} ${viewingUser.last_name}`
+                          : viewingUser.email.split("@")[0]}
+                      </h2>
+                      {isNewItem(viewingUser.created_at) && (
+                        <Badge className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-0 shadow-md animate-pulse">
+                          <Sparkles className="w-3 h-3 mr-1" />
+                          New
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-2 justify-center sm:justify-start mb-3">
+                      <Badge className={`${getRoleColor(viewingUser.role)} border font-medium`}>
+                        <Shield className="w-3 h-3 mr-1" />
+                        {getRoleName(viewingUser.role)}
+                      </Badge>
+                      <Badge className={`${getStatusColor(viewingUser.status)} border font-medium capitalize`}>
+                        {viewingUser.status}
+                      </Badge>
+                      {viewingUser.email_verified ? (
+                        <Badge className="bg-green-100 text-green-800 border-green-200">
+                          <CheckCircle2 className="w-3 h-3 mr-1" />
+                          Verified
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-red-100 text-red-800 border-red-200">
+                          <XCircle className="w-3 h-3 mr-1" />
+                          Not Verified
+                        </Badge>
+                      )}
+                    </div>
+                    {viewingUser.is_staff && viewingUser.branch_info?.branch_name && (
+                      <p className="text-sm text-blue-600 flex items-center gap-1 justify-center sm:justify-start">
+                        <Shield className="w-4 h-4" />
+                        Branch: {viewingUser.branch_info.branch_name}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Contact Information */}
+                <div className="bg-slate-50 rounded-xl p-4 md:p-6">
+                  <h4 className="text-base md:text-lg font-semibold text-slate-800 flex items-center gap-2 mb-4">
+                    <Mail className="w-5 h-5 text-blue-600" />
+                    Contact Information
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 mb-1">
+                        Email Address
+                      </label>
+                      <div className="flex items-center gap-2 text-sm text-slate-900">
+                        <Mail className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                        <span className="break-all">{viewingUser.email}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 mb-1">
+                        Phone Number
+                      </label>
+                      <div className="flex items-center gap-2 text-sm text-slate-900">
+                        <Phone className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                        <span>{viewingUser.phone || "Not provided"}</span>
+                      </div>
+                    </div>
+                    {viewingUser.address && (
+                      <div className="md:col-span-2">
+                        <label className="block text-xs font-medium text-slate-500 mb-1">
+                          Address
+                        </label>
+                        <p className="text-sm text-slate-900">{viewingUser.address}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Account Information */}
+                <div className="bg-slate-50 rounded-xl p-4 md:p-6">
+                  <h4 className="text-base md:text-lg font-semibold text-slate-800 flex items-center gap-2 mb-4">
+                    <Shield className="w-5 h-5 text-blue-600" />
+                    Account Information
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 mb-1">
+                        User ID
+                      </label>
+                      <p className="text-sm font-mono text-slate-900">{viewingUser.id}</p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 mb-1">
+                        Created At
+                      </label>
+                      <p className="text-sm text-slate-900">
+                        {format(new Date(viewingUser.created_at), "MMM d, yyyy 'at' h:mm a")}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 mb-1">
+                        Last Updated
+                      </label>
+                      <p className="text-sm text-slate-900">
+                        {viewingUser.updated_at
+                          ? format(new Date(viewingUser.updated_at), "MMM d, yyyy 'at' h:mm a")
+                          : "Never"}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 mb-1">
+                        Last Sign In
+                      </label>
+                      <p className="text-sm text-slate-900">
+                        {viewingUser.last_sign_in_at
+                          ? format(new Date(viewingUser.last_sign_in_at), "MMM d, yyyy 'at' h:mm a")
+                          : "Never"}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 mb-1">
+                        Email Confirmed
+                      </label>
+                      <p className="text-sm text-slate-900">
+                        {viewingUser.email_confirmed_at
+                          ? format(new Date(viewingUser.email_confirmed_at), "MMM d, yyyy 'at' h:mm a")
+                          : "Not confirmed"}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 mb-1">
+                        Role ID
+                      </label>
+                      <p className="text-sm font-mono text-slate-900">{viewingUser.role_id || "N/A"}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Additional Details (if staff) */}
+                {viewingUser.is_staff && (
+                  <div className="bg-slate-50 rounded-xl p-4 md:p-6">
+                    <h4 className="text-base md:text-lg font-semibold text-slate-800 flex items-center gap-2 mb-4">
+                      <Shield className="w-5 h-5 text-purple-600" />
+                      Staff Information
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-500 mb-1">
+                          Staff Status
+                        </label>
+                        <Badge className="bg-purple-100 text-purple-800 border-purple-200">
+                          <Shield className="w-3 h-3 mr-1" />
+                          Staff Member
+                        </Badge>
+                      </div>
+                      {viewingUser.branch_info && (
+                        <>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-500 mb-1">
+                              Branch Name
+                            </label>
+                            <p className="text-sm text-slate-900">
+                              {viewingUser.branch_info.branch_name || "N/A"}
+                            </p>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-500 mb-1">
+                              Branch ID
+                            </label>
+                            <p className="text-sm font-mono text-slate-900">
+                              {viewingUser.branch_info.branch_id || "N/A"}
+                            </p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-slate-200">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setIsViewModalOpen(false);
+                      setViewingUser(null);
+                    }}
+                    className="w-full sm:w-auto"
+                  >
+                    Close
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setIsViewModalOpen(false);
+                      handleEditUser(viewingUser);
+                    }}
+                    className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white w-full sm:w-auto"
+                  >
+                    <Edit className="w-4 h-4 mr-2" />
+                    Edit User
+                  </Button>
+                </div>
+              </div>
             </motion.div>
           </div>
         )}
