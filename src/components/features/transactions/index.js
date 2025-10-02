@@ -68,12 +68,12 @@ export default function Transactions() {
     setFormSubmitting(true);
     try {
       await deleteTransaction(deletingTransaction.id);
-      alert('Transaction deleted successfully!');
+      toast.success('Transaction deleted successfully!');
       setIsDeleteModalOpen(false);
       setDeletingTransaction(null);
     } catch (error) {
       console.error('Error deleting transaction:', error);
-      alert('Error deleting transaction: ' + error.message);
+      toast.info('Error deleting transaction: ' + error.message);
     } finally {
       setFormSubmitting(false);
     }
@@ -178,7 +178,7 @@ export default function Transactions() {
       setHomeowners(homeownersData || []);
     } catch (error) {
       console.error('Error loading data:', error);
-      alert('Error loading data: ' + error.message);
+      toast.info('Error loading data: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -228,7 +228,7 @@ export default function Transactions() {
     try {
       // Validate form data
       if (!formData.homeowner_id || !formData.transaction_type || !formData.amount || !formData.description) {
-        alert('Please fill in all required fields');
+        toast.info('Please fill in all required fields');
         return;
       }
 
@@ -244,7 +244,7 @@ export default function Transactions() {
         };
         
         await updateTransaction(editingTransaction.id, updateData);
-        alert('Transaction updated successfully!');
+        toast.success('Transaction updated successfully!');
         setIsEditModalOpen(false);
         setEditingTransaction(null);
       } else {
@@ -267,7 +267,7 @@ export default function Transactions() {
         if (error) throw error;
 
         // Success
-        alert('Transaction added successfully!');
+        toast.success('Transaction added successfully!');
         
         // Close modal and refresh data
         setIsModalOpen(false);
@@ -279,7 +279,7 @@ export default function Transactions() {
 
     } catch (error) {
       console.error('Error saving transaction:', error);
-      alert('Error saving transaction: ' + error.message);
+      toast.info('Error saving transaction: ' + error.message);
     } finally {
       setFormSubmitting(false);
     }

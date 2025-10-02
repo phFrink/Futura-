@@ -154,7 +154,7 @@ export default function Reports() {
       console.log('Active report:', activeReport);
 
       if (!activeReport) {
-        alert('Please select a report type first.');
+        toast.info('Please select a report type first.');
         return;
       }
 
@@ -183,7 +183,7 @@ export default function Reports() {
       generatePDFWithData(filteredData);
     } catch (error) {
       console.error('Detailed PDF generation error:', error);
-      alert(`Error generating PDF: ${error.message || 'Unknown error'}. Please check the console for details.`);
+      toast.info(`Error generating PDF: ${error.message || 'Unknown error'}. Please check the console for details.`);
     } finally {
       setPdfLoading(false);
     }

@@ -11,6 +11,7 @@ import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { createClient } from '@supabase/supabase-js';
 import { isNewItem, getRelativeTime } from '@/lib/utils';
+import { toast } from 'react-toastify';
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -31,6 +32,14 @@ export default function Billings() {
   const [submitting, setSubmitting] = useState(false);
   const [editingBilling, setEditingBilling] = useState(null);
   const [deletingBilling, setDeletingBilling] = useState(null);
+
+  // Autocomplete states
+  const [homeownerSearch, setHomeownerSearch] = useState("");
+  const [showHomeownerDropdown, setShowHomeownerDropdown] = useState(false);
+  const [selectedHomeowner, setSelectedHomeowner] = useState(null);
+  const [editHomeownerSearch, setEditHomeownerSearch] = useState("");
+  const [editShowHomeownerDropdown, setEditShowHomeownerDropdown] = useState(false);
+  const [editSelectedHomeowner, setEditSelectedHomeowner] = useState(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -66,10 +75,10 @@ export default function Billings() {
 
       if (billingError) throw billingError;
 
-      // Fetch homeowners for dropdown
+      // Fetch homeowners for dropdown with additional data
       const { data: homeownerData, error: homeownerError } = await supabase
         .from('homeowner_tbl')
-        .select('id, full_name')
+        .select('id, full_name, email, phone, unit_number, monthly_dues, property_id')
         .order('full_name');
 
       if (homeownerError) throw homeownerError;
@@ -78,7 +87,7 @@ export default function Billings() {
       setHomeowners(homeownerData || []);
     } catch (error) {
       console.error('Error loading billing data:', error);
-      alert('Error loading data: ' + error.message);
+      toast.error('Error loading data: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -87,6 +96,47 @@ export default function Billings() {
   const getHomeownerName = (id) => {
     const homeowner = homeowners.find(h => h.id === id);
     return homeowner?.full_name || 'N/A';
+  };
+
+  // Filter homeowners based on search term
+  const getFilteredHomeowners = (searchTerm) => {
+    if (!searchTerm.trim()) return homeowners.slice(0, 10); // Show top 10 when no search
+
+    return homeowners.filter(homeowner =>
+      homeowner.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      homeowner.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      homeowner.unit_number.toLowerCase().includes(searchTerm.toLowerCase())
+    ).slice(0, 10);
+  };
+
+  // Handle homeowner selection for create modal
+  const handleHomeownerSelect = (homeowner) => {
+    setSelectedHomeowner(homeowner);
+    setHomeownerSearch(homeowner.full_name);
+    setShowHomeownerDropdown(false);
+
+    // Auto-populate form data
+    setFormData(prev => ({
+      ...prev,
+      homeowner_id: homeowner.id.toString(),
+      amount: homeowner.monthly_dues ? homeowner.monthly_dues.toString() : prev.amount,
+      description: homeowner.monthly_dues ?
+        `Monthly association dues for ${homeowner.full_name} - Unit ${homeowner.unit_number}` :
+        prev.description
+    }));
+  };
+
+  // Handle homeowner selection for edit modal
+  const handleEditHomeownerSelect = (homeowner) => {
+    setEditSelectedHomeowner(homeowner);
+    setEditHomeownerSearch(homeowner.full_name);
+    setEditShowHomeownerDropdown(false);
+
+    // Auto-populate form data
+    setFormData(prev => ({
+      ...prev,
+      homeowner_id: homeowner.id.toString()
+    }));
   };
 
   const filterBillings = () => {
@@ -129,6 +179,17 @@ export default function Billings() {
   // Handle opening edit modal
   const handleEditBilling = (billing) => {
     setEditingBilling(billing);
+
+    // Find the homeowner for autocomplete
+    const homeowner = homeowners.find(h => h.id === billing.homeowner_id);
+    if (homeowner) {
+      setEditSelectedHomeowner(homeowner);
+      setEditHomeownerSearch(homeowner.full_name);
+    } else {
+      setEditSelectedHomeowner(null);
+      setEditHomeownerSearch('');
+    }
+
     setFormData({
       homeowner_id: billing.homeowner_id?.toString() || '',
       billing_period: billing.billing_period,
@@ -153,12 +214,12 @@ export default function Billings() {
     setSubmitting(true);
     try {
       await deleteBilling(deletingBilling.id);
-      alert('Billing deleted successfully!');
+      toast.success('Billing deleted successfully!');
       setIsDeleteModalOpen(false);
       setDeletingBilling(null);
     } catch (error) {
       console.error('Error deleting billing:', error);
-      alert('Error deleting billing: ' + error.message);
+      toast.error('Error deleting billing: ' + error.message);
     } finally {
       setSubmitting(false);
     }
@@ -228,6 +289,14 @@ export default function Billings() {
       description: '',
       status: 'unpaid'
     });
+
+    // Reset autocomplete states
+    setHomeownerSearch('');
+    setSelectedHomeowner(null);
+    setShowHomeownerDropdown(false);
+    setEditHomeownerSearch('');
+    setEditSelectedHomeowner(null);
+    setEditShowHomeownerDropdown(false);
   };
 
   const handleSubmit = async (e) => {
@@ -237,7 +306,7 @@ export default function Billings() {
     try {
       // Validate form data
       if (!formData.homeowner_id || !formData.billing_period || !formData.amount || !formData.due_date) {
-        alert('Please fill in all required fields');
+        toast.error('Please fill in all required fields');
         return;
       }
 
@@ -253,7 +322,7 @@ export default function Billings() {
         };
         
         await updateBilling(editingBilling.id, updateData);
-        alert('Billing updated successfully!');
+        toast.success('Billing updated successfully!');
         setIsEditModalOpen(false);
         setEditingBilling(null);
       } else {
@@ -275,15 +344,15 @@ export default function Billings() {
 
         setIsModalOpen(false);
         loadData(); // Refresh the data
-        
-        alert('Billing created successfully!');
+
+        toast.success('Billing created successfully!');
       }
 
       // Reset form
       resetForm();
     } catch (error) {
       console.error('Error saving billing:', error);
-      alert('Error saving billing: ' + error.message);
+      toast.error('Error saving billing: ' + error.message);
     } finally {
       setSubmitting(false);
     }
@@ -465,7 +534,7 @@ export default function Billings() {
           <div className="modal-box max-w-2xl bg-white">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-2xl font-bold text-gray-800">Create New Bill</h3>
-              <button 
+              <button
                 onClick={closeModal}
                 className="btn btn-sm btn-circle btn-ghost hover:bg-gray-100"
               >
@@ -475,25 +544,82 @@ export default function Billings() {
 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Homeowner Selection */}
-                <div className="form-control w-full">
+                {/* Homeowner Selection with Autocomplete */}
+                <div className="form-control w-full relative">
                   <label className="label">
                     <span className="label-text font-semibold text-gray-700">Homeowner *</span>
                   </label>
-                  <select 
-                    name="homeowner_id"
-                    value={formData.homeowner_id}
-                    onChange={handleInputChange}
-                    className="text-black bg-white select select-bordered w-full focus:select-primary"
-                    required
-                  >
-                    <option value="">Select homeowner</option>
-                    {homeowners.map(homeowner => (
-                      <option key={homeowner.id} value={homeowner.id}>
-                        {homeowner.full_name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={homeownerSearch}
+                      onChange={(e) => {
+                        setHomeownerSearch(e.target.value);
+                        setShowHomeownerDropdown(true);
+                        if (!e.target.value.trim()) {
+                          setSelectedHomeowner(null);
+                          setFormData(prev => ({ ...prev, homeowner_id: '' }));
+                        }
+                      }}
+                      onFocus={() => setShowHomeownerDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowHomeownerDropdown(false), 200)}
+                      placeholder="Search homeowner by name, email, or unit..."
+                      className="text-black bg-white input input-bordered w-full focus:input-primary pr-10"
+                      required
+                    />
+                    <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+
+                    {/* Dropdown */}
+                    {showHomeownerDropdown && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        {getFilteredHomeowners(homeownerSearch).map(homeowner => (
+                          <div
+                            key={homeowner.id}
+                            className="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                            onClick={() => handleHomeownerSelect(homeowner)}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-medium text-gray-900">{homeowner.full_name}</p>
+                                <p className="text-sm text-gray-500">{homeowner.email}</p>
+                                <p className="text-xs text-gray-400">Unit {homeowner.unit_number}</p>
+                              </div>
+                              {homeowner.monthly_dues && (
+                                <div className="text-right">
+                                  <p className="text-sm font-medium text-green-600">
+                                    ₱{homeowner.monthly_dues.toLocaleString()}
+                                  </p>
+                                  <p className="text-xs text-gray-400">Monthly dues</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                        {getFilteredHomeowners(homeownerSearch).length === 0 && (
+                          <div className="p-3 text-center text-gray-500">
+                            No homeowners found
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {selectedHomeowner && (
+                    <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-green-800">
+                            {selectedHomeowner.full_name} - Unit {selectedHomeowner.unit_number}
+                          </p>
+                          <p className="text-xs text-green-600">{selectedHomeowner.email}</p>
+                        </div>
+                        {selectedHomeowner.monthly_dues && (
+                          <p className="text-sm font-semibold text-green-700">
+                            ₱{selectedHomeowner.monthly_dues.toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Billing Period */}
@@ -611,7 +737,7 @@ export default function Billings() {
           <div className="modal-box max-w-2xl bg-white">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-2xl font-bold text-gray-800">Edit Billing</h3>
-              <button 
+              <button
                 onClick={() => {
                   setIsEditModalOpen(false);
                   setEditingBilling(null);
@@ -625,25 +751,82 @@ export default function Billings() {
 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Homeowner Selection */}
-                <div className="form-control w-full">
+                {/* Homeowner Selection with Autocomplete */}
+                <div className="form-control w-full relative">
                   <label className="label">
                     <span className="label-text font-semibold text-gray-700">Homeowner *</span>
                   </label>
-                  <select 
-                    name="homeowner_id"
-                    value={formData.homeowner_id}
-                    onChange={handleInputChange}
-                    className="text-black bg-white select select-bordered w-full focus:select-primary"
-                    required
-                  >
-                    <option value="">Select homeowner</option>
-                    {homeowners.map(homeowner => (
-                      <option key={homeowner.id} value={homeowner.id}>
-                        {homeowner.full_name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={editHomeownerSearch}
+                      onChange={(e) => {
+                        setEditHomeownerSearch(e.target.value);
+                        setEditShowHomeownerDropdown(true);
+                        if (!e.target.value.trim()) {
+                          setEditSelectedHomeowner(null);
+                          setFormData(prev => ({ ...prev, homeowner_id: '' }));
+                        }
+                      }}
+                      onFocus={() => setEditShowHomeownerDropdown(true)}
+                      onBlur={() => setTimeout(() => setEditShowHomeownerDropdown(false), 200)}
+                      placeholder="Search homeowner by name, email, or unit..."
+                      className="text-black bg-white input input-bordered w-full focus:input-primary pr-10"
+                      required
+                    />
+                    <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+
+                    {/* Dropdown */}
+                    {editShowHomeownerDropdown && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        {getFilteredHomeowners(editHomeownerSearch).map(homeowner => (
+                          <div
+                            key={homeowner.id}
+                            className="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                            onClick={() => handleEditHomeownerSelect(homeowner)}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-medium text-gray-900">{homeowner.full_name}</p>
+                                <p className="text-sm text-gray-500">{homeowner.email}</p>
+                                <p className="text-xs text-gray-400">Unit {homeowner.unit_number}</p>
+                              </div>
+                              {homeowner.monthly_dues && (
+                                <div className="text-right">
+                                  <p className="text-sm font-medium text-green-600">
+                                    ₱{homeowner.monthly_dues.toLocaleString()}
+                                  </p>
+                                  <p className="text-xs text-gray-400">Monthly dues</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                        {getFilteredHomeowners(editHomeownerSearch).length === 0 && (
+                          <div className="p-3 text-center text-gray-500">
+                            No homeowners found
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {editSelectedHomeowner && (
+                    <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-green-800">
+                            {editSelectedHomeowner.full_name} - Unit {editSelectedHomeowner.unit_number}
+                          </p>
+                          <p className="text-xs text-green-600">{editSelectedHomeowner.email}</p>
+                        </div>
+                        {editSelectedHomeowner.monthly_dues && (
+                          <p className="text-sm font-semibold text-green-700">
+                            ₱{editSelectedHomeowner.monthly_dues.toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Billing Period */}

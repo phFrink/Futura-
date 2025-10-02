@@ -262,12 +262,12 @@ export default function ServiceRequests() {
     setSubmitting(true);
     try {
       await deleteRequest(deletingRequest.id, deletingRequest.title);
-      alert("Service request deleted successfully!");
+      toast.info("Service request deleted successfully!");
       setIsDeleteModalOpen(false);
       setDeletingRequest(null);
     } catch (error) {
       console.error("Error deleting service request:", error);
-      alert("Error deleting service request: " + error.message);
+      toast.info("Error deleting service request: " + error.message);
     } finally {
       setSubmitting(false);
     }
@@ -340,7 +340,7 @@ export default function ServiceRequests() {
       if (editingRequest) {
         // Update existing request
         const data = await updateRequest(editingRequest.id, submitData);
-        alert("Service request updated successfully!");
+        toast.info("Service request updated successfully!");
         setIsEditModalOpen(false);
         setEditingRequest(null);
       } else {

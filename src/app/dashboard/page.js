@@ -1,12 +1,17 @@
+'use client'
+
 import MainLayout from '@/components/common/layout'
 import Dashboard from '@/components/features/dashboard'
+import ProtectedRoute from '@/components/common/ProtectedRoute'
 import React from 'react'
 
 const DashboardPage = () => {
   return (
-    <MainLayout currentPageName="Dashboard">
+    <ProtectedRoute requiredRoles={['admin', 'customer service', 'sales representative', 'home owner']}>
+      <MainLayout currentPageName="Dashboard">
         <Dashboard />
-    </MainLayout>
+      </MainLayout>
+    </ProtectedRoute>
   )
 }
 

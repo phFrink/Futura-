@@ -182,12 +182,12 @@ export default function Complaints() {
     setFormSubmitting(true);
     try {
       await deleteComplaint(deletingComplaint.id, deletingComplaint.subject);
-      alert('Complaint deleted successfully!');
+      toast.success('Complaint deleted successfully!');
       setIsDeleteModalOpen(false);
       setDeletingComplaint(null);
     } catch (error) {
       console.error('Error deleting complaint:', error);
-      alert('Error deleting complaint: ' + error.message);
+      toast.info('Error deleting complaint: ' + error.message);
     } finally {
       setFormSubmitting(false);
     }
@@ -277,7 +277,7 @@ export default function Complaints() {
         };
         
         const data = await updateComplaint(editingComplaint.id, updateData);
-        alert('Complaint updated successfully!');
+        toast.success('Complaint updated successfully!');
         setIsEditModalOpen(false);
         setEditingComplaint(null);
       } else {
@@ -303,14 +303,14 @@ export default function Complaints() {
         // Reload data to show new complaint
         await loadData();
         
-        alert('Complaint filed successfully!');
+        toast.success('Complaint filed successfully!');
       }
 
       // Reset form
       resetForm();
     } catch (error) {
       console.error('Error submitting complaint:', error);
-      alert('Error filing complaint. Please try again.');
+      toast.error('Error filing complaint. Please try again.');
     } finally {
       setFormSubmitting(false);
     }

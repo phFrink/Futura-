@@ -156,12 +156,12 @@ export default function Announcements() {
     setFormSubmitting(true);
     try {
       await deleteAnnouncement(deletingAnnouncement.id, deletingAnnouncement.title);
-      alert('Announcement deleted successfully!');
+      toast.success('Announcement deleted successfully!');
       setIsDeleteModalOpen(false);
       setDeletingAnnouncement(null);
     } catch (error) {
       console.error('Error deleting announcement:', error);
-      alert('Error deleting announcement: ' + error.message);
+      toast.info('Error deleting announcement: ' + error.message);
     } finally {
       setFormSubmitting(false);
     }
@@ -253,7 +253,7 @@ export default function Announcements() {
         };
         
         const data = await updateAnnouncement(editingAnnouncement.id, updateData);
-        alert('Announcement updated successfully!');
+        toast.success('Announcement updated successfully!');
         setIsEditModalOpen(false);
         setEditingAnnouncement(null);
       } else {
@@ -282,14 +282,14 @@ export default function Announcements() {
         // Reload data to show new announcement
         await loadData();
         
-        alert('Announcement created successfully!');
+        toast.success('Announcement created successfully!');
       }
 
       // Reset form
       resetForm();
     } catch (error) {
       console.error('Error creating announcement:', error);
-      alert('Error creating announcement. Please try again.');
+      toast.error('Error creating announcement. Please try again.');
     } finally {
       setFormSubmitting(false);
     }

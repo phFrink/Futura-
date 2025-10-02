@@ -11,6 +11,7 @@ import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { createClient } from '@supabase/supabase-js';
 import { isNewItem, getRelativeTime } from '@/lib/utils';
+import { toast } from 'react-toastify';
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -42,7 +43,12 @@ export default function Homeowners() {
     move_in_date: '',
     emergency_contact_name: '',
     emergency_contact_phone: '',
-    status: 'active'
+    status: 'active',
+    total_property_price: '',
+    down_payment: '',
+    interest_rate: '0.05',
+    remaining_balance: '',
+    monthly_interest: ''
   });
 
   useEffect(() => {
@@ -170,12 +176,85 @@ export default function Homeowners() {
     return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
   };
 
+  // Calculate interest based on month and remaining balance
+  const calculateMonthlyInterest = (totalPrice, downPayment, interestRate, currentMonth = new Date().getMonth() + 1) => {
+    const total = parseFloat(totalPrice) || 0;
+    const down = parseFloat(downPayment) || 0;
+    const rate = parseFloat(interestRate) || 0.05;
+
+    if (total <= 0 || down < 0) return { remainingBalance: 0, monthlyInterest: 0 };
+
+    const remainingBalance = total - down;
+    // Interest calculation varies by month (example: higher rates during holiday months)
+    const monthlyRateMultiplier = getMonthlyRateMultiplier(currentMonth);
+    const monthlyInterest = (remainingBalance * rate * monthlyRateMultiplier) / 12;
+
+    return {
+      remainingBalance: remainingBalance,
+      monthlyInterest: monthlyInterest
+    };
+  };
+
+  // Get rate multiplier based on month (Philippine context)
+  const getMonthlyRateMultiplier = (month) => {
+    // Higher rates during holiday season (November-January) and school opening (June)
+    const seasonalRates = {
+      1: 1.2,   // January - New Year
+      2: 1.0,   // February
+      3: 1.0,   // March
+      4: 1.0,   // April
+      5: 1.0,   // May
+      6: 1.1,   // June - School opening
+      7: 1.0,   // July
+      8: 1.0,   // August
+      9: 1.0,   // September
+      10: 1.0,  // October
+      11: 1.2,  // November - Holiday season
+      12: 1.3   // December - Christmas
+    };
+    return seasonalRates[month] || 1.0;
+  };
+
+  // Auto-compute when property details change
+  const autoComputeInterest = (unitNumber, propertyId, totalPrice, downPayment, interestRate) => {
+    if (unitNumber && propertyId) {
+      const currentMonth = new Date().getMonth() + 1;
+      const { remainingBalance, monthlyInterest } = calculateMonthlyInterest(
+        totalPrice,
+        downPayment,
+        interestRate,
+        currentMonth
+      );
+
+      setFormData(prev => ({
+        ...prev,
+        remaining_balance: remainingBalance.toFixed(2),
+        monthly_interest: monthlyInterest.toFixed(2)
+      }));
+    }
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
+    const newFormData = {
+      ...formData,
       [name]: value
-    }));
+    };
+
+    setFormData(newFormData);
+
+    // Auto-compute when Unit Number is changed or financial fields are updated
+    if (name === 'unit_number' || name === 'total_property_price' || name === 'down_payment' || name === 'interest_rate') {
+      setTimeout(() => {
+        autoComputeInterest(
+          name === 'unit_number' ? value : newFormData.unit_number,
+          newFormData.property_id,
+          name === 'total_property_price' ? value : newFormData.total_property_price,
+          name === 'down_payment' ? value : newFormData.down_payment,
+          name === 'interest_rate' ? value : newFormData.interest_rate
+        );
+      }, 100);
+    }
   };
 
   const resetForm = () => {
@@ -189,7 +268,12 @@ export default function Homeowners() {
       move_in_date: '',
       emergency_contact_name: '',
       emergency_contact_phone: '',
-      status: 'active'
+      status: 'active',
+      total_property_price: '',
+      down_payment: '',
+      interest_rate: '0.05',
+      remaining_balance: '',
+      monthly_interest: ''
     });
   };
 
@@ -206,7 +290,12 @@ export default function Homeowners() {
       move_in_date: homeowner.move_in_date ? homeowner.move_in_date.split('T')[0] : '',
       emergency_contact_name: homeowner.emergency_contact_name || '',
       emergency_contact_phone: homeowner.emergency_contact_phone || '',
-      status: homeowner.status
+      status: homeowner.status,
+      total_property_price: homeowner.total_property_price?.toString() || '',
+      down_payment: homeowner.down_payment?.toString() || '',
+      interest_rate: homeowner.interest_rate?.toString() || '0.05',
+      remaining_balance: homeowner.remaining_balance?.toString() || '',
+      monthly_interest: homeowner.monthly_interest?.toString() || ''
     });
     setIsEditModalOpen(true);
   };
@@ -224,12 +313,12 @@ export default function Homeowners() {
     setIsSubmitting(true);
     try {
       await deleteHomeowner(deletingHomeowner.id, deletingHomeowner.full_name);
-      alert('Homeowner deleted successfully!');
+      toast.success('Homeowner deleted successfully!');
       setIsDeleteModalOpen(false);
       setDeletingHomeowner(null);
     } catch (error) {
       console.error('Error deleting homeowner:', error);
-      alert('Error deleting homeowner: ' + error.message);
+      toast.error('Error deleting homeowner: ' + error.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -310,13 +399,18 @@ export default function Homeowners() {
         emergency_contact_name: formData.emergency_contact_name.trim() || null,
         emergency_contact_phone: formData.emergency_contact_phone.trim() || null,
         status: formData.status,
+        total_property_price: formData.total_property_price ? parseFloat(formData.total_property_price) : null,
+        down_payment: formData.down_payment ? parseFloat(formData.down_payment) : null,
+        interest_rate: formData.interest_rate ? parseFloat(formData.interest_rate) : 0.05,
+        remaining_balance: formData.remaining_balance ? parseFloat(formData.remaining_balance) : null,
+        monthly_interest: formData.monthly_interest ? parseFloat(formData.monthly_interest) : null,
         updated_at: new Date().toISOString()
       };
 
       if (editingHomeowner) {
         // Update existing homeowner
         const data = await updateHomeowner(editingHomeowner.id, homeownerData);
-        alert('Homeowner updated successfully!');
+        toast.success('Homeowner updated successfully!');
         setIsEditModalOpen(false);
         setEditingHomeowner(null);
       } else {
@@ -338,6 +432,11 @@ export default function Homeowners() {
             emergency_contact_name,
             emergency_contact_phone,
             status,
+            total_property_price,
+            down_payment,
+            interest_rate,
+            remaining_balance,
+            monthly_interest,
             created_at,
             updated_at,
             properties (
@@ -357,7 +456,7 @@ export default function Homeowners() {
           setHomeowners(prev => [...prev, data[0]]);
         }
         
-        alert('Homeowner added successfully!');
+        toast.success('Homeowner added successfully!');
       }
       
       resetForm();
@@ -375,7 +474,7 @@ export default function Homeowners() {
         }
       }
       
-      alert(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -568,7 +667,7 @@ export default function Homeowners() {
                             <span className="font-bold text-slate-900">₱{homeowner.monthly_dues?.toLocaleString()}</span>
                           </div>
                         )}
-                        
+
                         {homeowner.move_in_date && (
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -578,6 +677,38 @@ export default function Homeowners() {
                             <span className="text-sm text-slate-600">
                               {format(new Date(homeowner.move_in_date), "MMM d, yyyy")}
                             </span>
+                          </div>
+                        )}
+
+                        {/* Financial Information */}
+                        {homeowner.total_property_price && (
+                          <div className="flex items-center justify-between border-t border-slate-200 pt-3 mt-3">
+                            <span className="text-sm font-medium text-blue-700">Property Price</span>
+                            <span className="font-bold text-blue-900">₱{homeowner.total_property_price?.toLocaleString()}</span>
+                          </div>
+                        )}
+
+                        {homeowner.down_payment && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-green-700">Down Payment</span>
+                            <span className="font-bold text-green-900">₱{homeowner.down_payment?.toLocaleString()}</span>
+                          </div>
+                        )}
+
+                        {homeowner.remaining_balance && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-orange-700">Remaining Balance</span>
+                            <span className="font-bold text-orange-900">₱{homeowner.remaining_balance?.toLocaleString()}</span>
+                          </div>
+                        )}
+
+                        {homeowner.monthly_interest && (
+                          <div className="flex items-center justify-between bg-red-50 p-2 rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <DollarSign className="w-4 h-4 text-red-600" />
+                              <span className="text-sm font-medium text-red-700">Monthly Interest</span>
+                            </div>
+                            <span className="font-bold text-red-900">₱{homeowner.monthly_interest?.toLocaleString()}</span>
                           </div>
                         )}
                       </div>
@@ -783,6 +914,117 @@ export default function Homeowners() {
                       onChange={handleInputChange}
                       className="input input-bordered bg-white focus:input-primary"
                     />
+                  </div>
+                </div>
+              </div>
+
+              {/* Financial Information */}
+              <div className="card bg-blue-50 p-6">
+                <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                  <DollarSign className="w-5 h-5 text-blue-600" />
+                  Financial Information & Interest Calculation
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text font-medium">Total Property Price (₱)</span>
+                    </label>
+                    <input
+                      type="number"
+                      name="total_property_price"
+                      value={formData.total_property_price}
+                      onChange={handleInputChange}
+                      className="input input-bordered bg-white focus:input-primary"
+                      placeholder="Enter total property price"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text font-medium">Down Payment (₱)</span>
+                    </label>
+                    <input
+                      type="number"
+                      name="down_payment"
+                      value={formData.down_payment}
+                      onChange={handleInputChange}
+                      className="input input-bordered bg-white focus:input-primary"
+                      placeholder="Enter down payment amount"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text font-medium">Interest Rate (as decimal)</span>
+                    </label>
+                    <input
+                      type="number"
+                      name="interest_rate"
+                      value={formData.interest_rate}
+                      onChange={handleInputChange}
+                      className="input input-bordered bg-white focus:input-primary"
+                      placeholder="0.05 (for 5%)"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                    />
+                  </div>
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text font-medium text-green-600">Current Month Rate</span>
+                    </label>
+                    <div className="text-sm p-3 bg-green-100 rounded-lg border">
+                      <span className="font-semibold text-green-800">
+                        {(getMonthlyRateMultiplier(new Date().getMonth() + 1) * 100)}% of base rate
+                      </span>
+                      <div className="text-xs text-green-600 mt-1">
+                        {new Date().toLocaleString('en-US', { month: 'long' })} seasonal rate
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Auto-calculated fields */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text font-medium text-orange-600">Remaining Balance (₱)</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="remaining_balance"
+                      value={formData.remaining_balance ? `₱${parseFloat(formData.remaining_balance).toLocaleString()}` : ''}
+                      className="input input-bordered bg-orange-50 text-orange-800 font-semibold"
+                      readOnly
+                      placeholder="Auto-calculated"
+                    />
+                  </div>
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text font-medium text-red-600">Monthly Interest (₱)</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="monthly_interest"
+                      value={formData.monthly_interest ? `₱${parseFloat(formData.monthly_interest).toLocaleString()}` : ''}
+                      className="input input-bordered bg-red-50 text-red-800 font-semibold"
+                      readOnly
+                      placeholder="Auto-calculated"
+                    />
+                  </div>
+                </div>
+
+                {/* Calculation Info */}
+                <div className="mt-4 p-3 bg-blue-100 rounded-lg border border-blue-200">
+                  <div className="text-sm text-blue-800">
+                    <strong>How it works:</strong> When you enter a Unit Number, the system automatically calculates:
+                    <ul className="mt-2 ml-4 list-disc text-xs">
+                      <li>Remaining Balance = Total Property Price - Down Payment</li>
+                      <li>Monthly Interest = (Remaining Balance × Interest Rate × Monthly Rate) ÷ 12</li>
+                      <li>Monthly rates vary by season (higher during holidays and school opening)</li>
+                    </ul>
                   </div>
                 </div>
               </div>
@@ -1020,6 +1262,117 @@ export default function Homeowners() {
                       onChange={handleInputChange}
                       className="input input-bordered bg-white focus:input-primary"
                     />
+                  </div>
+                </div>
+              </div>
+
+              {/* Financial Information */}
+              <div className="card bg-blue-50 p-6">
+                <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                  <DollarSign className="w-5 h-5 text-blue-600" />
+                  Financial Information & Interest Calculation
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text font-medium">Total Property Price (₱)</span>
+                    </label>
+                    <input
+                      type="number"
+                      name="total_property_price"
+                      value={formData.total_property_price}
+                      onChange={handleInputChange}
+                      className="input input-bordered bg-white focus:input-primary"
+                      placeholder="Enter total property price"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text font-medium">Down Payment (₱)</span>
+                    </label>
+                    <input
+                      type="number"
+                      name="down_payment"
+                      value={formData.down_payment}
+                      onChange={handleInputChange}
+                      className="input input-bordered bg-white focus:input-primary"
+                      placeholder="Enter down payment amount"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text font-medium">Interest Rate (as decimal)</span>
+                    </label>
+                    <input
+                      type="number"
+                      name="interest_rate"
+                      value={formData.interest_rate}
+                      onChange={handleInputChange}
+                      className="input input-bordered bg-white focus:input-primary"
+                      placeholder="0.05 (for 5%)"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                    />
+                  </div>
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text font-medium text-green-600">Current Month Rate</span>
+                    </label>
+                    <div className="text-sm p-3 bg-green-100 rounded-lg border">
+                      <span className="font-semibold text-green-800">
+                        {(getMonthlyRateMultiplier(new Date().getMonth() + 1) * 100)}% of base rate
+                      </span>
+                      <div className="text-xs text-green-600 mt-1">
+                        {new Date().toLocaleString('en-US', { month: 'long' })} seasonal rate
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Auto-calculated fields */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text font-medium text-orange-600">Remaining Balance (₱)</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="remaining_balance"
+                      value={formData.remaining_balance ? `₱${parseFloat(formData.remaining_balance).toLocaleString()}` : ''}
+                      className="input input-bordered bg-orange-50 text-orange-800 font-semibold"
+                      readOnly
+                      placeholder="Auto-calculated"
+                    />
+                  </div>
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text font-medium text-red-600">Monthly Interest (₱)</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="monthly_interest"
+                      value={formData.monthly_interest ? `₱${parseFloat(formData.monthly_interest).toLocaleString()}` : ''}
+                      className="input input-bordered bg-red-50 text-red-800 font-semibold"
+                      readOnly
+                      placeholder="Auto-calculated"
+                    />
+                  </div>
+                </div>
+
+                {/* Calculation Info */}
+                <div className="mt-4 p-3 bg-blue-100 rounded-lg border border-blue-200">
+                  <div className="text-sm text-blue-800">
+                    <strong>How it works:</strong> When you enter a Unit Number, the system automatically calculates:
+                    <ul className="mt-2 ml-4 list-disc text-xs">
+                      <li>Remaining Balance = Total Property Price - Down Payment</li>
+                      <li>Monthly Interest = (Remaining Balance × Interest Rate × Monthly Rate) ÷ 12</li>
+                      <li>Monthly rates vary by season (higher during holidays and school opening)</li>
+                    </ul>
                   </div>
                 </div>
               </div>

@@ -1,8 +1,7 @@
-'use client';
-
+"use client";
 
 import { usePathname } from "next/navigation";
-
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import Link from "next/link";
 import {
   LayoutDashboard,
@@ -18,7 +17,9 @@ import {
   Settings,
   MapPin,
   Power,
-  FileBarChart
+  FileBarChart,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 // import NotificationBell from "@/components/ui/NotificationBell";
 // import MockNotificationBell from "@/components/ui/MockNotificationBell";
@@ -37,116 +38,350 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { toast } from "react-toastify";
 
+const NavItem = ({ item, pathname, counts }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const hasChildren = item.children && item.children.length > 0;
+  const isActive =
+    pathname === item.url ||
+    (hasChildren && item.children.some((child) => pathname === child.url));
+
+  if (hasChildren) {
+    return (
+      <SidebarMenuItem>
+        <div className="space-y-1">
+          <button
+            onClick={() => setIsOpen(!isOpen)}
+            className={`group hover:bg-blue-50 transition-all duration-200 rounded-xl mb-1 w-full ${
+              isActive
+                ? "bg-gradient-to-r from-red-400 to-red-500 text-white shadow-md hover:from-red-400 to-red-500 hover:to-blue-600"
+                : "text-slate-700 hover:text-blue-700"
+            }`}
+          >
+            <div className="flex items-center justify-between px-4 py-3 w-full">
+              <div className="flex items-center gap-3">
+                <item.icon
+                  className={`w-5 h-5 ${
+                    isActive
+                      ? "text-amber-300"
+                      : "text-slate-500 group-hover:text-blue-600"
+                  }`}
+                />
+                <span className="font-medium">{item.title}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {item.countKey && counts[item.countKey] > 0 && (
+                  <span
+                    className={`w-4 h-4 p-2 flex justify-center items-center rounded-full text-xs font-bold ${
+                      isActive
+                        ? "bg-amber-400 text-amber-900"
+                        : "bg-red-500 text-white group-hover:bg-red-600"
+                    } animate-pulse`}
+                  >
+                    {counts[item.countKey] > 99 ? "99+" : counts[item.countKey]}
+                  </span>
+                )}
+                {isOpen ? (
+                  <ChevronDown
+                    className={`w-4 h-4 ${
+                      isActive ? "text-white" : "text-slate-500"
+                    }`}
+                  />
+                ) : (
+                  <ChevronRight
+                    className={`w-4 h-4 ${
+                      isActive ? "text-white" : "text-slate-500"
+                    }`}
+                  />
+                )}
+              </div>
+            </div>
+          </button>
+          {isOpen && (
+            <div className="ml-4 space-y-1">
+              {item.children.map((child) => (
+                <SidebarMenuButton
+                  key={child.title}
+                  asChild
+                  className={`group hover:bg-blue-50 transition-all duration-200 rounded-xl ${
+                    pathname === child.url
+                      ? "bg-gradient-to-r from-red-400  text-white shadow-md hover:from-red-400 to-red-500 hover:to-blue-600"
+                      : "text-slate-700 hover:text-blue-700"
+                  }`}
+                >
+                  <Link
+                    href={child.url}
+                    className="flex items-center justify-between px-4 py-2 w-full"
+                  >
+                    <div className="flex items-center gap-3">
+                      <child.icon
+                        className={`w-4 h-4 ${
+                          pathname === child.url
+                            ? "text-amber-300"
+                            : "text-slate-500 group-hover:text-blue-600"
+                        }`}
+                      />
+                      <span className="font-medium text-sm">{child.title}</span>
+                    </div>
+                    {child.countKey && counts[child.countKey] > 0 && (
+                      <span
+                        className={`w-4 h-4 p-2 flex justify-center items-center rounded-full text-xs font-bold ${
+                          pathname === child.url
+                            ? "bg-amber-400 text-amber-900"
+                            : "bg-red-500 text-white group-hover:bg-red-600"
+                        } animate-pulse`}
+                      >
+                        {counts[child.countKey] > 99
+                          ? "99+"
+                          : counts[child.countKey]}
+                      </span>
+                    )}
+                  </Link>
+                </SidebarMenuButton>
+              ))}
+            </div>
+          )}
+        </div>
+      </SidebarMenuItem>
+    );
+  }
+
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        asChild
+        className={`group hover:bg-blue-50 transition-all duration-200 rounded-xl mb-1 ${
+          pathname === item.url
+            ? "bg-gradient-to-r from-red-400 to-red-500 text-white shadow-md hover:from-red-400 to-red-500 hover:to-blue-600"
+            : "text-slate-700 hover:text-blue-700"
+        }`}
+      >
+        <Link
+          href={item.url}
+          className="flex items-center justify-between px-4 py-3 w-full"
+        >
+          <div className="flex items-center gap-3">
+            <item.icon
+              className={`w-5 h-5 ${
+                pathname === item.url
+                  ? "text-amber-300"
+                  : "text-slate-500 group-hover:text-blue-600"
+              }`}
+            />
+            <span className="font-medium">{item.title}</span>
+          </div>
+          {item.countKey && counts[item.countKey] > 0 && (
+            <span
+              className={`w-4 h-4 p-2 flex justify-center items-center rounded-full text-xs font-bold ${
+                pathname === item.url
+                  ? "bg-amber-400 text-amber-900"
+                  : "bg-red-500 text-white group-hover:bg-red-600"
+              } animate-pulse`}
+            >
+              {counts[item.countKey] > 99 ? "99+" : counts[item.countKey]}
+            </span>
+          )}
+        </Link>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+};
 
 const navigationItems = [
   {
     title: "Dashboard",
-    url: '/dashboard',
+    url: "/dashboard",
     icon: LayoutDashboard,
     countKey: null,
+    roles: ['admin', 'customer service', 'sales representative', 'home owner'],
   },
   {
     title: "Properties",
-    url: '/properties',
+    url: "/properties",
     icon: Home,
-    countKey: 'properties',
+    countKey: "properties",
+    roles: ['admin', 'sales representative'],
   },
   {
-    title: "Homeowners", 
-    url: '/homeowners',
+    title: "Homeowners",
+    url: "/homeowners",
     icon: Users,
-    countKey: 'homeowners',
+    countKey: "homeowners",
+    roles: ['admin'],
   },
   {
     title: "Billing",
-    url: '/billing',
+    url: "/billing",
     icon: FileText,
     countKey: null,
+    roles: ['admin', 'sales representative'],
   },
   {
     title: "Service Requests",
-    url: '/service-requests',
+    url: "/service-requests",
     icon: Wrench,
-    countKey: 'serviceRequests',
+    countKey: "serviceRequests",
+    roles: ['admin', 'customer service'],
   },
   {
     title: "Inquiries",
-    url: '/inquiries',
+    url: "/inquiries",
     icon: MessageSquare,
-    countKey: 'inquiries',
+    countKey: "inquiries",
+    roles: ['admin', 'customer service'],
   },
   {
     title: "Complaints",
-    url: '/complaints',
+    url: "/complaints",
     icon: AlertTriangle,
-    countKey: 'complaints',
+    countKey: "complaints",
+    roles: ['admin', 'customer service', 'sales representative'],
   },
   {
     title: "Announcements",
-    url: '/announcements',
+    url: "/announcements",
     icon: Megaphone,
-    countKey: 'announcements',
+    countKey: "announcements",
+    roles: ['admin', 'customer service', 'sales representative'],
   },
   {
-    title: "Reservations",
-    url: '/reservations',
+    title: "Appointments",
+    url: "/reservations",
     icon: Calendar,
-    countKey: 'reservations',
+    countKey: "reservations",
+    roles: ['admin', 'sales representative'],
   },
   {
     title: "Transactions",
-    url: '/transactions',
+    url: "/transactions",
     icon: DollarSign,
-    countKey: 'transactions',
+    countKey: "transactions",
+    roles: ['admin', 'sales representative'],
   },
   {
     title: "Property Map",
-    url: '/property-map',
+    url: "/property-map",
     icon: MapPin,
     countKey: null,
+    roles: ['admin', 'sales representative', 'home owner'],
   },
   {
     title: "Reports",
-    url: '/reports',
+    url: "/reports",
     icon: FileBarChart,
     countKey: null,
-  }
+    roles: ['admin'],
+  },
+  {
+    title: "Setting",
+    url: "/setting",
+    icon: Settings,
+    countKey: null,
+    roles: ['admin'], // Only admin can see Settings
+    children: [
+      {
+        title: "Users",
+        url: "/settings/users",
+        icon: Users,
+        countKey: null,
+        roles: ['admin'],
+      },
+    ],
+  },
 ];
 
 export default function MainLayout({ children, currentPageName }) {
-const pathname = usePathname();
-// custom hook
-const { counts, loading } = useNewItemCounts();
+  const pathname = usePathname();
+  const supabase = createClientComponentClient();
+  // custom hook
+  const { counts, loading } = useNewItemCounts();
 
- const [showLogout, setShowLogout] = useState(false);
+  const [showLogout, setShowLogout] = useState(false);
+  const [userRole, setUserRole] = useState(null);
+  const [userName, setUserName] = useState('');
+  const [userInitials, setUserInitials] = useState('FM');
 
-//  event handlers
+  // Get user role and name on mount
+  useEffect(() => {
+    const getUserInfo = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const role = session.user.user_metadata?.role?.toLowerCase();
+        const firstName = session.user.user_metadata?.first_name || '';
+        const lastName = session.user.user_metadata?.last_name || '';
+        const fullName = `${firstName} ${lastName}`.trim() || session.user.email?.split('@')[0] || 'User';
+
+        setUserRole(role);
+        setUserName(fullName);
+
+        // Generate initials
+        if (firstName && lastName) {
+          setUserInitials(`${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase());
+        } else if (firstName) {
+          setUserInitials(firstName.charAt(0).toUpperCase());
+        } else {
+          setUserInitials('U');
+        }
+      }
+    };
+    getUserInfo();
+  }, [supabase]);
+
+  // Helper function to format role name for display
+  const formatRoleName = (role) => {
+    if (!role) return 'User';
+    const roleMap = {
+      'admin': 'Administrator',
+      'customer service': 'Customer Service',
+      'sales representative': 'Sales Representative',
+      'home owner': 'Home Owner'
+    };
+    return roleMap[role] || role.charAt(0).toUpperCase() + role.slice(1);
+  };
+
+  // Filter navigation items based on user role
+  const filteredNavigationItems = navigationItems.filter(item => {
+    if (!userRole) return false;
+    return item.roles?.includes(userRole);
+  });
+
+  //  event handlers
   const handleContainerClick = () => {
     setShowLogout(!showLogout);
   };
 
   //  event handlers
-   const handleLogout = () => {
-    // Add your logout logic here
-    alert('Logging out...');
-    setShowLogout(false);
-    
-    // Check if we're on the client side before accessing localStorage
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('user');
-      window.location.href = '/login'; // Redirect to login page
+  const handleLogout = async () => {
+    try {
+      setShowLogout(false);
+
+      // Sign out from Supabase with scope 'local' to clear session
+      await supabase.auth.signOut({ scope: 'local' });
+
+      // Clear all localStorage and sessionStorage
+      if (typeof window !== "undefined") {
+        localStorage.clear();
+        sessionStorage.clear();
+      }
+
+      // Show success message
+      toast.success("Logged out successfully");
+
+      // Force hard redirect to login page (clears all cache)
+      window.location.replace("/login");
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error("Failed to logout");
     }
   };
-
 
   console.log("Current location:", pathname);
   console.log("New item counts:", counts);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-    
       <SidebarProvider>
         <div className="flex min-h-screen w-full">
           <Sidebar className="border-r border-slate-200 bg-white/90 backdrop-blur-sm shadow-xl">
@@ -157,51 +392,30 @@ const { counts, loading } = useNewItemCounts();
                 </div>
                 <div>
                   <h2 className="font-bold text-white text-lg">Futura Homes</h2>
-                  <p className="text-xs text-blue-200 font-medium">Koronadal Property Management</p>
+                  <p className="text-xs text-blue-200 font-medium">
+                    Koronadal Property Management
+                  </p>
                 </div>
               </div>
             </SidebarHeader>
-            
+
             <SidebarContent className="p-4">
               <SidebarGroup>
                 <SidebarGroupContent>
                   <SidebarMenu>
-                    {navigationItems.map((item) => (
-                      <SidebarMenuItem key={item.title}>
-                        <SidebarMenuButton 
-                          asChild 
-                          className={`group hover:bg-blue-50 transition-all duration-200 rounded-xl mb-1 ${
-                            pathname === item.url 
-                              ? 'bg-gradient-to-r from-red-400 to-red-500 text-white shadow-md hover:from-red-400 to-red-500 hover:to-blue-600' 
-                              : 'text-slate-700 hover:text-blue-700'
-                          }`}
-                        >
-                          <Link href={item.url} className="flex items-center justify-between px-4 py-3 w-full">
-                            <div className="flex items-center gap-3">
-                              <item.icon className={`w-5 h-5 ${
-                                pathname === item.url ? 'text-amber-300' : 'text-slate-500 group-hover:text-blue-600'
-                              }`} />
-                              <span className="font-medium">{item.title}</span>
-                            </div>
-                            {/* New Items Badge */}
-                            {item.countKey && counts[item.countKey] > 0 && (
-                              <span className={`w-4 h-4 p-2 flex justify-center items-center rounded-full text-xs font-bold ${
-                                pathname === item.url 
-                                  ? 'bg-amber-400 text-amber-900' 
-                                  : 'bg-red-500 text-white group-hover:bg-red-600'
-                              } animate-pulse`}>
-                                {counts[item.countKey] > 99 ? '99+' : counts[item.countKey]}
-                              </span>
-                            )}
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
+                    {filteredNavigationItems.map((item) => (
+                      <NavItem
+                        key={item.title}
+                        item={item}
+                        pathname={pathname}
+                        counts={counts}
+                      />
                     ))}
                   </SidebarMenu>
                 </SidebarGroupContent>
               </SidebarGroup>
 
-              <div className="mt-8 p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
+              {/* <div className="mt-8 p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
                 <div className="flex items-center gap-2 mb-3">
                   <Settings className="w-5 h-5 text-amber-600" />
                   <h3 className="font-semibold text-amber-900">Quick Stats</h3>
@@ -216,38 +430,24 @@ const { counts, loading } = useNewItemCounts();
                     <span className="font-semibold text-green-600">92%</span>
                   </div>
                 </div>
-              </div>
+              </div> */}
             </SidebarContent>
 
-            <SidebarFooter className="border-t border-slate-200 p-4 bg-slate-50 relative">
-        <div 
-          className="flex items-center justify-between cursor-pointer hover:bg-slate-100 rounded-lg p-2 transition-colors"
-          onClick={handleContainerClick}
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-r from-red-400 to-red-500 rounded-full flex items-center justify-center">
-              <span className="text-white font-bold text-sm">FM</span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-slate-900 text-sm truncate">Futura Management</p>
-              <p className="text-xs text-slate-500 truncate">Property Administration</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Logout Button - appears when container is clicked */}
-        {showLogout && (
-          <div className="absolute bottom-full left-0 right-0 bg-white border border-slate-200 rounded-lg shadow-lg mb-1 overflow-hidden z-50">
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-red-50 transition-colors text-red-600 hover:text-red-700"
-            >
-              <Power size={18} />
-              <span className="font-medium text-sm">Logout</span>
-            </button>
-          </div>
-        )}
-      </SidebarFooter>
+            {/* <SidebarFooter className="border-t border-slate-200 p-4 bg-slate-50">
+              <div className="flex items-center gap-3 p-2">
+                <div className="w-10 h-10 bg-gradient-to-r from-red-400 to-red-500 rounded-full flex items-center justify-center">
+                  <span className="text-white font-bold text-sm">{userInitials}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-slate-900 text-sm truncate">
+                    {userName || 'User'}
+                  </p>
+                  <p className="text-xs text-slate-500 truncate">
+                    {formatRoleName(userRole)}
+                  </p>
+                </div>
+              </div>
+            </SidebarFooter> */}
           </Sidebar>
 
           <main className="flex-1 flex flex-col">
@@ -259,14 +459,18 @@ const { counts, loading } = useNewItemCounts();
                   <SidebarTrigger className="md:hidden hover:bg-slate-100 p-2 rounded-lg transition-colors duration-200" />
                   <div className="flex items-center gap-2 md:hidden">
                     <Home className="w-5 h-5 text-red-600" />
-                    <h1 className="text-base font-bold text-slate-900">Futura Homes</h1>
+                    <h1 className="text-base font-bold text-slate-900">
+                      Futura Homes
+                    </h1>
                   </div>
                   {/* Desktop page title */}
                   <div className="hidden md:block">
                     <h1 className="text-xl font-semibold text-slate-900">
-                      {currentPageName || 'Dashboard'}
+                      {currentPageName || "Dashboard"}
                     </h1>
-                    <p className="text-sm text-slate-600">Futura Homes Koronadal Property Management</p>
+                    <p className="text-sm text-slate-600">
+                      Futura Homes Koronadal Property Management
+                    </p>
                   </div>
                 </div>
 
@@ -275,15 +479,43 @@ const { counts, loading } = useNewItemCounts();
                   {/* Notification Bell */}
                   <RealNotificationBell />
 
-                  {/* User Avatar - Desktop only */}
-                  <div className="hidden md:flex items-center gap-3 pl-3 border-l border-slate-200">
-                    <div className="text-right">
-                      <p className="text-sm font-medium text-slate-900">Futura Management</p>
-                      <p className="text-xs text-slate-500">Administrator</p>
+                  {/* User Avatar with Dropdown - Desktop only */}
+                  <div className="hidden md:block relative">
+                    <div
+                      className="flex items-center gap-3 pl-3 border-l border-slate-200 cursor-pointer hover:bg-slate-50 rounded-lg p-2 transition-colors"
+                      onClick={handleContainerClick}
+                    >
+                      <div className="text-right">
+                        <p className="text-sm font-medium text-slate-900">
+                          {userName || 'User'}
+                        </p>
+                        <p className="text-xs text-slate-500">{formatRoleName(userRole)}</p>
+                      </div>
+                      <div className="w-8 h-8 bg-gradient-to-r from-red-400 to-red-500 rounded-full flex items-center justify-center">
+                        <span className="text-white font-bold text-sm">{userInitials}</span>
+                      </div>
                     </div>
-                    <div className="w-8 h-8 bg-gradient-to-r from-red-400 to-red-500 rounded-full flex items-center justify-center">
-                      <span className="text-white font-bold text-sm">FM</span>
-                    </div>
+
+                    {/* Dropdown Menu */}
+                    {showLogout && (
+                      <div className="absolute top-full right-0 mt-2 w-48 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden z-50">
+                        <Link
+                          href="/settings/users"
+                          className="flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 transition-colors text-slate-700 hover:text-slate-900"
+                          onClick={() => setShowLogout(false)}
+                        >
+                          <Settings size={18} />
+                          <span className="font-medium text-sm">Settings</span>
+                        </Link>
+                        <button
+                          onClick={handleLogout}
+                          className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-red-50 transition-colors text-red-600 hover:text-red-700 border-t border-slate-100"
+                        >
+                          <Power size={18} />
+                          <span className="font-medium text-sm">Logout</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

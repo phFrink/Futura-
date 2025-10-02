@@ -94,7 +94,7 @@ export const RealNotificationProvider = ({ children }) => {
       "/inquiries": "View Inquiries",
       "/complaints": "View Complaints",
       "/announcements": "View Announcements",
-      "/reservations": "View Reservations",
+      "/reservations": "View Appointments",
       "/billing": "View Billing",
       "/transactions": "View Transactions",
       "/dashboard": "Go to Dashboard",

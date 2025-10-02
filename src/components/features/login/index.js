@@ -1,72 +1,80 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { useRouter } from 'next/navigation'
-import { Home } from 'lucide-react'
+import { useEffect, useState } from "react";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { useRouter } from "next/navigation";
+import { Home } from "lucide-react";
 
 export default function LoginComponent() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [rememberMe, setRememberMe] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  
-  const supabase = createClientComponentClient()
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const supabase = createClientComponentClient();
   const router = useRouter();
 
-
   useEffect(() => {
-      const user = JSON.parse(localStorage.getItem('user'));
-      if (user) {
-        router.push('/dashboard');
+    const checkSession = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session) {
+        router.push("/dashboard");
       }
-  },[router])
-
+    };
+    checkSession();
+  }, [router, supabase]);
 
   const handleLogin = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
+    e.preventDefault();
+    setLoading(true);
+    setError("");
 
     try {
-      const { error,data } = await supabase.auth.signInWithPassword({
+      const { error, data } = await supabase.auth.signInWithPassword({
         email,
         password,
-      })
+      });
 
       if (error) {
-        setError(error.message)
+        setError(error.message);
       } else {
-        router.push('/dashboard')
-        localStorage.setItem('user', JSON.stringify(data.user))
+        router.push("/dashboard");
+        localStorage.setItem("user", JSON.stringify(data.user));
       }
     } catch (err) {
-      setError('An unexpected error occurred')
+      setError("An unexpected error occurred");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleGoogleSignIn = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
+      const redirectTo =
+        typeof window !== "undefined"
+          ? `${window.location.origin}/auth/callback`
+          : "/auth/callback";
+
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
+        provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`
-        }
-      })
-      
+          redirectTo,
+        },
+      });
+
       if (error) {
-        setError(error.message)
-        setLoading(false)
+        setError(error.message);
+        setLoading(false);
       }
     } catch (err) {
-      setError('Failed to sign in with Google')
-      setLoading(false)
+      setError("Failed to sign in with Google");
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
@@ -82,7 +90,6 @@ export default function LoginComponent() {
           <span className="text-white font-semibold text-lg">Futura Homes</span>
         </div>
       </div>
-
 
       <div className="relative hidden lg:flex lg:flex-1 overflow-hidden">
         {/* Background Image */}
@@ -115,8 +122,6 @@ export default function LoginComponent() {
         </div> */}
       </div>
 
-
-    
       {/* Right Side - Login Form */}
       <div className="flex-1 bg-white flex items-center justify-center p-4 sm:p-6 lg:p-8 min-h-[calc(100vh-80px)] lg:min-h-screen">
         <div className="w-full max-w-sm sm:max-w-md">
@@ -124,12 +129,17 @@ export default function LoginComponent() {
             <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900 mb-2">
               Welcome to Futura Homes
             </h1>
-            <p className="text-gray-600 text-sm sm:text-base">Please enter your correct email address to verify</p>
+            <p className="text-gray-600 text-sm sm:text-base">
+              Please enter your correct email address to verify
+            </p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4 sm:space-y-6">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
                 Email
               </label>
               <input
@@ -143,7 +153,10 @@ export default function LoginComponent() {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
                 Password
               </label>
               <input
@@ -157,7 +170,7 @@ export default function LoginComponent() {
               />
             </div>
 
-            <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+            {/* <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
               <div className="flex items-center order-2 sm:order-1">
                 <label className="flex items-center cursor-pointer">
                   <input
@@ -166,24 +179,32 @@ export default function LoginComponent() {
                     onChange={(e) => setRememberMe(e.target.checked)}
                     className="sr-only"
                   />
-                  <div className={`relative w-9 h-5 sm:w-11 sm:h-6 rounded-full transition-colors ${
-                    rememberMe ? 'bg-purple-600' : 'bg-gray-200'
-                  }`}>
-                    <div className={`absolute top-0.5 left-0.5 w-4 h-4 sm:w-5 sm:h-5 bg-white rounded-full transition-transform ${
-                      rememberMe ? 'translate-x-4 sm:translate-x-5' : 'translate-x-0'
-                    }`}></div>
+                  <div
+                    className={`relative w-9 h-5 sm:w-11 sm:h-6 rounded-full transition-colors ${
+                      rememberMe ? "bg-purple-600" : "bg-gray-200"
+                    }`}
+                  >
+                    <div
+                      className={`absolute top-0.5 left-0.5 w-4 h-4 sm:w-5 sm:h-5 bg-white rounded-full transition-transform ${
+                        rememberMe
+                          ? "translate-x-4 sm:translate-x-5"
+                          : "translate-x-0"
+                      }`}
+                    ></div>
                   </div>
-                  <span className="ml-2 sm:ml-3 text-xs sm:text-sm text-gray-700">Remember sign-in details</span>
+                  <span className="ml-2 sm:ml-3 text-xs sm:text-sm text-gray-700">
+                    Remember sign-in details
+                  </span>
                 </label>
               </div>
-              
+
               <button
                 type="button"
                 className="text-xs sm:text-sm text-purple-600 hover:text-purple-700 font-medium text-left sm:text-right order-1 sm:order-2"
               >
                 Forgot password?
               </button>
-            </div>
+            </div> */}
 
             {error && (
               <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">
@@ -196,12 +217,10 @@ export default function LoginComponent() {
               disabled={loading}
               className="w-full bg-gradient-to-br from-red-400 to-red-500 text-white py-2.5 sm:py-3 px-4 rounded-lg font-medium hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
             >
-              {loading ? 'Signing in...' : 'Log in'}
+              {loading ? "Signing in..." : "Log in"}
             </button>
 
-     
-
-            <div className="text-center pt-2">
+            {/* <div className="text-center pt-2">
               <span className="text-xs sm:text-sm text-gray-600">
                 Don't have an account? {' '}
                 <button
@@ -212,10 +231,10 @@ export default function LoginComponent() {
                   Sign up
                 </button>
               </span>
-            </div>
+            </div> */}
           </form>
         </div>
       </div>
     </div>
-  )
+  );
 }

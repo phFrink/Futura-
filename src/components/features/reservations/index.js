@@ -17,7 +17,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
-export default function Reservations() {
+export default function Appointments() {
   const [reservations, setReservations] = useState([]);
   const [homeowners, setHomeowners] = useState([]);
   const [filteredReservations, setFilteredReservations] = useState([]);
@@ -156,12 +156,12 @@ export default function Reservations() {
     setSubmitting(true);
     try {
       await deleteReservation(deletingReservation.id, deletingReservation.facility_name);
-      alert('Reservation deleted successfully!');
+      toast.success('Reservation deleted successfully!');
       setIsDeleteModalOpen(false);
       setDeletingReservation(null);
     } catch (error) {
       console.error('Error deleting reservation:', error);
-      alert('Error deleting reservation: ' + error.message);
+      toast.info('Error deleting reservation: ' + error.message);
     } finally {
       setSubmitting(false);
     }
@@ -257,7 +257,7 @@ export default function Reservations() {
         };
         
         const data = await updateReservation(editingReservation.id, updateData);
-        alert('Reservation updated successfully!');
+        toast.success('Reservation updated successfully!');
         setIsEditModalOpen(false);
         setEditingReservation(null);
       } else {
@@ -282,14 +282,14 @@ export default function Reservations() {
         setIsModalOpen(false);
         loadData(); // Refresh the data
         
-        alert('Reservation created successfully!');
+        toast.success('Reservation created successfully!');
       }
 
       // Reset form
       resetForm();
     } catch (error) {
       console.error('Error creating reservation:', error);
-      alert('Error creating reservation. Please try again.');
+      toast.error('Error creating reservation. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -305,14 +305,14 @@ export default function Reservations() {
       <div className="max-w-7xl mx-auto space-y-8">
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-4xl font-bold text-slate-900 mb-2">Reservations</h1>
-            <p className="text-lg text-slate-600">Manage facility bookings and events</p>
+            <h1 className="text-4xl font-bold text-slate-900 mb-2">Appointments</h1>
+            <p className="text-lg text-slate-600">Manage facility appointments and events</p>
           </div>
           <Button 
             onClick={() => setIsModalOpen(true)}
             className="bg-gradient-to-r from-red-400 to-red-500 text-white shadow-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200"
           >
-            <Plus className="w-5 h-5 mr-2" /> New Reservation
+            <Plus className="w-5 h-5 mr-2" /> New Appointment
           </Button>
         </motion.div>
 
@@ -344,15 +344,15 @@ export default function Reservations() {
           {loading ? ( 
             <div className="text-center py-12">
               <div className="loading loading-spinner loading-lg"></div>
-              <p className="mt-4 text-slate-600">Loading reservations...</p>
+              <p className="mt-4 text-slate-600">Loading appointments...</p>
             </div> 
           ) : filteredReservations.length === 0 ? (
             <div className="text-center py-16">
               <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Calendar className="w-12 h-12 text-slate-400" />
               </div>
-              <h3 className="text-xl font-semibold text-slate-900 mb-2">No Reservations Found</h3>
-              <p className="text-slate-600">No reservations match your filters.</p>
+              <h3 className="text-xl font-semibold text-slate-900 mb-2">No Appointments Found</h3>
+              <p className="text-slate-600">No appointments match your filters.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -402,7 +402,7 @@ export default function Reservations() {
                         </div>
                         {reservation.fee > 0 && 
                           <div className="flex justify-between items-center pt-2 border-t">
-                            <span className="text-sm font-medium">Reservation Fee</span>
+                            <span className="text-sm font-medium">Appointment Fee</span>
                             <span className="text-md font-bold">₱{reservation.fee.toLocaleString()}</span>
                           </div>
                         }
@@ -443,7 +443,7 @@ export default function Reservations() {
         <div className="modal modal-open">
           <div className="modal-box max-w-2xl bg-white">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-2xl font-bold text-gray-800">New Reservation</h3>
+              <h3 className="text-2xl font-bold text-gray-800">New Appointment</h3>
               <button 
                 onClick={closeModal}
                 className="btn btn-sm btn-circle btn-ghost hover:bg-gray-100"
@@ -497,7 +497,7 @@ export default function Reservations() {
                 {/* Date */}
                 <div className="form-control w-full">
                   <label className="label">
-                    <span className="label-text font-semibold text-gray-700">Reservation Date *</span>
+                    <span className="label-text font-semibold text-gray-700">Appointment Date *</span>
                   </label>
                   <input 
                     type="date"
@@ -567,7 +567,7 @@ export default function Reservations() {
                   name="purpose"
                   value={formData.purpose}
                   onChange={handleInputChange}
-                  placeholder="Describe the purpose of this reservation..."
+                  placeholder="Describe the purpose of this appointment..."
                   className="text-black bg-white textarea textarea-bordered h-20 w-full focus:textarea-primary resize-none"
                   required
                 />
@@ -576,7 +576,7 @@ export default function Reservations() {
               {/* Fee */}
               <div className="form-control w-full">
                 <label className="label">
-                  <span className="label-text font-semibold text-gray-700">Reservation Fee (₱)</span>
+                  <span className="label-text font-semibold text-gray-700">Appointment Fee (₱)</span>
                 </label>
                 <input 
                   type="number"
@@ -606,7 +606,7 @@ export default function Reservations() {
                   disabled={submitting}
                 >
                   {submitting && <span className="loading loading-spinner loading-sm"></span>}
-                  {submitting ? 'Creating...' : 'Create Reservation'}
+                  {submitting ? 'Creating...' : 'Create Appointment'}
                 </button>
               </div>
             </form>
@@ -620,7 +620,7 @@ export default function Reservations() {
         <div className="modal modal-open">
           <div className="modal-box max-w-2xl bg-white">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-2xl font-bold text-gray-800">Edit Reservation</h3>
+              <h3 className="text-2xl font-bold text-gray-800">Edit Appointment</h3>
               <button 
                 onClick={() => {
                   setIsEditModalOpen(false);
@@ -678,7 +678,7 @@ export default function Reservations() {
                 {/* Date */}
                 <div className="form-control w-full">
                   <label className="label">
-                    <span className="label-text font-semibold text-gray-700">Reservation Date *</span>
+                    <span className="label-text font-semibold text-gray-700">Appointment Date *</span>
                   </label>
                   <input 
                     type="date"
@@ -748,7 +748,7 @@ export default function Reservations() {
                   name="purpose"
                   value={formData.purpose}
                   onChange={handleInputChange}
-                  placeholder="Describe the purpose of this reservation..."
+                  placeholder="Describe the purpose of this appointment..."
                   className="text-black bg-white textarea textarea-bordered h-20 w-full focus:textarea-primary resize-none"
                   required
                 />
@@ -757,7 +757,7 @@ export default function Reservations() {
               {/* Fee */}
               <div className="form-control w-full">
                 <label className="label">
-                  <span className="label-text font-semibold text-gray-700">Reservation Fee (₱)</span>
+                  <span className="label-text font-semibold text-gray-700">Appointment Fee (₱)</span>
                 </label>
                 <input 
                   type="number"
@@ -794,7 +794,7 @@ export default function Reservations() {
                   {submitting ? 'Updating...' : (
                     <>
                       <Edit className="w-4 h-4 mr-2" />
-                      Update Reservation
+                      Update Appointment
                     </>
                   )}
                 </button>
@@ -832,7 +832,7 @@ export default function Reservations() {
                     <AlertTriangle className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold">Delete Reservation</h3>
+                    <h3 className="text-xl font-bold">Delete Appointment</h3>
                     <p className="text-red-100 text-sm mt-1">This action cannot be undone</p>
                   </div>
                 </div>
@@ -855,7 +855,7 @@ export default function Reservations() {
                   <Trash2 className="w-8 h-8 text-red-500" />
                 </div>
                 <h4 className="text-lg font-semibold text-slate-900 mb-2">
-                  Are you sure you want to delete this reservation?
+                  Are you sure you want to delete this appointment?
                 </h4>
                 {deletingReservation && (
                   <div className="bg-slate-50 rounded-lg p-4 mb-4 text-left">
@@ -898,7 +898,7 @@ export default function Reservations() {
                   </div>
                 )}
                 <p className="text-slate-600">
-                  This will permanently delete the reservation and all associated data. This action cannot be reversed.
+                  This will permanently delete the appointment and all associated data. This action cannot be reversed.
                 </p>
               </div>
 
@@ -930,7 +930,7 @@ export default function Reservations() {
                   ) : (
                     <>
                       <Trash2 className="w-4 h-4" />
-                      Delete Reservation
+                      Delete Appointment
                     </>
                   )}
                 </button>

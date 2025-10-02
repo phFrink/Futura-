@@ -1,12 +1,12 @@
 import MainLayout from '@/components/common/layout'
-import Reservations from '@/components/features/reservations'
+import Appointments from '@/components/features/reservations'
 
 
 
 const ReservationsPage = () => {
   return (
-    <MainLayout currentPageName="Reservations">
-        <Reservations/>
+    <MainLayout currentPageName="Appointments">
+        <Appointments/>
     </MainLayout>
   )
 }

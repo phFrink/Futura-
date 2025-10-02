@@ -195,12 +195,12 @@ export default function Properties() {
     setFormSubmitting(true);
     try {
       await deleteProperty(deletingProperty.id, deletingProperty.name);
-      alert('Property deleted successfully!');
+      toast.success('Property deleted successfully!');
       setShowDeleteModal(false);
       setDeletingProperty(null);
     } catch (error) {
       console.error('Error deleting property:', error);
-      alert('Error deleting property: ' + error.message);
+      toast.info('Error deleting property: ' + error.message);
     } finally {
       setFormSubmitting(false);
     }
@@ -288,7 +288,7 @@ export default function Properties() {
       if (editingProperty) {
         // Update existing property
         const data = await updateProperty(editingProperty.id, propertyData);
-        alert('Property updated successfully!');
+        toast.success('Property updated successfully!');
         setShowEditModal(false);
         setEditingProperty(null);
       } else {
@@ -310,7 +310,7 @@ export default function Properties() {
           await logPropertyActivity('created', data[0].id, data[0].name);
         }
 
-        alert('Property added successfully!');
+        toast.success('Property added successfully!');
         setShowModal(false);
       }
       
@@ -318,7 +318,7 @@ export default function Properties() {
 
     } catch (error) {
       console.error('Error adding property:', error);
-      alert('Error adding property: ' + error.message);
+      toast.info('Error adding property: ' + error.message);
     } finally {
       setFormSubmitting(false);
     }
