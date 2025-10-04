@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import ReactSelect from "react-select";
 import {
   Plus,
   Search,
@@ -31,9 +32,10 @@ import {
   AlertTriangle,
   Loader2,
   Sparkles,
+  FileText,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { isNewItem, getRelativeTime } from '@/lib/utils';
+import { isNewItem, getRelativeTime } from "@/lib/utils";
 import { format } from "date-fns";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { formattedDate } from "@/lib/utils";
@@ -102,10 +104,23 @@ export default function ServiceRequests() {
 
       if (propertiesError) throw propertiesError;
 
-      // Load homeowners for form dropdown
+      // Load homeowners for form dropdown with property information
       const { data: homeownersData, error: homeownersError } = await supabase
-        .from("homeowner_tbl")
-        .select("id, full_name")
+        .from("buyer_home_owner_tbl")
+        .select(
+          `
+          id,
+          full_name,
+          unit_number,
+          property_id,
+          property_info_tbl!buyer_home_owner_tbl_property_id_fkey(
+            property_id,
+            property_title,
+            lot_tbl(lot_number),
+            property_detail_tbl(property_name)
+          )
+        `
+        )
         .order("full_name");
 
       if (homeownersError) throw homeownersError;
@@ -216,6 +231,23 @@ export default function ServiceRequests() {
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleHomeownerChange = (selectedOption) => {
+    if (!selectedOption) {
+      setFormData((prev) => ({ ...prev, homeowner_id: "", property_id: "" }));
+      return;
+    }
+
+    const selectedHomeowner = homeowners.find(
+      (h) => h.id.toString() === selectedOption.value
+    );
+
+    setFormData((prev) => ({
+      ...prev,
+      homeowner_id: selectedOption.value,
+      property_id: selectedHomeowner?.property_id?.toString() || "",
+    }));
   };
 
   const resetForm = () => {
@@ -380,48 +412,58 @@ export default function ServiceRequests() {
   };
 
   return (
-    <div className="min-h-screen p-6 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 p-6 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header Section */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
+          className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6 md:p-8"
         >
-          <div>
-            <h1 className="text-4xl font-bold text-slate-900 mb-2">
-              Service Requests
-            </h1>
-            <p className="text-lg text-slate-600">
-              Track and manage homeowner requests
-            </p>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg shadow-red-500/30">
+                <Wrench className="w-7 h-7 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent mb-1">
+                  Service Requests
+                </h1>
+                <p className="text-sm text-slate-600 flex items-center gap-2">
+                  <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                  Track and manage homeowner requests
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={openModal}
+              className="bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg shadow-red-500/30 hover:shadow-xl hover:shadow-red-500/40 hover:from-red-600 hover:to-red-700 transition-all duration-300 rounded-xl px-6"
+            >
+              <Plus className="w-5 h-5 mr-2" /> New Request
+            </Button>
           </div>
-          <Button
-            onClick={openModal}
-            className="bg-gradient-to-r from-red-400 to-red-500 text-white shadow-lg hover:from-slate-900 hover:to-black transition-all duration-300"
-          >
-            <Plus className="w-5 h-5 mr-2" /> New Request
-          </Button>
         </motion.div>
 
+        {/* Search and Filters Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-2xl p-6 shadow-lg"
+          className="bg-white rounded-2xl border border-slate-200/60 p-6 shadow-sm"
         >
           <div className="flex flex-col md:flex-row gap-4 items-center">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+            <div className="relative flex-1 w-full md:max-w-md">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
               <Input
-                placeholder="Search requests..."
+                placeholder="Search by title, description, homeowner..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-12 h-11 border-slate-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
               />
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-3 w-full md:w-auto">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-40">
+                <SelectTrigger className="w-full md:w-44 h-11 rounded-xl border-slate-200">
                   <SelectValue placeholder="All Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -434,7 +476,7 @@ export default function ServiceRequests() {
                 </SelectContent>
               </Select>
               <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                <SelectTrigger className="w-40">
+                <SelectTrigger className="w-full md:w-44 h-11 rounded-xl border-slate-200">
                   <SelectValue placeholder="All Priority" />
                 </SelectTrigger>
                 <SelectContent>
@@ -490,16 +532,21 @@ export default function ServiceRequests() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.05 }}
                   >
-                    <Card className="group overflow-hidden bg-white/80 backdrop-blur-sm border-slate-200 hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-500 hover:-translate-y-1">
-                      <CardHeader className="pb-4">
-                        <div className="flex items-start justify-between">
-                          <CardTitle className="text-lg text-slate-900 line-clamp-2 pr-4">
+                    <Card className="group relative overflow-hidden bg-white border border-slate-200/60 hover:shadow-2xl hover:shadow-red-500/10 hover:border-red-200 transition-all duration-300 hover:-translate-y-1">
+                      {/* Gradient accent on hover */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-red-50/0 via-transparent to-pink-50/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+
+                      <CardHeader className="pb-3 relative">
+                        <div className="flex items-start justify-between mb-3">
+                          <CardTitle className="text-lg font-bold text-slate-900 line-clamp-2 pr-4 group-hover:text-red-900 transition-colors">
                             {request.title}
                           </CardTitle>
-                          <div className="flex items-center gap-2">
-                            <Badge className={`${color} border font-medium`}>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <Badge
+                              className={`${color} border font-semibold shadow-sm`}
+                            >
                               <StatusIcon className="w-3 h-3 mr-1" />
-                              {request.status}
+                              {request.status.replace("_", " ")}
                             </Badge>
                             {isNewItem(request.created_at) && (
                               <Badge className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-0 shadow-md animate-pulse">
@@ -509,42 +556,51 @@ export default function ServiceRequests() {
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="capitalize">
-                            {request.request_type}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge
+                            variant="outline"
+                            className="capitalize font-medium border-slate-300 bg-slate-50"
+                          >
+                            {request.request_type.replace("_", " ")}
                           </Badge>
                           <Badge
                             className={`${getPriorityColor(
                               request.priority
-                            )} border capitalize`}
+                            )} border capitalize font-semibold shadow-sm`}
                           >
                             {request.priority} priority
                           </Badge>
                         </div>
                       </CardHeader>
-                      <CardContent className="space-y-4">
-                        <p className="text-slate-700 text-sm line-clamp-2">
+                      <CardContent className="space-y-4 relative">
+                        <p className="text-slate-600 text-sm line-clamp-2 leading-relaxed">
                           {request.description}
                         </p>
-                        <div className="bg-slate-50 rounded-xl p-4 space-y-3">
-                          <div className="flex items-center gap-2 text-slate-600 text-sm">
-                            <User className="w-4 h-4" />
-                            <span>
+                        <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-xl p-4 space-y-3 border border-slate-200/60">
+                          <div className="flex items-center gap-3 text-slate-700 text-sm">
+                            <div className="p-2 bg-white rounded-lg shadow-sm">
+                              <User className="w-4 h-4 text-red-600" />
+                            </div>
+                            <span className="font-medium">
                               {request.homeowner?.full_name ||
                                 getHomeownerName(request.homeowner_id)}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2 text-slate-600 text-sm">
-                            <Building2 className="w-4 h-4" />
-                            <span>
+                          <div className="flex items-center gap-3 text-slate-700 text-sm">
+                            <div className="p-2 bg-white rounded-lg shadow-sm">
+                              <Building2 className="w-4 h-4 text-purple-600" />
+                            </div>
+                            <span className="font-medium">
                               {request.property?.name ||
                                 getPropertyName(request.property_id)}
                             </span>
                           </div>
                           {request.scheduled_date && (
-                            <div className="flex items-center gap-2 text-slate-600 text-sm">
-                              <Calendar className="w-4 h-4" />
-                              <span>
+                            <div className="flex items-center gap-3 text-slate-700 text-sm">
+                              <div className="p-2 bg-white rounded-lg shadow-sm">
+                                <Calendar className="w-4 h-4 text-orange-600" />
+                              </div>
+                              <span className="font-medium">
                                 Scheduled:{" "}
                                 {format(
                                   new Date(request.scheduled_date),
@@ -554,7 +610,8 @@ export default function ServiceRequests() {
                             </div>
                           )}
                         </div>
-                        <div className="text-xs text-slate-500 pt-3 border-t border-slate-200">
+                        <div className="text-xs text-slate-500 pt-3 border-t border-slate-200/60 flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div>
                           Requested on{" "}
                           {formattedDate(
                             new Date(request.created_date),
@@ -563,23 +620,23 @@ export default function ServiceRequests() {
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="flex gap-2 pt-3 border-t border-slate-200">
+                        <div className="flex gap-3 pt-4">
                           <Button
                             size="sm"
                             variant="outline"
-                            className="flex-1 text-blue-600 border-blue-200 hover:bg-blue-50"
+                            className="flex-1 text-slate-700 border-slate-300 hover:bg-slate-50 hover:border-slate-400 transition-all rounded-lg font-semibold shadow-sm hover:shadow"
                             onClick={() => handleEditRequest(request)}
                           >
-                            <Edit className="w-4 h-4 mr-1" />
+                            <Edit className="w-4 h-4 mr-1.5" />
                             Edit
                           </Button>
                           <Button
                             size="sm"
                             variant="outline"
-                            className="flex-1 text-red-600 border-red-200 hover:bg-red-50"
+                            className="flex-1 text-red-700 border-red-300 hover:bg-red-50 hover:border-red-400 transition-all rounded-lg font-semibold shadow-sm hover:shadow"
                             onClick={() => handleDeleteRequest(request)}
                           >
-                            <Trash2 className="w-4 h-4 mr-1" />
+                            <Trash2 className="w-4 h-4 mr-1.5" />
                             Delete
                           </Button>
                         </div>
@@ -595,226 +652,361 @@ export default function ServiceRequests() {
 
       {/* Modern Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-gradient-to-br from-black/70 via-black/60 to-black/70 backdrop-blur-md flex items-center justify-center p-4 z-50">
           <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            initial={{ opacity: 0, scale: 0.95, y: 30 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+            exit={{ opacity: 0, scale: 0.95, y: 30 }}
+            transition={{ type: "spring", duration: 0.5 }}
+            className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden"
           >
-            <div className="sticky top-0 bg-white border-b border-slate-200 px-8 py-6 rounded-t-2xl">
+            {/* Header with gradient */}
+            <div className="sticky top-0 bg-gradient-to-r from-red-500 to-red-600 px-8 py-6 rounded-t-3xl z-10">
               <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold text-slate-900">
-                    New Service Request
-                  </h2>
-                  <p className="text-slate-600 mt-1">
-                    Create a new maintenance request
-                  </p>
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
+                    <Wrench className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">
+                      New Service Request
+                    </h2>
+                    <p className="text-red-100 mt-1 text-sm">
+                      Create a new maintenance request for homeowners
+                    </p>
+                  </div>
                 </div>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => setIsModalOpen(false)}
-                  className="rounded-full hover:bg-slate-100"
+                  className="rounded-full hover:bg-white/20 text-white"
                 >
                   <X className="w-5 h-5" />
                 </Button>
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-8 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="md:col-span-2">
-                  <Label
-                    htmlFor="title"
-                    className="text-sm font-semibold text-slate-900"
-                  >
-                    Request Title *
-                  </Label>
-                  <Input
-                    id="title"
-                    value={formData.title}
-                    onChange={(e) => handleInputChange("title", e.target.value)}
-                    placeholder="e.g., Leaky faucet in kitchen"
-                    className="mt-2"
-                    required
-                  />
+            {/* Scrollable Content */}
+            <div className="overflow-y-auto max-h-[calc(90vh-200px)]">
+              <form onSubmit={handleSubmit} className="p-8 space-y-8 bg-slate-50">
+                {/* Request Details Section */}
+                <div className="space-y-6 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                  <div className="flex items-center gap-3 pb-3 border-b border-slate-200">
+                    <div className="p-2 bg-red-50 rounded-lg">
+                      <FileText className="w-5 h-5 text-red-600" />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900">
+                      Request Details
+                    </h3>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-6">
+                    <div>
+                      <Label
+                        htmlFor="title"
+                        className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2"
+                      >
+                        Request Title <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="title"
+                        value={formData.title}
+                        onChange={(e) =>
+                          handleInputChange("title", e.target.value)
+                        }
+                        placeholder="e.g., Leaky faucet in kitchen"
+                        className="mt-2 h-11 border-slate-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 rounded-xl"
+                        required
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <Label
+                          htmlFor="request_type"
+                          className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2"
+                        >
+                          Request Type <span className="text-red-500">*</span>
+                        </Label>
+                        <Select
+                          value={formData.request_type}
+                          onValueChange={(value) =>
+                            handleInputChange("request_type", value)
+                          }
+                        >
+                          <SelectTrigger className="mt-2 h-11 border-slate-300 rounded-xl">
+                            <SelectValue placeholder="Select request type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="plumbing">
+                              🔧 Plumbing
+                            </SelectItem>
+                            <SelectItem value="electrical">
+                              ⚡ Electrical
+                            </SelectItem>
+                            <SelectItem value="hvac">❄️ HVAC</SelectItem>
+                            <SelectItem value="appliance">
+                              🏠 Appliance
+                            </SelectItem>
+                            <SelectItem value="general_maintenance">
+                              🔨 General Maintenance
+                            </SelectItem>
+                            <SelectItem value="landscaping">
+                              🌳 Landscaping
+                            </SelectItem>
+                            <SelectItem value="security">
+                              🔒 Security
+                            </SelectItem>
+                            <SelectItem value="cleaning">
+                              🧹 Cleaning
+                            </SelectItem>
+                            <SelectItem value="other">📋 Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label
+                          htmlFor="priority"
+                          className="text-sm font-bold text-slate-700 mb-2"
+                        >
+                          Priority Level
+                        </Label>
+                        <Select
+                          value={formData.priority}
+                          onValueChange={(value) =>
+                            handleInputChange("priority", value)
+                          }
+                        >
+                          <SelectTrigger className="mt-2 h-11 border-slate-300 rounded-xl">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="low">🟢 Low Priority</SelectItem>
+                            <SelectItem value="medium">
+                              🟡 Medium Priority
+                            </SelectItem>
+                            <SelectItem value="high">
+                              🟠 High Priority
+                            </SelectItem>
+                            <SelectItem value="urgent">🔴 Urgent</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <div>
-                  <Label
-                    htmlFor="request_type"
-                    className="text-sm font-semibold text-slate-900"
-                  >
-                    Request Type *
-                  </Label>
-                  <Select
-                    value={formData.request_type}
-                    onValueChange={(value) =>
-                      handleInputChange("request_type", value)
-                    }
-                  >
-                    <SelectTrigger className="mt-2">
-                      <SelectValue placeholder="Select request type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="plumbing">Plumbing</SelectItem>
-                      <SelectItem value="electrical">Electrical</SelectItem>
-                      <SelectItem value="hvac">HVAC</SelectItem>
-                      <SelectItem value="appliance">Appliance</SelectItem>
-                      <SelectItem value="general_maintenance">
-                        General Maintenance
-                      </SelectItem>
-                      <SelectItem value="landscaping">Landscaping</SelectItem>
-                      <SelectItem value="security">Security</SelectItem>
-                      <SelectItem value="cleaning">Cleaning</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
+                {/* Homeowner & Property Section */}
+                <div className="space-y-6 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                  <div className="flex items-center gap-3 pb-3 border-b border-slate-200">
+                    <div className="p-2 bg-purple-50 rounded-lg">
+                      <User className="w-5 h-5 text-purple-600" />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900">
+                      Homeowner & Property
+                    </h3>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <Label
+                        htmlFor="homeowner"
+                        className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2"
+                      >
+                        Homeowner <span className="text-red-500">*</span>
+                      </Label>
+                      <ReactSelect
+                        className="mt-2"
+                        options={homeowners.map((homeowner) => ({
+                          value: homeowner.id.toString(),
+                          label: `${homeowner.full_name} - Unit ${
+                            homeowner.unit_number
+                          }${
+                            homeowner.property_info_tbl
+                              ? ` (${homeowner.property_info_tbl.property_title})`
+                              : ""
+                          }`,
+                        }))}
+                        value={
+                          formData.homeowner_id
+                            ? {
+                                value: formData.homeowner_id,
+                                label: homeowners.find(
+                                  (h) =>
+                                    h.id.toString() === formData.homeowner_id
+                                )
+                                  ? `${
+                                      homeowners.find(
+                                        (h) =>
+                                          h.id.toString() ===
+                                          formData.homeowner_id
+                                      ).full_name
+                                    } - Unit ${
+                                      homeowners.find(
+                                        (h) =>
+                                          h.id.toString() ===
+                                          formData.homeowner_id
+                                      ).unit_number
+                                    }${
+                                      homeowners.find(
+                                        (h) =>
+                                          h.id.toString() ===
+                                          formData.homeowner_id
+                                      ).property_info_tbl
+                                        ? ` (${
+                                            homeowners.find(
+                                              (h) =>
+                                                h.id.toString() ===
+                                                formData.homeowner_id
+                                            ).property_info_tbl.property_title
+                                          })`
+                                        : ""
+                                    }`
+                                  : "Select homeowner",
+                              }
+                            : null
+                        }
+                        onChange={handleHomeownerChange}
+                        placeholder="Search and select a homeowner..."
+                        isClearable
+                        isSearchable
+                        styles={{
+                          control: (base) => ({
+                            ...base,
+                            minHeight: "44px",
+                            borderRadius: "0.75rem",
+                            borderColor: "#cbd5e1",
+                          }),
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <Label
+                        htmlFor="property"
+                        className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2"
+                      >
+                        Property <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        type="text"
+                        className="mt-2 h-11 bg-slate-50 border-slate-300 cursor-not-allowed rounded-xl"
+                        value={
+                          formData.property_id &&
+                          homeowners.find(
+                            (h) => h.id.toString() === formData.homeowner_id
+                          )?.property_info_tbl
+                            ? homeowners.find(
+                                (h) => h.id.toString() === formData.homeowner_id
+                              ).property_info_tbl.property_title
+                            : ""
+                        }
+                        placeholder="Auto-filled from homeowner"
+                        readOnly
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <div>
-                  <Label
-                    htmlFor="priority"
-                    className="text-sm font-semibold text-slate-900"
-                  >
-                    Priority
-                  </Label>
-                  <Select
-                    value={formData.priority}
-                    onValueChange={(value) =>
-                      handleInputChange("priority", value)
-                    }
-                  >
-                    <SelectTrigger className="mt-2">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Low Priority</SelectItem>
-                      <SelectItem value="medium">Medium Priority</SelectItem>
-                      <SelectItem value="high">High Priority</SelectItem>
-                      <SelectItem value="urgent">Urgent</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                {/* Additional Details Section */}
+                <div className="space-y-6 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                  <div className="flex items-center gap-3 pb-3 border-b border-slate-200">
+                    <div className="p-2 bg-orange-50 rounded-lg">
+                      <Calendar className="w-5 h-5 text-orange-600" />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900">
+                      Additional Details
+                    </h3>
+                  </div>
 
-                <div>
-                  <Label
-                    htmlFor="homeowner"
-                    className="text-sm font-semibold text-slate-900"
-                  >
-                    Homeowner *
-                  </Label>
-                  <Select
-                    value={formData.homeowner_id}
-                    onValueChange={(value) =>
-                      handleInputChange("homeowner_id", value)
-                    }
-                  >
-                    <SelectTrigger className="mt-2">
-                      <SelectValue placeholder="Select homeowner" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {homeowners.map((homeowner) => (
-                        <SelectItem key={homeowner.id} value={homeowner.id}>
-                          {homeowner.full_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                  <div className="grid grid-cols-1 gap-6">
+                    <div>
+                      <Label
+                        htmlFor="scheduled_date"
+                        className="text-sm font-bold text-slate-700 mb-2"
+                      >
+                        Scheduled Date (Optional)
+                      </Label>
+                      <Input
+                        id="scheduled_date"
+                        type="date"
+                        value={formData.scheduled_date}
+                        onChange={(e) =>
+                          handleInputChange("scheduled_date", e.target.value)
+                        }
+                        className="mt-2 h-11 border-slate-300 rounded-xl"
+                      />
+                    </div>
 
-                <div>
-                  <Label
-                    htmlFor="property"
-                    className="text-sm font-semibold text-slate-900"
-                  >
-                    Property *
-                  </Label>
-                  <Select
-                    value={formData.property_id}
-                    onValueChange={(value) =>
-                      handleInputChange("property_id", value)
-                    }
-                  >
-                    <SelectTrigger className="mt-2">
-                      <SelectValue placeholder="Select property" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {properties.map((property) => (
-                        <SelectItem key={property.id} value={property.id}>
-                          {property.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    <div>
+                      <Label
+                        htmlFor="description"
+                        className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2"
+                      >
+                        Description <span className="text-red-500">*</span>
+                      </Label>
+                      <Textarea
+                        id="description"
+                        value={formData.description}
+                        onChange={(e) =>
+                          handleInputChange("description", e.target.value)
+                        }
+                        placeholder="Provide detailed description of the issue, including location, severity, and any other relevant information..."
+                        rows={6}
+                        className="mt-2 resize-none border-slate-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 rounded-xl text-base leading-relaxed"
+                        required
+                      />
+                    </div>
+                  </div>
                 </div>
+              </form>
+            </div>
 
-                <div>
-                  <Label
-                    htmlFor="scheduled_date"
-                    className="text-sm font-semibold text-slate-900"
+            {/* Footer with Actions */}
+            <div className="sticky bottom-0 bg-white border-t border-slate-200 px-8 py-6 rounded-b-3xl shadow-lg">
+              <div className="flex justify-between items-center">
+                <p className="text-sm text-slate-500">
+                  <span className="text-red-500">*</span> Required fields
+                </p>
+                <div className="flex gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsModalOpen(false)}
+                    className="px-8 h-11 rounded-xl border-slate-300 hover:bg-slate-50 font-semibold"
                   >
-                    Scheduled Date
-                  </Label>
-                  <Input
-                    id="scheduled_date"
-                    type="date"
-                    value={formData.scheduled_date}
-                    onChange={(e) =>
-                      handleInputChange("scheduled_date", e.target.value)
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={
+                      submitting ||
+                      !formData.title ||
+                      !formData.description ||
+                      !formData.request_type ||
+                      !formData.homeowner_id ||
+                      !formData.property_id
                     }
-                    className="mt-2"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <Label
-                    htmlFor="description"
-                    className="text-sm font-semibold text-slate-900"
+                    onClick={handleSubmit}
+                    className="bg-gradient-to-r from-red-500 to-red-600 text-white px-8 h-11 rounded-xl hover:from-red-600 hover:to-red-700 shadow-lg shadow-red-500/30 hover:shadow-xl hover:shadow-red-500/40 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
                   >
-                    Description *
-                  </Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) =>
-                      handleInputChange("description", e.target.value)
-                    }
-                    placeholder="Provide detailed description of the issue..."
-                    rows={4}
-                    className="mt-2 resize-none"
-                    required
-                  />
+                    {submitting ? (
+                      <span className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Creating...
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <Plus className="w-5 h-5" />
+                        Create Request
+                      </span>
+                    )}
+                  </Button>
                 </div>
               </div>
-
-              <div className="flex justify-end gap-4 pt-6 border-t border-slate-200">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-6"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={
-                    submitting ||
-                    !formData.title ||
-                    !formData.description ||
-                    !formData.request_type ||
-                    !formData.homeowner_id ||
-                    !formData.property_id
-                  }
-                  className="bg-gradient-to-r from-slate-800 to-slate-900 text-white px-8 hover:from-slate-900 hover:to-black"
-                >
-                  {submitting ? "Creating..." : "Create Request"}
-                </Button>
-              </div>
-            </form>
+            </div>
           </motion.div>
         </div>
       )}
@@ -962,23 +1154,58 @@ export default function ServiceRequests() {
                   >
                     Homeowner *
                   </Label>
-                  <Select
-                    value={formData.homeowner_id}
-                    onValueChange={(value) =>
-                      handleInputChange("homeowner_id", value)
+                  <ReactSelect
+                    className="mt-2"
+                    options={homeowners.map((homeowner) => ({
+                      value: homeowner.id.toString(),
+                      label: `${homeowner.full_name} - Unit ${
+                        homeowner.unit_number
+                      }${
+                        homeowner.property_info_tbl
+                          ? ` (${homeowner.property_info_tbl.property_title})`
+                          : ""
+                      }`,
+                    }))}
+                    value={
+                      formData.homeowner_id
+                        ? {
+                            value: formData.homeowner_id,
+                            label: homeowners.find(
+                              (h) => h.id.toString() === formData.homeowner_id
+                            )
+                              ? `${
+                                  homeowners.find(
+                                    (h) =>
+                                      h.id.toString() === formData.homeowner_id
+                                  ).full_name
+                                } - Unit ${
+                                  homeowners.find(
+                                    (h) =>
+                                      h.id.toString() === formData.homeowner_id
+                                  ).unit_number
+                                }${
+                                  homeowners.find(
+                                    (h) =>
+                                      h.id.toString() === formData.homeowner_id
+                                  ).property_info_tbl
+                                    ? ` (${
+                                        homeowners.find(
+                                          (h) =>
+                                            h.id.toString() ===
+                                            formData.homeowner_id
+                                        ).property_info_tbl.property_title
+                                      })`
+                                    : ""
+                                }`
+                              : "Select homeowner",
+                          }
+                        : null
                     }
-                  >
-                    <SelectTrigger className="mt-2">
-                      <SelectValue placeholder="Select homeowner" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {homeowners.map((homeowner) => (
-                        <SelectItem key={homeowner.id} value={homeowner.id}>
-                          {homeowner.full_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onChange={handleHomeownerChange}
+                    placeholder="Search and select a homeowner..."
+                    isClearable
+                    isSearchable
+                  />
                 </div>
 
                 <div>
@@ -988,23 +1215,22 @@ export default function ServiceRequests() {
                   >
                     Property *
                   </Label>
-                  <Select
-                    value={formData.property_id}
-                    onValueChange={(value) =>
-                      handleInputChange("property_id", value)
+                  <Input
+                    type="text"
+                    className="mt-2 bg-slate-100 cursor-not-allowed"
+                    value={
+                      formData.property_id &&
+                      homeowners.find(
+                        (h) => h.id.toString() === formData.homeowner_id
+                      )?.property_info_tbl
+                        ? homeowners.find(
+                            (h) => h.id.toString() === formData.homeowner_id
+                          ).property_info_tbl.property_title
+                        : ""
                     }
-                  >
-                    <SelectTrigger className="mt-2">
-                      <SelectValue placeholder="Select property" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {properties.map((property) => (
-                        <SelectItem key={property.id} value={property.id}>
-                          {property.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder="Select homeowner first"
+                    readOnly
+                  />
                 </div>
 
                 <div>

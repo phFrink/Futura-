@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import Link from "next/link";
 import {
   LayoutDashboard,
@@ -195,98 +195,121 @@ const navigationItems = [
     url: "/dashboard",
     icon: LayoutDashboard,
     countKey: null,
-    roles: ['admin', 'customer service', 'sales representative', 'home owner'],
+    roles: ["admin", "customer service", "sales representative", "home owner"],
   },
   {
     title: "Properties",
     url: "/properties",
     icon: Home,
     countKey: "properties",
-    roles: ['admin', 'sales representative'],
+    roles: ["admin", "sales representative"],
+    children: [
+      {
+        title: "Property details",
+        url: "/properties",
+        icon: Users,
+        countKey: null,
+        roles: ["admin"],
+      },
+      {
+        title: "Property type",
+        url: "/properties/proptype",
+        icon: Users,
+        countKey: null,
+        roles: ["admin"],
+      },
+      {
+        title: "Lot Number",
+        url: "/properties/lot",
+        icon: Users,
+        countKey: null,
+        roles: ["admin"],
+      },
+    ],
   },
   {
     title: "Homeowners",
     url: "/homeowners",
     icon: Users,
     countKey: "homeowners",
-    roles: ['admin'],
+    roles: ["admin"],
   },
   {
     title: "Billing",
     url: "/billing",
     icon: FileText,
     countKey: null,
-    roles: ['admin', 'sales representative'],
+    roles: ["admin", "sales representative"],
   },
   {
     title: "Service Requests",
     url: "/service-requests",
     icon: Wrench,
     countKey: "serviceRequests",
-    roles: ['admin', 'customer service'],
+    roles: ["admin", "customer service"],
   },
   {
     title: "Inquiries",
     url: "/inquiries",
     icon: MessageSquare,
     countKey: "inquiries",
-    roles: ['admin', 'customer service'],
+    roles: ["admin", "customer service"],
   },
   {
     title: "Complaints",
     url: "/complaints",
     icon: AlertTriangle,
     countKey: "complaints",
-    roles: ['admin', 'customer service', 'sales representative'],
+    roles: ["admin", "customer service", "sales representative"],
   },
   {
     title: "Announcements",
     url: "/announcements",
     icon: Megaphone,
     countKey: "announcements",
-    roles: ['admin', 'customer service', 'sales representative'],
+    roles: ["admin", "customer service", "sales representative"],
   },
   {
     title: "Appointments",
     url: "/reservations",
     icon: Calendar,
     countKey: "reservations",
-    roles: ['admin', 'sales representative'],
+    roles: ["admin", "sales representative"],
   },
   {
     title: "Transactions",
     url: "/transactions",
     icon: DollarSign,
     countKey: "transactions",
-    roles: ['admin', 'sales representative'],
+    roles: ["admin", "sales representative"],
   },
   {
     title: "Property Map",
     url: "/property-map",
     icon: MapPin,
     countKey: null,
-    roles: ['admin', 'sales representative', 'home owner'],
+    roles: ["admin", "sales representative", "home owner"],
   },
   {
     title: "Reports",
     url: "/reports",
     icon: FileBarChart,
     countKey: null,
-    roles: ['admin'],
+    roles: ["admin"],
   },
   {
     title: "Setting",
     url: "/setting",
     icon: Settings,
     countKey: null,
-    roles: ['admin'], // Only admin can see Settings
+    roles: ["admin"], // Only admin can see Settings
     children: [
       {
         title: "Users",
         url: "/settings/users",
         icon: Users,
         countKey: null,
-        roles: ['admin'],
+        roles: ["admin"],
       },
     ],
   },
@@ -300,29 +323,36 @@ export default function MainLayout({ children, currentPageName }) {
 
   const [showLogout, setShowLogout] = useState(false);
   const [userRole, setUserRole] = useState(null);
-  const [userName, setUserName] = useState('');
-  const [userInitials, setUserInitials] = useState('FM');
+  const [userName, setUserName] = useState("");
+  const [userInitials, setUserInitials] = useState("FM");
 
   // Get user role and name on mount
   useEffect(() => {
     const getUserInfo = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (session?.user) {
         const role = session.user.user_metadata?.role?.toLowerCase();
-        const firstName = session.user.user_metadata?.first_name || '';
-        const lastName = session.user.user_metadata?.last_name || '';
-        const fullName = `${firstName} ${lastName}`.trim() || session.user.email?.split('@')[0] || 'User';
+        const firstName = session.user.user_metadata?.first_name || "";
+        const lastName = session.user.user_metadata?.last_name || "";
+        const fullName =
+          `${firstName} ${lastName}`.trim() ||
+          session.user.email?.split("@")[0] ||
+          "User";
 
         setUserRole(role);
         setUserName(fullName);
 
         // Generate initials
         if (firstName && lastName) {
-          setUserInitials(`${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase());
+          setUserInitials(
+            `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
+          );
         } else if (firstName) {
           setUserInitials(firstName.charAt(0).toUpperCase());
         } else {
-          setUserInitials('U');
+          setUserInitials("U");
         }
       }
     };
@@ -331,18 +361,18 @@ export default function MainLayout({ children, currentPageName }) {
 
   // Helper function to format role name for display
   const formatRoleName = (role) => {
-    if (!role) return 'User';
+    if (!role) return "User";
     const roleMap = {
-      'admin': 'Administrator',
-      'customer service': 'Customer Service',
-      'sales representative': 'Sales Representative',
-      'home owner': 'Home Owner'
+      admin: "Administrator",
+      "customer service": "Customer Service",
+      "sales representative": "Sales Representative",
+      "home owner": "Home Owner",
     };
     return roleMap[role] || role.charAt(0).toUpperCase() + role.slice(1);
   };
 
   // Filter navigation items based on user role
-  const filteredNavigationItems = navigationItems.filter(item => {
+  const filteredNavigationItems = navigationItems.filter((item) => {
     if (!userRole) return false;
     return item.roles?.includes(userRole);
   });
@@ -358,7 +388,7 @@ export default function MainLayout({ children, currentPageName }) {
       setShowLogout(false);
 
       // Sign out from Supabase with scope 'local' to clear session
-      await supabase.auth.signOut({ scope: 'local' });
+      await supabase.auth.signOut({ scope: "local" });
 
       // Clear all localStorage and sessionStorage
       if (typeof window !== "undefined") {
@@ -372,7 +402,7 @@ export default function MainLayout({ children, currentPageName }) {
       // Force hard redirect to login page (clears all cache)
       window.location.replace("/login");
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error("Logout error:", error);
       toast.error("Failed to logout");
     }
   };
@@ -487,12 +517,16 @@ export default function MainLayout({ children, currentPageName }) {
                     >
                       <div className="text-right">
                         <p className="text-sm font-medium text-slate-900">
-                          {userName || 'User'}
+                          {userName || "User"}
                         </p>
-                        <p className="text-xs text-slate-500">{formatRoleName(userRole)}</p>
+                        <p className="text-xs text-slate-500">
+                          {formatRoleName(userRole)}
+                        </p>
                       </div>
                       <div className="w-8 h-8 bg-gradient-to-r from-red-400 to-red-500 rounded-full flex items-center justify-center">
-                        <span className="text-white font-bold text-sm">{userInitials}</span>
+                        <span className="text-white font-bold text-sm">
+                          {userInitials}
+                        </span>
                       </div>
                     </div>
 

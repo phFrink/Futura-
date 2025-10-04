@@ -33,6 +33,10 @@ export async function GET(request) {
       );
     }
 
+    // Get role filter from query params
+    const { searchParams } = new URL(request.url);
+    const roleFilter = searchParams.get("role");
+
     // Use admin.listUsers() to get all registered users
     const {
       data: { users },
@@ -127,13 +131,23 @@ export async function GET(request) {
         email: user.email,
         first_name: profile?.first_name || user.user_metadata?.first_name || "",
         last_name: profile?.last_name || user.user_metadata?.last_name || "",
+        full_name:
+          user.user_metadata?.full_name ||
+          `${profile?.first_name || user.user_metadata?.first_name || ""} ${
+            profile?.last_name || user.user_metadata?.last_name || ""
+          }`.trim(),
         role: userRole,
         role_id: user.user_metadata?.role_id || null,
+        user_metadata_role: user.user_metadata?.role || null, // Store original user_metadata.role
         staff_type: staffType, // 'resident', 'assistant', or null
         is_staff: isStaff, // Flag to identify staff members
         status: profile?.status || (user.banned_until ? "inactive" : "active"),
         avatar_url: profile?.avatar_url || user.user_metadata?.profilePhoto,
-        profile_photo: user.user_metadata?.profile_photo || profile?.avatar_url || user.user_metadata?.profilePhoto || null,
+        profile_photo:
+          user.user_metadata?.profile_photo ||
+          profile?.avatar_url ||
+          user.user_metadata?.profilePhoto ||
+          null,
         phone: profile?.phone || user.user_metadata?.phone,
         address: profile?.address || "",
         branch_info: branchInfo, // Branch information for staff
@@ -148,13 +162,28 @@ export async function GET(request) {
       };
     });
 
-    console.log(`✅ Returning ${formattedUsers.length} formatted users`);
+    // Filter by role if specified (only check user_metadata.role)
+    let filteredUsers = formattedUsers;
+    if (roleFilter) {
+      filteredUsers = formattedUsers.filter((user) => {
+        // Only check user_metadata_role for filtering
+        return (
+          user.user_metadata_role &&
+          user.user_metadata_role.toLowerCase() === roleFilter.toLowerCase()
+        );
+      });
+      console.log(
+        `✅ Filtered to ${filteredUsers.length} users with user_metadata.role: ${roleFilter}`
+      );
+    }
+
+    console.log(`✅ Returning ${filteredUsers.length} formatted users`);
 
     return NextResponse.json({
       success: true,
-      data: formattedUsers,
-      total: formattedUsers.length,
-      message: `Loaded ${formattedUsers.length} users successfully`,
+      data: filteredUsers,
+      total: filteredUsers.length,
+      message: `Loaded ${filteredUsers.length} users successfully`,
     });
   } catch (error) {
     console.error("❌ API Error:", error);

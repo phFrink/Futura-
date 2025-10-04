@@ -9,6 +9,9 @@ import {
   FileText,
   AlertTriangle,
   Bell,
+  DollarSign,
+  TrendingUp,
+  Calendar,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -291,11 +294,138 @@ export default function Dashboard() {
           />
         </div>
 
-        {/* Recent Announcements */}
+        {/* Recent Payment Activities, Property Availability & Daily Transactions */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.6 }}
+          className="grid lg:grid-cols-3 gap-6"
+        >
+          {/* Recent Payment Activities */}
+          <Card className="bg-white/80 backdrop-blur-sm border-slate-200 shadow-xl">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <DollarSign className="w-5 h-5 text-green-600" />
+                Recent Payment Activities
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="p-3 rounded-lg bg-slate-50/50 hover:bg-slate-100/50 transition-colors">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="font-semibold text-slate-900 text-sm">Monthly Dues</p>
+                    <p className="font-bold text-green-600">₱ 54,200</p>
+                  </div>
+                  <p className="text-xs text-slate-500">12 new payments • Aug 15</p>
+                </div>
+
+                <div className="p-3 rounded-lg bg-slate-50/50 hover:bg-slate-100/50 transition-colors">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="font-semibold text-slate-900 text-sm">Online Payments</p>
+                    <p className="font-bold text-green-600">₱ 32,100</p>
+                  </div>
+                  <p className="text-xs text-slate-500">8 transactions • Aug 14</p>
+                </div>
+
+                <div className="p-3 rounded-lg bg-slate-50/50 hover:bg-slate-100/50 transition-colors">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="font-semibold text-slate-900 text-sm">Transfer Payments</p>
+                    <p className="font-bold text-green-600">₱ 18,750</p>
+                  </div>
+                  <p className="text-xs text-slate-500">5 verified • Aug 13</p>
+                </div>
+
+                <div className="p-3 rounded-lg bg-slate-50/50 hover:bg-slate-100/50 transition-colors">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="font-semibold text-slate-900 text-sm">Misc. Receipts</p>
+                    <p className="font-bold text-green-600">₱ 9,420</p>
+                  </div>
+                  <p className="text-xs text-slate-500">3 payments • Aug 12</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Property Availability */}
+          <Card className="bg-white/80 backdrop-blur-sm border-slate-200 shadow-xl">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <Home className="w-5 h-5 text-blue-600" />
+                Property Availability
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200">
+                  <p className="text-xs font-medium text-blue-700 mb-1">Vacant</p>
+                  <p className="text-2xl font-bold text-blue-900">21</p>
+                  <p className="text-xs text-blue-600 mt-1">Units available</p>
+                </div>
+
+                <div className="p-3 rounded-lg bg-gradient-to-br from-green-50 to-green-100 border border-green-200">
+                  <p className="text-xs font-medium text-green-700 mb-1">Occupied</p>
+                  <p className="text-2xl font-bold text-green-900">67</p>
+                  <p className="text-xs text-green-600 mt-1">Units filled</p>
+                </div>
+
+                <div className="p-3 rounded-lg bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200">
+                  <p className="text-xs font-medium text-amber-700 mb-1">For Sale</p>
+                  <p className="text-2xl font-bold text-amber-900">10</p>
+                  <p className="text-xs text-amber-600 mt-1">Available lots</p>
+                </div>
+
+                <div className="p-3 rounded-lg bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200">
+                  <p className="text-xs font-medium text-purple-700 mb-1">Under Construction</p>
+                  <p className="text-2xl font-bold text-purple-900">25</p>
+                  <p className="text-xs text-purple-600 mt-1">In progress</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Daily Transactions */}
+          <Card className="bg-white/80 backdrop-blur-sm border-slate-200 shadow-xl">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-red-600" />
+                Daily Transactions
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="p-4 rounded-xl bg-gradient-to-r from-red-50 to-pink-50 border border-red-200">
+                  <p className="text-xs font-medium text-slate-600 mb-2">Total Amount Today</p>
+                  <p className="text-3xl font-bold text-red-600">₱ 13,420.42</p>
+                  <p className="text-xs text-slate-500 mt-2 flex items-center gap-1">
+                    <Calendar className="w-3 h-3" />
+                    {new Date().toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric'
+                    })}
+                  </p>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 flex-1">
+                    <p className="text-xs text-slate-600 mb-1">Transactions</p>
+                    <p className="text-2xl font-bold text-slate-900">28</p>
+                  </div>
+                  <div className="ml-3">
+                    <Badge className="bg-green-100 text-green-800 border-green-200 text-xs">
+                      +12%
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Recent Announcements */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8 }}
           className="grid lg:grid-cols-2 gap-8"
         >
           <Card className="bg-white/80 backdrop-blur-sm border-slate-200 shadow-xl">

@@ -1,8 +1,11 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -26,7 +29,11 @@ import {
   AlertTriangle,
   Loader2,
   Sparkles,
+  User,
+  FileText,
+  HelpCircle,
 } from "lucide-react";
+import { motion } from "framer-motion";
 import { createClient } from "@supabase/supabase-js";
 import { isNewItem, getRelativeTime } from '@/lib/utils';
 
@@ -378,28 +385,38 @@ export default function Inquiries() {
 
   return (
     <>
-      <div className="min-h-screen p-6 md:p-8 bg-gradient-to-br from-slate-50 to-blue-50">
-        <div className="max-w-7xl mx-auto space-y-8">
-          {/* Header */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-              <h1 className="text-4xl font-bold text-slate-900 mb-2">
-                Inquiries
-              </h1>
-              <p className="text-lg text-slate-600">
-                Manage homeowner and prospect inquiries
-              </p>
-            </div>
-
-            {/* New Inquiry Button */}
-            <button
-              className="btn btn-primary  gap-2 shadow-lg hover:shadow-xl transition-all duration-300 bg-red-400 hover:bg-red-500 border-none text-white"
-              onClick={openModal}
-            >
-              <Plus className="w-5 h-5" />
+      <div className="min-h-screen p-6 md:p-8 bg-gradient-to-br from-slate-50 via-white to-slate-50">
+        <div className="max-w-7xl mx-auto space-y-6">
+          {/* Header Section */}
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6 md:p-8"
+          >
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg shadow-red-500/30">
+                  <HelpCircle className="w-7 h-7 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent mb-1">
+                    Inquiries
+                  </h1>
+                  <p className="text-sm text-slate-600 flex items-center gap-2">
+                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                    Manage homeowner and prospect inquiries
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={openModal}
+                className="bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg shadow-red-500/30 hover:shadow-xl hover:shadow-red-500/40 hover:from-red-600 hover:to-red-700 transition-all duration-300 rounded-xl px-6"
+              >
+                <Plus className="w-5 h-5 mr-2" />
               New Inquiry
-            </button>
-          </div>
+              </Button>
+            </div>
+          </motion.div>
 
           {/* Search and Filters */}
           <div className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-2xl p-6 shadow-lg">
@@ -553,170 +570,220 @@ export default function Inquiries() {
         </div>
       </div>
 
-      {/* DaisyUI Modal */}
+      {/* Modern Inquiry Modal */}
       <dialog id="inquiry_modal" className="modal modal-bottom sm:modal-middle">
-        <div className="modal-box max-w-2xl bg-gradient-to-br from-white to-slate-50 border border-slate-200">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h3 className="font-bold text-2xl text-slate-900 mb-1">
-                Submit New Inquiry
-              </h3>
-              <p className="text-slate-600">
-                We&apos;ll get back to you as soon as possible
-              </p>
+        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden mx-auto">
+          {/* Header with gradient */}
+          <div className="sticky top-0 bg-gradient-to-r from-red-500 to-red-600 px-8 py-6 rounded-t-3xl z-10">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
+                  <HelpCircle className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold text-white">
+                    Submit New Inquiry
+                  </h3>
+                  <p className="text-red-100 mt-1 text-sm">
+                    We&apos;ll get back to you as soon as possible
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={closeModal}
+                className="rounded-full hover:bg-white/20 text-white"
+              >
+                <X className="w-5 h-5" />
+              </Button>
             </div>
-            <button
-              className="btn btn-sm btn-circle btn-ghost hover:bg-slate-100 transition-colors"
-              onClick={closeModal}
-            >
-              <X className="w-4 h-4" />
-            </button>
           </div>
 
-          <div className="space-y-6">
-            {/* Personal Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-medium text-slate-700">
-                    Full Name *
-                  </span>
-                </label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  placeholder="Enter your full name"
-                  className="input input-bordered w-full focus:input-primary transition-colors bg-white/80"
-                />
-              </div>
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-medium text-slate-700">
-                    Email Address *
-                  </span>
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  placeholder="Enter your email"
-                  className="input input-bordered w-full focus:input-primary transition-colors bg-white/80"
-                />
-              </div>
-            </div>
+          {/* Scrollable Content */}
+          <div className="overflow-y-auto max-h-[calc(90vh-200px)]">
+            <form className="p-8 space-y-8 bg-slate-50">
+              {/* Personal Information Section */}
+              <div className="space-y-6 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="flex items-center gap-3 pb-3 border-b border-slate-200">
+                  <div className="p-2 bg-red-50 rounded-lg">
+                    <User className="w-5 h-5 text-red-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900">Personal Information</h3>
+                </div>
 
-            {/* Contact Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-medium text-slate-700">
-                    Phone Number
-                  </span>
-                </label>
-                <input
-                  type="tel"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                  placeholder="Enter your phone number"
-                  className="input input-bordered w-full focus:input-primary transition-colors bg-white/80"
-                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <Label htmlFor="name" className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
+                      Full Name <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      type="text"
+                      id="name"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      placeholder="Enter your full name"
+                      className="mt-2 h-11 border-slate-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 rounded-xl"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="email" className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
+                      Email Address <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      type="email"
+                      id="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      placeholder="Enter your email"
+                      className="mt-2 h-11 border-slate-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 rounded-xl"
+                      required
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-medium text-slate-700">
-                    Category *
-                  </span>
-                </label>
-                <select
-                  name="category"
-                  value={formData.category}
-                  onChange={handleInputChange}
-                  className="select select-bordered w-full focus:select-primary transition-colors bg-white/80"
+
+              {/* Contact & Category Section */}
+              <div className="space-y-6 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="flex items-center gap-3 pb-3 border-b border-slate-200">
+                  <div className="p-2 bg-purple-50 rounded-lg">
+                    <Phone className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900">Contact & Category</h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <Label htmlFor="phone" className="text-sm font-bold text-slate-700 mb-2">
+                      Phone Number (Optional)
+                    </Label>
+                    <Input
+                      type="tel"
+                      id="phone"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      placeholder="Enter your phone number"
+                      className="mt-2 h-11 border-slate-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 rounded-xl"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="category" className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
+                      Category <span className="text-red-500">*</span>
+                    </Label>
+                    <Select
+                      name="category"
+                      value={formData.category}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
+                    >
+                      <SelectTrigger className="mt-2 h-11 border-slate-300 rounded-xl">
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="general">📋 General</SelectItem>
+                        <SelectItem value="billing">💰 Billing</SelectItem>
+                        <SelectItem value="services">🛠️ Services</SelectItem>
+                        <SelectItem value="property_info">🏠 Property Info</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Inquiry Details Section */}
+              <div className="space-y-6 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="flex items-center gap-3 pb-3 border-b border-slate-200">
+                  <div className="p-2 bg-orange-50 rounded-lg">
+                    <FileText className="w-5 h-5 text-orange-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900">Inquiry Details</h3>
+                </div>
+
+                <div className="grid grid-cols-1 gap-6">
+                  <div>
+                    <Label htmlFor="subject" className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
+                      Subject <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      type="text"
+                      id="subject"
+                      name="subject"
+                      value={formData.subject}
+                      onChange={handleInputChange}
+                      placeholder="Brief description of your inquiry"
+                      className="mt-2 h-11 border-slate-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 rounded-xl"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="message" className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
+                      Message <span className="text-red-500">*</span>
+                    </Label>
+                    <Textarea
+                      id="message"
+                      name="message"
+                      value={formData.message}
+                      onChange={handleInputChange}
+                      placeholder="Please provide detailed information about your inquiry..."
+                      rows={6}
+                      className="mt-2 resize-none border-slate-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 rounded-xl text-base leading-relaxed"
+                      maxLength={500}
+                      required
+                    />
+                    <p className="text-xs text-slate-500 mt-2">
+                      {formData.message.length}/500 characters
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          {/* Footer with Actions */}
+          <div className="sticky bottom-0 bg-white border-t border-slate-200 px-8 py-6 rounded-b-3xl shadow-lg">
+            <div className="flex justify-between items-center">
+              <p className="text-sm text-slate-500">
+                <span className="text-red-500">*</span> Required fields
+              </p>
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={closeModal}
+                  disabled={submitting}
+                  className="px-8 h-11 rounded-xl border-slate-300 hover:bg-slate-50 font-semibold"
                 >
-                  <option value="general">General</option>
-                  <option value="billing">Billing</option>
-                  <option value="services">Services</option>
-                  <option value="property_info">Property Info</option>
-                </select>
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  disabled={
+                    submitting ||
+                    !formData.name ||
+                    !formData.email ||
+                    !formData.subject ||
+                    !formData.message
+                  }
+                  onClick={handleSubmit}
+                  className="bg-gradient-to-r from-red-500 to-red-600 text-white px-8 h-11 rounded-xl hover:from-red-600 hover:to-red-700 shadow-lg shadow-red-500/30 hover:shadow-xl hover:shadow-red-500/40 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                >
+                  {submitting ? (
+                    <span className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Submitting...
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <Send className="w-5 h-5" />
+                      Submit Inquiry
+                    </span>
+                  )}
+                </Button>
               </div>
-            </div>
-
-            {/* Subject */}
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text font-medium text-slate-700">
-                  Subject *
-                </span>
-              </label>
-              <input
-                type="text"
-                name="subject"
-                value={formData.subject}
-                onChange={handleInputChange}
-                placeholder="Brief description of your inquiry"
-                className="input input-bordered w-full focus:input-primary transition-colors bg-white/80"
-              />
-            </div>
-
-            {/* Message */}
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text font-medium text-slate-700">
-                  Message *
-                </span>
-              </label>
-              <textarea
-                name="message"
-                value={formData.message}
-                onChange={handleInputChange}
-                placeholder="Please provide details about your inquiry..."
-                className="textarea textarea-bordered h-32 w-full focus:textarea-primary transition-colors bg-white/80 resize-none"
-              ></textarea>
-              <label className="label">
-                <span className="label-text-alt text-slate-500">
-                  {formData.message.length}/500 characters
-                </span>
-              </label>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="modal-action pt-4">
-              <button
-                type="button"
-                className="btn btn-outline btn-lg gap-2 hover:bg-slate-100 transition-colors"
-                onClick={closeModal}
-                disabled={submitting}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary btn-lg gap-2 shadow-lg hover:shadow-xl transition-all bg-blue-600 hover:bg-blue-700 border-blue-600 hover:border-blue-700"
-                disabled={
-                  submitting ||
-                  !formData.name ||
-                  !formData.email ||
-                  !formData.subject ||
-                  !formData.message
-                }
-                onClick={handleSubmit}
-              >
-                {submitting ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    Submitting...
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-5 h-5" />
-                    Submit Inquiry
-                  </>
-                )}
-              </button>
             </div>
           </div>
         </div>
