@@ -313,23 +313,33 @@ export default function Dashboard() {
               <div className="space-y-3">
                 <div className="p-3 rounded-lg bg-slate-50/50 hover:bg-slate-100/50 transition-colors">
                   <div className="flex items-center justify-between mb-1">
-                    <p className="font-semibold text-slate-900 text-sm">Monthly Dues</p>
+                    <p className="font-semibold text-slate-900 text-sm">
+                      Monthly Dues
+                    </p>
                     <p className="font-bold text-green-600">₱ 54,200</p>
                   </div>
-                  <p className="text-xs text-slate-500">12 new payments • Aug 15</p>
+                  <p className="text-xs text-slate-500">
+                    12 new payments • Aug 15
+                  </p>
                 </div>
 
                 <div className="p-3 rounded-lg bg-slate-50/50 hover:bg-slate-100/50 transition-colors">
                   <div className="flex items-center justify-between mb-1">
-                    <p className="font-semibold text-slate-900 text-sm">Online Payments</p>
+                    <p className="font-semibold text-slate-900 text-sm">
+                      Online Payments
+                    </p>
                     <p className="font-bold text-green-600">₱ 32,100</p>
                   </div>
-                  <p className="text-xs text-slate-500">8 transactions • Aug 14</p>
+                  <p className="text-xs text-slate-500">
+                    8 transactions • Aug 14
+                  </p>
                 </div>
 
                 <div className="p-3 rounded-lg bg-slate-50/50 hover:bg-slate-100/50 transition-colors">
                   <div className="flex items-center justify-between mb-1">
-                    <p className="font-semibold text-slate-900 text-sm">Transfer Payments</p>
+                    <p className="font-semibold text-slate-900 text-sm">
+                      Transfer Payments
+                    </p>
                     <p className="font-bold text-green-600">₱ 18,750</p>
                   </div>
                   <p className="text-xs text-slate-500">5 verified • Aug 13</p>
@@ -337,7 +347,9 @@ export default function Dashboard() {
 
                 <div className="p-3 rounded-lg bg-slate-50/50 hover:bg-slate-100/50 transition-colors">
                   <div className="flex items-center justify-between mb-1">
-                    <p className="font-semibold text-slate-900 text-sm">Misc. Receipts</p>
+                    <p className="font-semibold text-slate-900 text-sm">
+                      Misc. Receipts
+                    </p>
                     <p className="font-bold text-green-600">₱ 9,420</p>
                   </div>
                   <p className="text-xs text-slate-500">3 payments • Aug 12</p>
@@ -357,25 +369,33 @@ export default function Dashboard() {
             <CardContent>
               <div className="grid grid-cols-2 gap-3">
                 <div className="p-3 rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200">
-                  <p className="text-xs font-medium text-blue-700 mb-1">Vacant</p>
+                  <p className="text-xs font-medium text-blue-700 mb-1">
+                    Vacant
+                  </p>
                   <p className="text-2xl font-bold text-blue-900">21</p>
                   <p className="text-xs text-blue-600 mt-1">Units available</p>
                 </div>
 
                 <div className="p-3 rounded-lg bg-gradient-to-br from-green-50 to-green-100 border border-green-200">
-                  <p className="text-xs font-medium text-green-700 mb-1">Occupied</p>
+                  <p className="text-xs font-medium text-green-700 mb-1">
+                    Occupied
+                  </p>
                   <p className="text-2xl font-bold text-green-900">67</p>
                   <p className="text-xs text-green-600 mt-1">Units filled</p>
                 </div>
 
                 <div className="p-3 rounded-lg bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200">
-                  <p className="text-xs font-medium text-amber-700 mb-1">For Sale</p>
+                  <p className="text-xs font-medium text-amber-700 mb-1">
+                    For Sale
+                  </p>
                   <p className="text-2xl font-bold text-amber-900">10</p>
                   <p className="text-xs text-amber-600 mt-1">Available lots</p>
                 </div>
 
                 <div className="p-3 rounded-lg bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200">
-                  <p className="text-xs font-medium text-purple-700 mb-1">Under Construction</p>
+                  <p className="text-xs font-medium text-purple-700 mb-1">
+                    Under Construction
+                  </p>
                   <p className="text-2xl font-bold text-purple-900">25</p>
                   <p className="text-xs text-purple-600 mt-1">In progress</p>
                 </div>
@@ -394,14 +414,16 @@ export default function Dashboard() {
             <CardContent>
               <div className="space-y-4">
                 <div className="p-4 rounded-xl bg-gradient-to-r from-red-50 to-pink-50 border border-red-200">
-                  <p className="text-xs font-medium text-slate-600 mb-2">Total Amount Today</p>
+                  <p className="text-xs font-medium text-slate-600 mb-2">
+                    Total Amount Today
+                  </p>
                   <p className="text-3xl font-bold text-red-600">₱ 13,420.42</p>
                   <p className="text-xs text-slate-500 mt-2 flex items-center gap-1">
                     <Calendar className="w-3 h-3" />
-                    {new Date().toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric'
+                    {new Date().toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
                     })}
                   </p>
                 </div>
@@ -492,7 +514,7 @@ export default function Dashboard() {
           </Card>
 
           {/* Quick Actions */}
-          <Card className="bg-white/80 backdrop-blur-sm border-slate-200 shadow-xl">
+          {/* <Card className="bg-white/80 backdrop-blur-sm border-slate-200 shadow-xl">
             <CardHeader className="pb-4">
               <CardTitle className="text-xl font-bold text-slate-900">
                 Quick Actions
@@ -569,7 +591,7 @@ export default function Dashboard() {
                 </motion.div>
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
         </motion.div>
       </div>
     </div>

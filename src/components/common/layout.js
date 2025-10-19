@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useState, useEffect } from "react";
 import { toast } from "react-toastify";
+import { createGlobalState } from "react-use";
 
 const NavItem = ({ item, pathname, counts }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -198,7 +199,14 @@ const navigationItems = [
     roles: ["admin", "customer service", "sales representative", "home owner"],
   },
   {
-    title: "Properties",
+    title: "User Management",
+    url: "/settings/users",
+    icon: Users,
+    countKey: null,
+    roles: ["admin"],
+  },
+  {
+    title: "Property",
     url: "/properties",
     icon: Home,
     countKey: "properties",
@@ -228,12 +236,20 @@ const navigationItems = [
     ],
   },
   {
-    title: "Homeowners",
+    title: "Homeowner",
     url: "/homeowners",
     icon: Users,
     countKey: "homeowners",
     roles: ["admin"],
   },
+  {
+    title: "Mapping",
+    url: "/property-map",
+    icon: MapPin,
+    countKey: null,
+    roles: ["admin", "sales representative", "home owner"],
+  },
+
   {
     title: "Billing",
     url: "/billing",
@@ -242,11 +258,11 @@ const navigationItems = [
     roles: ["admin", "sales representative"],
   },
   {
-    title: "Service Requests",
-    url: "/service-requests",
-    icon: Wrench,
-    countKey: "serviceRequests",
-    roles: ["admin", "customer service"],
+    title: "Transaction",
+    url: "/transactions",
+    icon: DollarSign,
+    countKey: "transactions",
+    roles: ["admin", "sales representative"],
   },
   {
     title: "Inquiries",
@@ -256,14 +272,29 @@ const navigationItems = [
     roles: ["admin", "customer service"],
   },
   {
-    title: "Complaints",
+    title: "Inquiries",
+    url: "/client-inquiries",
+    icon: MessageSquare,
+    countKey: "inquiries",
+    roles: ["admin", "sales representative"],
+  },
+  {
+    title: "Requests",
+    url: "/service-requests",
+    icon: Wrench,
+    countKey: "serviceRequests",
+    roles: ["admin", "customer service"],
+  },
+
+  {
+    title: "Complaint",
     url: "/complaints",
     icon: AlertTriangle,
     countKey: "complaints",
     roles: ["admin", "customer service", "sales representative"],
   },
   {
-    title: "Announcements",
+    title: "Announcement",
     url: "/announcements",
     icon: Megaphone,
     countKey: "announcements",
@@ -274,46 +305,19 @@ const navigationItems = [
     url: "/reservations",
     icon: Calendar,
     countKey: "reservations",
-    roles: ["admin", "sales representative"],
+    roles: ["admin", "sales representative", "customer service"],
   },
+
   {
-    title: "Transactions",
-    url: "/transactions",
-    icon: DollarSign,
-    countKey: "transactions",
-    roles: ["admin", "sales representative"],
-  },
-  {
-    title: "Property Map",
-    url: "/property-map",
-    icon: MapPin,
-    countKey: null,
-    roles: ["admin", "sales representative", "home owner"],
-  },
-  {
-    title: "Reports",
+    title: "Report",
     url: "/reports",
     icon: FileBarChart,
     countKey: null,
     roles: ["admin"],
   },
-  {
-    title: "Setting",
-    url: "/setting",
-    icon: Settings,
-    countKey: null,
-    roles: ["admin"], // Only admin can see Settings
-    children: [
-      {
-        title: "Users",
-        url: "/settings/users",
-        icon: Users,
-        countKey: null,
-        roles: ["admin"],
-      },
-    ],
-  },
 ];
+
+export const GlobalRole = createGlobalState(null);
 
 export default function MainLayout({ children, currentPageName }) {
   const pathname = usePathname();
@@ -322,9 +326,10 @@ export default function MainLayout({ children, currentPageName }) {
   const { counts, loading } = useNewItemCounts();
 
   const [showLogout, setShowLogout] = useState(false);
-  const [userRole, setUserRole] = useState(null);
+  const [userRole, setUserRole] = GlobalRole();
   const [userName, setUserName] = useState("");
   const [userInitials, setUserInitials] = useState("FM");
+  const [profilePhoto, setProfilePhoto] = useState(null);
 
   // Get user role and name on mount
   useEffect(() => {
@@ -340,9 +345,11 @@ export default function MainLayout({ children, currentPageName }) {
           `${firstName} ${lastName}`.trim() ||
           session.user.email?.split("@")[0] ||
           "User";
+        const photo = session.user.user_metadata?.profile_photo || null;
 
         setUserRole(role);
         setUserName(fullName);
+        setProfilePhoto(photo);
 
         // Generate initials
         if (firstName && lastName) {
@@ -523,10 +530,18 @@ export default function MainLayout({ children, currentPageName }) {
                           {formatRoleName(userRole)}
                         </p>
                       </div>
-                      <div className="w-8 h-8 bg-gradient-to-r from-red-400 to-red-500 rounded-full flex items-center justify-center">
-                        <span className="text-white font-bold text-sm">
-                          {userInitials}
-                        </span>
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center overflow-hidden bg-gradient-to-r from-red-400 to-red-500 shadow-md">
+                        {profilePhoto ? (
+                          <img
+                            src={profilePhoto}
+                            alt={userName || "User"}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-white font-bold text-sm">
+                            {userInitials}
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -534,12 +549,12 @@ export default function MainLayout({ children, currentPageName }) {
                     {showLogout && (
                       <div className="absolute top-full right-0 mt-2 w-48 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden z-50">
                         <Link
-                          href="/settings/users"
+                          href="/account"
                           className="flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 transition-colors text-slate-700 hover:text-slate-900"
                           onClick={() => setShowLogout(false)}
                         >
                           <Settings size={18} />
-                          <span className="font-medium text-sm">Settings</span>
+                          <span className="font-medium text-sm">Account</span>
                         </Link>
                         <button
                           onClick={handleLogout}

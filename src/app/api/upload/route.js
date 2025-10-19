@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
 import {
+  deleteFileFromStorage,
   uploadFileToStorage,
   validateFile,
-  deleteFileFromStorage,
 } from "@/lib/storage";
+import { NextResponse } from "next/server";
 
 export async function POST(request) {
   try {
@@ -113,10 +113,7 @@ export async function DELETE(request) {
     const storageFilePath = filePath || `profiles/${filename}`;
 
     // Delete from Supabase Storage
-    const deleteResult = await deleteFileFromStorage(
-      "futura",
-      storageFilePath
-    );
+    const deleteResult = await deleteFileFromStorage("futura", storageFilePath);
 
     if (!deleteResult.success) {
       console.error("Delete from storage failed:", deleteResult.error);

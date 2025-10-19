@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -90,6 +91,7 @@ const customSelectStyles = {
 };
 
 export default function Homeowners() {
+  const router = useRouter();
   const [homeowners, setHomeowners] = useState([]);
   const [properties, setProperties] = useState([]);
   const [homeownerUsers, setHomeownerUsers] = useState([]);
@@ -138,15 +140,103 @@ export default function Homeowners() {
   // Load all homeowners with property information
   const loadHomeowners = async () => {
     try {
-      const { data, error } = await supabase
+      console.log("🔄 Loading homeowners...");
+
+      // Try with simplified query first (no explicit foreign key names)
+      let { data, error } = await supabase
         .from("buyer_home_owner_tbl")
-        .select("*")
+        .select(`
+          *,
+          property_info_tbl(
+            property_id,
+            property_title,
+            property_lot_id,
+            property_details_id,
+            lot_tbl(
+              lot_id,
+              lot_number,
+              is_occupied
+            ),
+            property_detail_tbl(
+              detail_id,
+              property_name
+            )
+          )
+        `)
         .order("full_name", { ascending: true });
 
-      if (error) throw error;
-      return data || [];
+      if (error) {
+        console.error("❌ First attempt failed, trying alternative query...");
+        console.error("Error:", error.message);
+
+        // Fallback: Try without nested relationships
+        const result = await supabase
+          .from("buyer_home_owner_tbl")
+          .select("*")
+          .order("full_name", { ascending: true });
+
+        data = result.data;
+        error = result.error;
+
+        if (error) {
+          console.error("❌ Supabase error:", error);
+          console.error("Error details:", {
+            message: error.message,
+            code: error.code,
+            details: error.details,
+            hint: error.hint
+          });
+          throw error;
+        }
+
+        // If we got data without relationships, fetch properties separately
+        if (data && data.length > 0) {
+          console.log("⚠️ Loading homeowners without property relationships");
+          console.log("📊 Fetching property info separately...");
+
+          // Fetch all properties
+          const { data: properties } = await supabase
+            .from("property_info_tbl")
+            .select(`
+              property_id,
+              property_title,
+              lot_tbl(lot_number),
+              property_detail_tbl(property_name)
+            `);
+
+          // Map properties to homeowners
+          if (properties) {
+            data = data.map(homeowner => ({
+              ...homeowner,
+              property_info_tbl: properties.find(p => p.property_id === homeowner.property_id) || null
+            }));
+          }
+        }
+      }
+
+      console.log("✅ Loaded homeowners:", data);
+      console.log("📊 Total homeowners:", data?.length || 0);
+
+      // Normalize the property_info field name
+      const normalizedData = data?.map(homeowner => ({
+        ...homeowner,
+        property_info: homeowner.property_info_tbl || homeowner.property_info || null
+      }));
+
+      // Log sample to check property_info structure
+      if (normalizedData && normalizedData.length > 0) {
+        console.log("📋 Sample homeowner data:", normalizedData[0]);
+        console.log("🏠 Sample property_info:", normalizedData[0]?.property_info);
+      }
+
+      return normalizedData || [];
     } catch (error) {
       console.error("Error loading homeowners:", error);
+      console.error("Error type:", typeof error);
+      console.error("Error constructor:", error?.constructor?.name);
+      console.error("Full error object:", JSON.stringify(error, null, 2));
+
+      // Return empty array to prevent UI crash
       return [];
     }
   };
@@ -306,7 +396,71 @@ export default function Homeowners() {
   };
 
   const getPropertyName = (homeowner) => {
-    return homeowner.properties?.name || "Unknown Property";
+    // Check both property_info and property_info_tbl (normalized and original)
+    const propertyInfo = homeowner.property_info_tbl || homeowner.property_info;
+
+    if (propertyInfo) {
+      const title = propertyInfo.property_title || "";
+      const lotNumber = propertyInfo.lot_tbl?.lot_number || "";
+      const propertyName = propertyInfo.property_detail_tbl?.property_name || "";
+
+      // Build a descriptive name
+      let displayName = title;
+      if (lotNumber) displayName += ` - Lot ${lotNumber}`;
+      if (propertyName) displayName += ` (${propertyName})`;
+
+      return displayName || "Property";
+    }
+    return "No Property Assigned";
+  };
+
+  // Get short property name for display in grouped view
+  const getShortPropertyName = (propertyInfo) => {
+    if (!propertyInfo) return "N/A";
+
+    const title = propertyInfo.property_title || "";
+    const lotNumber = propertyInfo.lot_tbl?.lot_number || "";
+
+    if (title && lotNumber) return `${title} - Lot ${lotNumber}`;
+    if (title) return title;
+    if (lotNumber) return `Lot ${lotNumber}`;
+
+    return "Property";
+  };
+
+  // Group homeowners by email to show multiple properties
+  const groupHomeownersByEmail = (homeownersList) => {
+    const grouped = {};
+
+    homeownersList.forEach(homeowner => {
+      if (!grouped[homeowner.email]) {
+        grouped[homeowner.email] = {
+          ...homeowner,
+          properties: []
+        };
+      }
+
+      grouped[homeowner.email].properties.push({
+        id: homeowner.id,
+        property_id: homeowner.property_id,
+        property_info: homeowner.property_info,
+        unit_number: homeowner.unit_number,
+        monthly_dues: homeowner.monthly_dues,
+        move_in_date: homeowner.move_in_date,
+        total_property_price: homeowner.total_property_price,
+        down_payment: homeowner.down_payment,
+        remaining_balance: homeowner.remaining_balance,
+        monthly_interest: homeowner.monthly_interest,
+        status: homeowner.status
+      });
+    });
+
+    return Object.values(grouped);
+  };
+
+  // Get grouped homeowners for display
+  const getDisplayHomeowners = () => {
+    return groupHomeownersByEmail(filteredHomeowners);
   };
 
   const getStatusColor = (status) => {
@@ -672,19 +826,42 @@ export default function Homeowners() {
           updated_at: new Date().toISOString(),
         })
         .eq("id", homeownerId)
-        .select("*")
+        .select(`
+          *,
+          property_info_tbl(
+            property_id,
+            property_title,
+            property_lot_id,
+            property_details_id,
+            lot_tbl(
+              lot_id,
+              lot_number,
+              is_occupied
+            ),
+            property_detail_tbl(
+              detail_id,
+              property_name
+            )
+          )
+        `)
         .single();
 
       if (error) throw error;
 
+      // Normalize property_info for consistency
+      const normalizedData = {
+        ...data,
+        property_info: data.property_info_tbl || data.property_info || null
+      };
+
       // Update local state
       setHomeowners((prev) =>
         prev.map((homeowner) =>
-          homeowner.id === homeownerId ? { ...homeowner, ...data } : homeowner
+          homeowner.id === homeownerId ? { ...homeowner, ...normalizedData } : homeowner
         )
       );
 
-      return data;
+      return normalizedData;
     } catch (error) {
       console.error("Error updating homeowner:", error);
       throw error;
@@ -781,20 +958,49 @@ export default function Homeowners() {
         // Create new homeowner with selected user_id
         homeownerData.created_at = new Date().toISOString();
         console.log("👤 Creating homeowner for user:", formData.user_id);
+        console.log("📋 Homeowner data to insert:", homeownerData);
+        console.log("📧 Email:", homeownerData.email);
+        console.log("🏠 Property ID:", homeownerData.property_id);
 
         const { data, error } = await supabase
           .from("buyer_home_owner_tbl")
           .insert([homeownerData])
-          .select("*");
+          .select(`
+            *,
+            property_info_tbl(
+              property_id,
+              property_title,
+              property_lot_id,
+              property_details_id,
+              lot_tbl(
+                lot_id,
+                lot_number,
+                is_occupied
+              ),
+              property_detail_tbl(
+                detail_id,
+                property_name
+              )
+            )
+          `);
 
-        if (error) throw error;
+        if (error) {
+          console.error("❌ Insert error:", error);
+          throw error;
+        }
+
+        console.log("✅ Insert successful:", data);
 
         // Success - close modal and refresh data
         setIsModalOpen(false);
 
-        // Add the new homeowner to the current list
+        // Add the new homeowner to the current list with normalized property_info
         if (data && data[0]) {
-          setHomeowners((prev) => [...prev, data[0]]);
+          const normalizedHomeowner = {
+            ...data[0],
+            property_info: data[0].property_info_tbl || data[0].property_info || null
+          };
+          setHomeowners((prev) => [...prev, normalizedHomeowner]);
         }
 
         toast.success("Homeowner added successfully!");
@@ -803,15 +1009,32 @@ export default function Homeowners() {
       resetForm();
     } catch (error) {
       console.error("Error adding homeowner:", error);
+      console.error("Error details:", {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      });
+
       let errorMessage = "Error adding homeowner. Please try again.";
 
       // Handle specific errors
       if (error.code === "23505") {
-        if (error.message.includes("email")) {
-          errorMessage = "Email address already exists.";
+        if (error.message.includes("email") && error.message.includes("property_id")) {
+          errorMessage = "This email is already assigned to this property. Please choose a different property or email.";
+        } else if (error.message.includes("email")) {
+          errorMessage = "This email with this property combination already exists.";
         } else if (error.message.includes("unit_number")) {
           errorMessage = "Unit number already exists in this property.";
+        } else {
+          errorMessage = `Duplicate entry: ${error.details || error.message}`;
         }
+      } else if (error.code === "23502") {
+        errorMessage = "Required field is missing. Please check all required fields.";
+      } else if (error.code === "23503") {
+        errorMessage = "Invalid property or user selected. Please refresh and try again.";
+      } else if (error.message) {
+        errorMessage = `Error: ${error.message}`;
       }
 
       toast.error(errorMessage);
@@ -860,7 +1083,7 @@ export default function Homeowners() {
           </div>
           <Button
             onClick={() => setIsModalOpen(true)}
-            className="bg-gradient-to-r from-red-400 to-red-500 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg"
+            className="bg-gradient-to-r from-red-400 to-red-500 hover:from-red-600 hover:to-red-700 text-white shadow-lg"
           >
             <Plus className="w-5 h-5 mr-2" />
             Add Homeowner
@@ -881,7 +1104,7 @@ export default function Homeowners() {
                 placeholder="Search homeowners..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 border-slate-200 focus:border-blue-400"
+                className="pl-10 border-slate-200 focus:border-red-400"
               />
             </div>
             <div className="flex gap-2">
@@ -961,8 +1184,8 @@ export default function Homeowners() {
                     <CardHeader className="pb-4">
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-4">
-                          <Avatar className="w-14 h-14 bg-gradient-to-br from-blue-100 to-blue-200">
-                            <AvatarFallback className="text-blue-700 font-semibold text-lg">
+                          <Avatar className="w-14 h-14 bg-gradient-to-br from-red-100 to-red-200">
+                            <AvatarFallback className="text-red-700 font-semibold text-lg">
                               {getInitials(homeowner.full_name)}
                             </AvatarFallback>
                           </Avatar>
@@ -979,7 +1202,7 @@ export default function Homeowners() {
                                 {homeowner.status}
                               </Badge>
                               {isNewItem(homeowner.created_at) && (
-                                <Badge className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-0 shadow-md animate-pulse">
+                                <Badge className="bg-gradient-to-r from-red-500 to-red-600 text-white border-0 shadow-md animate-pulse">
                                   <Sparkles className="w-3 h-3 mr-1" />
                                   New
                                 </Badge>
@@ -1030,7 +1253,7 @@ export default function Homeowners() {
                         {homeowner.move_in_date && (
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                              <Calendar className="w-4 h-4 text-blue-600" />
+                              <Calendar className="w-4 h-4 text-red-600" />
                               <span className="text-sm font-medium text-slate-700">
                                 Move-in Date
                               </span>
@@ -1047,10 +1270,10 @@ export default function Homeowners() {
                         {/* Financial Information */}
                         {homeowner.total_property_price && (
                           <div className="flex items-center justify-between border-t border-slate-200 pt-3 mt-3">
-                            <span className="text-sm font-medium text-blue-700">
+                            <span className="text-sm font-medium text-red-700">
                               Property Price
                             </span>
-                            <span className="font-bold text-blue-900">
+                            <span className="font-bold text-red-900">
                               ₱
                               {homeowner.total_property_price?.toLocaleString()}
                             </span>
@@ -1116,7 +1339,7 @@ export default function Homeowners() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="flex-1 text-blue-600 border-blue-200 hover:bg-blue-50"
+                          className="flex-1 text-red-600 border-red-200 hover:bg-red-50"
                           onClick={() => handleEditHomeowner(homeowner)}
                         >
                           <Edit className="w-4 h-4 mr-1" />
@@ -1228,9 +1451,9 @@ export default function Homeowners() {
                     className="space-y-6"
                   >
                     {/* User Selection */}
-                    <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-200">
+                    <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-6 border border-slate-200">
                       <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                        <div className="p-2 bg-purple-500 rounded-lg">
+                        <div className="p-2 bg-gradient-to-br from-red-500 to-red-600 rounded-lg">
                           <User className="w-5 h-5 text-white" />
                         </div>
                         Select Homeowner User
@@ -1286,9 +1509,9 @@ export default function Homeowners() {
                     </div>
 
                     {/* Personal Information */}
-                    <div className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl p-6 border border-slate-200">
+                    <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-6 border border-slate-200">
                       <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                        <div className="p-2 bg-blue-500 rounded-lg">
+                        <div className="p-2 bg-gradient-to-br from-red-500 to-red-600 rounded-lg">
                           <User className="w-5 h-5 text-white" />
                         </div>
                         Personal Information
@@ -1303,7 +1526,7 @@ export default function Homeowners() {
                             name="full_name"
                             value={formData.full_name}
                             onChange={handleInputChange}
-                            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all disabled:bg-slate-100 disabled:text-slate-600"
+                            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white transition-all disabled:bg-slate-100 disabled:text-slate-600"
                             placeholder="Enter full name"
                             required
                             disabled={!!formData.user_id}
@@ -1322,7 +1545,7 @@ export default function Homeowners() {
                             name="status"
                             value={formData.status}
                             onChange={handleInputChange}
-                            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all"
+                            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white transition-all"
                           >
                             <option value="active">✅ Active</option>
                             <option value="pending">⏳ Pending</option>
@@ -1333,9 +1556,9 @@ export default function Homeowners() {
                     </div>
 
                     {/* Contact Information */}
-                    <div className="bg-gradient-to-br from-slate-50 to-green-50 rounded-xl p-6 border border-slate-200">
+                    <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-6 border border-slate-200">
                       <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                        <div className="p-2 bg-green-500 rounded-lg">
+                        <div className="p-2 bg-gradient-to-br from-red-500 to-red-600 rounded-lg">
                           <Mail className="w-5 h-5 text-white" />
                         </div>
                         Contact Information
@@ -1351,7 +1574,7 @@ export default function Homeowners() {
                             name="email"
                             value={formData.email}
                             onChange={handleInputChange}
-                            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white transition-all disabled:bg-slate-100 disabled:text-slate-600"
+                            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white transition-all disabled:bg-slate-100 disabled:text-slate-600"
                             placeholder="homeowner@example.com"
                             required
                             disabled={!!formData.user_id}
@@ -1371,7 +1594,7 @@ export default function Homeowners() {
                             name="phone"
                             value={formData.phone}
                             onChange={handleInputChange}
-                            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white transition-all disabled:bg-slate-100 disabled:text-slate-600"
+                            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white transition-all disabled:bg-slate-100 disabled:text-slate-600"
                             placeholder="+63 XXX XXX XXXX"
                             disabled={!!formData.user_id}
                           />
@@ -1397,9 +1620,9 @@ export default function Homeowners() {
                     className="space-y-6"
                   >
                     {/* Property Information */}
-                    <div className="bg-gradient-to-br from-slate-50 to-purple-50 rounded-xl p-6 border border-slate-200">
+                    <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-6 border border-slate-200">
                       <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                        <div className="p-2 bg-purple-500 rounded-lg">
+                        <div className="p-2 bg-gradient-to-br from-red-500 to-red-600 rounded-lg">
                           <Home className="w-5 h-5 text-white" />
                         </div>
                         Property Information
@@ -1410,24 +1633,31 @@ export default function Homeowners() {
                             Property <span className="text-red-500">*</span>
                           </label>
                           <Select
-                            options={properties
-                              .filter((property) => {
-                                // Exclude properties that are already assigned to other homeowners
-                                const isAssigned = homeowners.some(
-                                  (h) => h.property_id === property.property_id && h.id !== editingHomeowner?.id
-                                );
-                                return !isAssigned;
-                              })
-                              .map((property) => ({
-                                value: property.property_id,
-                                label: `${property.property_title} - Lot ${
-                                  property.lot_tbl?.lot_number || "N/A"
-                                } (${
-                                  property.property_detail_tbl?.property_name ||
-                                  "N/A"
-                                })`,
-                                property: property,
-                              }))}
+                            options={[
+                              ...properties
+                                .filter((property) => {
+                                  // Exclude properties that are already assigned to other homeowners
+                                  const isAssigned = homeowners.some(
+                                    (h) => h.property_id === property.property_id && h.id !== editingHomeowner?.id
+                                  );
+                                  return !isAssigned;
+                                })
+                                .map((property) => ({
+                                  value: property.property_id,
+                                  label: `${property.property_title} - Lot ${
+                                    property.lot_tbl?.lot_number || "N/A"
+                                  } (${
+                                    property.property_detail_tbl?.property_name ||
+                                    "N/A"
+                                  })`,
+                                  property: property,
+                                })),
+                              {
+                                value: '__create_new__',
+                                label: '➕ Create New Property',
+                                isCreateNew: true
+                              }
+                            ]}
                             value={
                               formData.property_id
                                 ? {
@@ -1460,7 +1690,13 @@ export default function Homeowners() {
                                   }
                                 : null
                             }
-                            onChange={handlePropertySelect}
+                            onChange={(selectedOption) => {
+                              if (selectedOption?.value === '__create_new__') {
+                                router.push('/properties');
+                              } else {
+                                handlePropertySelect(selectedOption);
+                              }
+                            }}
                             styles={customSelectStyles}
                             placeholder="Search and select a property..."
                             isClearable
@@ -1500,7 +1736,7 @@ export default function Homeowners() {
                             name="monthly_dues"
                             value={formData.monthly_dues}
                             onChange={handleInputChange}
-                            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white transition-all"
+                            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white transition-all"
                             placeholder="Enter monthly dues"
                             min="0"
                             step="0.01"
@@ -1515,16 +1751,16 @@ export default function Homeowners() {
                             name="move_in_date"
                             value={formData.move_in_date}
                             onChange={handleInputChange}
-                            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white transition-all"
+                            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white transition-all"
                           />
                         </div>
                       </div>
                     </div>
 
                     {/* Financial Information */}
-                    <div className="bg-gradient-to-br from-slate-50 to-amber-50 rounded-xl p-6 border border-slate-200">
+                    <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-6 border border-slate-200">
                       <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                        <div className="p-2 bg-amber-500 rounded-lg">
+                        <div className="p-2 bg-gradient-to-br from-red-500 to-red-600 rounded-lg">
                           <DollarSign className="w-5 h-5 text-white" />
                         </div>
                         Financial Information & Interest Calculation
@@ -1539,7 +1775,7 @@ export default function Homeowners() {
                             name="total_property_price"
                             value={formData.total_property_price}
                             onChange={handleInputChange}
-                            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white transition-all"
+                            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white transition-all"
                             placeholder="Enter total property price"
                             min="0"
                             step="0.01"
@@ -1554,7 +1790,7 @@ export default function Homeowners() {
                             name="down_payment"
                             value={formData.down_payment}
                             onChange={handleInputChange}
-                            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white transition-all"
+                            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white transition-all"
                             placeholder="Enter down payment amount"
                             min="0"
                             step="0.01"
@@ -1569,7 +1805,7 @@ export default function Homeowners() {
                             name="interest_rate"
                             value={formData.interest_rate}
                             onChange={handleInputChange}
-                            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white transition-all"
+                            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white transition-all"
                             placeholder="0.05 (for 5%)"
                             min="0"
                             max="1"
@@ -1640,8 +1876,8 @@ export default function Homeowners() {
                       </div>
 
                       {/* Calculation Info */}
-                      <div className="mt-4 p-4 bg-blue-100 rounded-lg border border-blue-200">
-                        <div className="text-sm text-blue-800">
+                      <div className="mt-4 p-4 bg-red-100 rounded-lg border border-red-200">
+                        <div className="text-sm text-red-800">
                           <strong>How it works:</strong> When you enter a Unit
                           Number, the system automatically calculates:
                           <ul className="mt-2 ml-4 list-disc text-xs space-y-1">
@@ -1675,9 +1911,9 @@ export default function Homeowners() {
                     className="space-y-6"
                   >
                     {/* Emergency Contact */}
-                    <div className="bg-gradient-to-br from-slate-50 to-rose-50 rounded-xl p-6 border border-slate-200">
+                    <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-6 border border-slate-200">
                       <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                        <div className="p-2 bg-rose-500 rounded-lg">
+                        <div className="p-2 bg-gradient-to-br from-red-500 to-red-600 rounded-lg">
                           <Phone className="w-5 h-5 text-white" />
                         </div>
                         Emergency Contact
@@ -1692,7 +1928,7 @@ export default function Homeowners() {
                             name="emergency_contact_name"
                             value={formData.emergency_contact_name}
                             onChange={handleInputChange}
-                            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 bg-white transition-all"
+                            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white transition-all"
                             placeholder="Enter emergency contact name"
                           />
                         </div>
@@ -1705,7 +1941,7 @@ export default function Homeowners() {
                             name="emergency_contact_phone"
                             value={formData.emergency_contact_phone}
                             onChange={handleInputChange}
-                            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 bg-white transition-all"
+                            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white transition-all"
                             placeholder="Enter emergency contact phone"
                           />
                         </div>
@@ -1713,9 +1949,9 @@ export default function Homeowners() {
                     </div>
 
                     {/* Review Summary */}
-                    <div className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl p-6 border border-slate-200">
+                    <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-6 border border-slate-200">
                       <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                        <div className="p-2 bg-blue-500 rounded-lg">
+                        <div className="p-2 bg-gradient-to-br from-red-500 to-red-600 rounded-lg">
                           <User className="w-5 h-5 text-white" />
                         </div>
                         Review Summary
@@ -1911,132 +2147,155 @@ export default function Homeowners() {
 
       {/* Edit Homeowner Modal */}
       {isEditModalOpen && (
-        <div className="modal modal-open">
-          <div className="modal-box max-w-2xl bg-white">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-slate-900">
-                Edit Homeowner
-              </h2>
-              <button
-                onClick={() => {
-                  setIsEditModalOpen(false);
-                  setEditingHomeowner(null);
-                  resetForm();
-                }}
-                className="btn btn-sm btn-circle btn-ghost hover:bg-slate-100"
-              >
-                <X className="w-4 h-4" />
-              </button>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden"
+          >
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-red-500 via-red-600 to-red-500 px-6 py-5 text-white shadow-lg">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg">
+                    <Edit className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold">Edit Homeowner</h3>
+                    <p className="text-red-100 text-sm mt-1">Update homeowner information and details</p>
+                  </div>
+                </div>
+                <button
+                  className="p-2.5 hover:bg-white/10 rounded-xl transition-all duration-200 hover:scale-110"
+                  onClick={() => {
+                    setIsEditModalOpen(false);
+                    setEditingHomeowner(null);
+                    resetForm();
+                  }}
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Personal Information */}
-              <div className="card bg-slate-50 p-6">
-                <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                  <User className="w-5 h-5 text-blue-600" />
-                  Personal Information
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="form-control">
-                    <label className="label">
-                      <span className="label-text font-medium">
-                        Full Name *
-                      </span>
-                    </label>
-                    <input
-                      type="text"
-                      name="full_name"
-                      value={formData.full_name}
-                      onChange={handleInputChange}
-                      className="input input-bordered bg-white focus:input-primary"
-                      placeholder="Enter full name"
-                      required
-                    />
-                  </div>
-                  <div className="form-control">
-                    <label className="label">
-                      <span className="label-text font-medium">Status</span>
-                    </label>
-                    <select
-                      name="status"
-                      value={formData.status}
-                      onChange={handleInputChange}
-                      className="select select-bordered bg-white focus:select-primary"
-                    >
-                      <option value="active">Active</option>
-                      <option value="pending">Pending</option>
-                      <option value="inactive">Inactive</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Contact Information */}
-              <div className="card bg-slate-50 p-6">
-                <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                  <Mail className="w-5 h-5 text-blue-600" />
-                  Contact Information
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="form-control">
-                    <label className="label">
-                      <span className="label-text font-medium">Email *</span>
-                    </label>
-                    <input
-                      type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      className="input input-bordered bg-white focus:input-primary"
-                      placeholder="Enter email address"
-                      required
-                    />
-                  </div>
-                  <div className="form-control">
-                    <label className="label">
-                      <span className="label-text font-medium">Phone</span>
-                    </label>
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleInputChange}
-                      className="input input-bordered bg-white focus:input-primary"
-                      placeholder="Enter phone number"
-                    />
+            {/* Modal Body */}
+            <div className="p-8 overflow-y-auto max-h-[calc(90vh-140px)]">
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Personal Information */}
+                <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-6 border-2 border-slate-200">
+                  <h3 className="text-lg font-bold text-slate-800 mb-5 flex items-center gap-2">
+                    <div className="p-2 bg-gradient-to-br from-red-500 to-red-600 rounded-lg shadow-md">
+                      <User className="w-5 h-5 text-white" />
+                    </div>
+                    Personal Information
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-slate-700">
+                        Full Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="full_name"
+                        value={formData.full_name}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white text-slate-900 transition-all"
+                        placeholder="Enter full name"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-slate-700">Status</label>
+                      <select
+                        name="status"
+                        value={formData.status}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white text-slate-900 transition-all appearance-none cursor-pointer"
+                      >
+                        <option value="active">✅ Active</option>
+                        <option value="pending">⏳ Pending</option>
+                        <option value="inactive">❌ Inactive</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Property Information */}
-              <div className="card bg-slate-50 p-6">
-                <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                  <Home className="w-5 h-5 text-blue-600" />
-                  Property Information
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="form-control">
-                    <label className="label">
-                      <span className="label-text font-medium">Property *</span>
-                    </label>
-                    <Select
-                      options={properties
-                        .filter((property) => {
-                          // Exclude properties that are already assigned to other homeowners
-                          const isAssigned = homeowners.some(
-                            (h) => h.property_id === property.property_id && h.id !== editingHomeowner?.id
-                          );
-                          return !isAssigned;
-                        })
-                        .map((property) => ({
-                          value: property.property_id,
-                          label: `${property.property_title} - Lot ${
-                            property.lot_tbl?.lot_number || "N/A"
-                          } (${
-                            property.property_detail_tbl?.property_name || "N/A"
-                          })`,
-                          property: property,
-                        }))}
+                {/* Contact Information */}
+                <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-6 border-2 border-slate-200">
+                  <h3 className="text-lg font-bold text-slate-800 mb-5 flex items-center gap-2">
+                    <div className="p-2 bg-gradient-to-br from-red-500 to-red-600 rounded-lg shadow-md">
+                      <Mail className="w-5 h-5 text-white" />
+                    </div>
+                    Contact Information
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-slate-700">
+                        Email <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white text-slate-900 transition-all"
+                        placeholder="Enter email address"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-slate-700">Phone</label>
+                      <input
+                        type="tel"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white text-slate-900 transition-all"
+                        placeholder="Enter phone number"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Property Information */}
+                <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-6 border-2 border-slate-200">
+                  <h3 className="text-lg font-bold text-slate-800 mb-5 flex items-center gap-2">
+                    <div className="p-2 bg-gradient-to-br from-red-500 to-red-600 rounded-lg shadow-md">
+                      <Home className="w-5 h-5 text-white" />
+                    </div>
+                    Property Information
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-slate-700">
+                        Property <span className="text-red-500">*</span>
+                      </label>
+                      <Select
+                      options={[
+                        ...properties
+                          .filter((property) => {
+                            // Exclude properties that are already assigned to other homeowners
+                            const isAssigned = homeowners.some(
+                              (h) => h.property_id === property.property_id && h.id !== editingHomeowner?.id
+                            );
+                            return !isAssigned;
+                          })
+                          .map((property) => ({
+                            value: property.property_id,
+                            label: `${property.property_title} - Lot ${
+                              property.lot_tbl?.lot_number || "N/A"
+                            } (${
+                              property.property_detail_tbl?.property_name || "N/A"
+                            })`,
+                            property: property,
+                          })),
+                        {
+                          value: '__create_new__',
+                          label: '➕ Create New Property',
+                          isCreateNew: true
+                        }
+                      ]}
                       value={
                         formData.property_id
                           ? {
@@ -2065,7 +2324,13 @@ export default function Homeowners() {
                             }
                           : null
                       }
-                      onChange={handlePropertySelect}
+                      onChange={(selectedOption) => {
+                        if (selectedOption?.value === '__create_new__') {
+                          router.push('/properties');
+                        } else {
+                          handlePropertySelect(selectedOption);
+                        }
+                      }}
                       styles={customSelectStyles}
                       placeholder="Search and select a property..."
                       isClearable
@@ -2073,69 +2338,55 @@ export default function Homeowners() {
                       menuPortalTarget={
                         typeof document !== "undefined" ? document.body : null
                       }
-                      menuPosition="fixed"
-                    />
-                  </div>
-                  <div className="form-control">
-                    <label className="label">
-                      <span className="label-text font-medium">
-                        Lot Number *
-                      </span>
-                    </label>
-                    <input
-                      type="text"
-                      name="unit_number"
-                      value={formData.unit_number}
-                      onChange={handleInputChange}
-                      className="input input-bordered bg-slate-100 text-slate-700 font-semibold cursor-not-allowed"
-                      placeholder="Select property first"
-                      readOnly
-                      required
-                    />
-                    <label className="label">
-                      <span className="label-text-alt text-slate-500">
-                        Auto-filled from selected property
-                      </span>
-                    </label>
-                  </div>
-                  <div className="form-control">
-                    <label className="label">
-                      <span className="label-text font-medium">
-                        Monthly Dues (₱)
-                      </span>
-                    </label>
-                    <input
-                      type="number"
-                      name="monthly_dues"
-                      value={formData.monthly_dues}
-                      onChange={handleInputChange}
-                      className="input input-bordered bg-white focus:input-primary"
-                      placeholder="Enter monthly dues"
-                      min="0"
-                      step="0.01"
-                    />
-                  </div>
-                  <div className="form-control">
-                    <label className="label">
-                      <span className="label-text font-medium">
-                        Move-in Date
-                      </span>
-                    </label>
-                    <input
-                      type="date"
-                      name="move_in_date"
-                      value={formData.move_in_date}
-                      onChange={handleInputChange}
-                      className="input input-bordered bg-white focus:input-primary"
-                    />
+                        menuPosition="fixed"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-slate-700">
+                        Lot Number <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="unit_number"
+                        value={formData.unit_number}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl bg-slate-100 text-slate-700 font-semibold cursor-not-allowed"
+                        placeholder="Select property first"
+                        readOnly
+                        required
+                      />
+                      <p className="text-xs text-slate-500 mt-1">Auto-filled from selected property</p>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-slate-700">Monthly Dues (₱)</label>
+                      <input
+                        type="number"
+                        name="monthly_dues"
+                        value={formData.monthly_dues}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white text-slate-900 transition-all"
+                        placeholder="Enter monthly dues"
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-slate-700">Move-in Date</label>
+                      <input
+                        type="date"
+                        name="move_in_date"
+                        value={formData.move_in_date}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white text-slate-900 transition-all"
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
 
               {/* Financial Information */}
-              <div className="card bg-blue-50 p-6">
+              <div className="card bg-red-50 p-6">
                 <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                  <DollarSign className="w-5 h-5 text-blue-600" />
+                  <DollarSign className="w-5 h-5 text-red-600" />
                   Financial Information & Interest Calculation
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -2258,8 +2509,8 @@ export default function Homeowners() {
                 </div>
 
                 {/* Calculation Info */}
-                <div className="mt-4 p-3 bg-blue-100 rounded-lg border border-blue-200">
-                  <div className="text-sm text-blue-800">
+                <div className="mt-4 p-3 bg-red-100 rounded-lg border border-red-200">
+                  <div className="text-sm text-red-800">
                     <strong>How it works:</strong> When you enter a Unit Number,
                     the system automatically calculates:
                     <ul className="mt-2 ml-4 list-disc text-xs">
@@ -2282,7 +2533,7 @@ export default function Homeowners() {
               {/* Emergency Contact */}
               <div className="card bg-slate-50 p-6">
                 <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                  <Phone className="w-5 h-5 text-blue-600" />
+                  <Phone className="w-5 h-5 text-red-600" />
                   Emergency Contact
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2319,40 +2570,41 @@ export default function Homeowners() {
                 </div>
               </div>
 
-              {/* Form Actions */}
-              <div className="modal-action pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsEditModalOpen(false);
-                    setEditingHomeowner(null);
-                    resetForm();
-                  }}
-                  className="btn btn-outline"
-                  disabled={isSubmitting}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary bg-gradient-to-r from-red-400 to-red-500 hover:from-blue-700 hover:to-blue-800 border-none"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <span className="loading loading-spinner loading-sm"></span>
-                      Updating...
-                    </>
-                  ) : (
-                    <>
-                      <Edit className="w-4 h-4 mr-2" />
-                      Update Homeowner
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
+                {/* Form Actions */}
+                <div className="flex gap-4 pt-6 border-t-2 border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditModalOpen(false);
+                      setEditingHomeowner(null);
+                      resetForm();
+                    }}
+                    className="flex-1 px-6 py-3.5 border-2 border-slate-300 text-slate-700 font-semibold rounded-xl hover:bg-slate-100 transition-all duration-200 hover:scale-105 shadow-md hover:shadow-lg"
+                    disabled={isSubmitting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-6 py-3.5 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold rounded-xl transition-all duration-200 hover:scale-105 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Updating...
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center gap-2">
+                        <Edit className="w-5 h-5" />
+                        Update Homeowner
+                      </div>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </motion.div>
         </div>
       )}
 
@@ -2411,8 +2663,8 @@ export default function Homeowners() {
                 {deletingHomeowner && (
                   <div className="bg-slate-50 rounded-lg p-4 mb-4">
                     <div className="flex items-center gap-3 mb-2">
-                      <Avatar className="w-10 h-10 bg-gradient-to-br from-blue-100 to-blue-200">
-                        <AvatarFallback className="text-blue-700 font-semibold">
+                      <Avatar className="w-10 h-10 bg-gradient-to-br from-red-100 to-red-200">
+                        <AvatarFallback className="text-red-700 font-semibold">
                           {getInitials(deletingHomeowner.full_name)}
                         </AvatarFallback>
                       </Avatar>

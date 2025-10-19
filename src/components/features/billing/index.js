@@ -530,425 +530,516 @@ export default function Billings() {
 
       {/* Create New Billing Modal */}
       {isModalOpen && (
-        <div className="modal modal-open">
-          <div className="modal-box max-w-2xl bg-white">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-2xl font-bold text-gray-800">Create New Bill</h3>
-              <button
-                onClick={closeModal}
-                className="btn btn-sm btn-circle btn-ghost hover:bg-gray-100"
-              >
-                <X className="w-4 h-4" />
-              </button>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={(e) => e.target === e.currentTarget && closeModal()}
+        >
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 20 }}
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden"
+          >
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-red-500 to-red-600 px-8 py-6 text-white">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                    <Plus className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold">Create New Bill</h3>
+                    <p className="text-red-100 text-sm mt-1">Add a new billing record to the system</p>
+                  </div>
+                </div>
+                <button
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                  onClick={closeModal}
+                  disabled={submitting}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Homeowner Selection with Autocomplete */}
-                <div className="form-control w-full relative">
-                  <label className="label">
-                    <span className="label-text font-semibold text-gray-700">Homeowner *</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={homeownerSearch}
-                      onChange={(e) => {
-                        setHomeownerSearch(e.target.value);
-                        setShowHomeownerDropdown(true);
-                        if (!e.target.value.trim()) {
-                          setSelectedHomeowner(null);
-                          setFormData(prev => ({ ...prev, homeowner_id: '' }));
-                        }
-                      }}
-                      onFocus={() => setShowHomeownerDropdown(true)}
-                      onBlur={() => setTimeout(() => setShowHomeownerDropdown(false), 200)}
-                      placeholder="Search homeowner by name, email, or unit..."
-                      className="text-black bg-white input input-bordered w-full focus:input-primary pr-10"
-                      required
-                    />
-                    <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            {/* Modal Body */}
+            <div className="p-8 overflow-y-auto max-h-[calc(90vh-140px)]">
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Homeowner Selection with Autocomplete */}
+                  <div className="space-y-2 relative">
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Homeowner <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={homeownerSearch}
+                        onChange={(e) => {
+                          setHomeownerSearch(e.target.value);
+                          setShowHomeownerDropdown(true);
+                          if (!e.target.value.trim()) {
+                            setSelectedHomeowner(null);
+                            setFormData(prev => ({ ...prev, homeowner_id: '' }));
+                          }
+                        }}
+                        onFocus={() => setShowHomeownerDropdown(true)}
+                        onBlur={() => setTimeout(() => setShowHomeownerDropdown(false), 200)}
+                        placeholder="Search by name, email, or unit..."
+                        className="w-full px-4 py-3 pr-10 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
+                        required
+                      />
+                      <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
 
-                    {/* Dropdown */}
-                    {showHomeownerDropdown && (
-                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                        {getFilteredHomeowners(homeownerSearch).map(homeowner => (
-                          <div
-                            key={homeowner.id}
-                            className="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
-                            onClick={() => handleHomeownerSelect(homeowner)}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="font-medium text-gray-900">{homeowner.full_name}</p>
-                                <p className="text-sm text-gray-500">{homeowner.email}</p>
-                                <p className="text-xs text-gray-400">Unit {homeowner.unit_number}</p>
-                              </div>
-                              {homeowner.monthly_dues && (
-                                <div className="text-right">
-                                  <p className="text-sm font-medium text-green-600">
-                                    ₱{homeowner.monthly_dues.toLocaleString()}
-                                  </p>
-                                  <p className="text-xs text-gray-400">Monthly dues</p>
+                      {/* Dropdown */}
+                      {showHomeownerDropdown && (
+                        <div className="absolute z-50 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-64 overflow-y-auto">
+                          {getFilteredHomeowners(homeownerSearch).map(homeowner => (
+                            <div
+                              key={homeowner.id}
+                              className="p-4 hover:bg-red-50 cursor-pointer border-b border-slate-100 last:border-b-0 transition-colors"
+                              onClick={() => handleHomeownerSelect(homeowner)}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="font-semibold text-slate-900">{homeowner.full_name}</p>
+                                  <p className="text-sm text-slate-600">{homeowner.email}</p>
+                                  <p className="text-xs text-slate-400 mt-1">Unit {homeowner.unit_number}</p>
                                 </div>
-                              )}
+                                {homeowner.monthly_dues && (
+                                  <div className="text-right bg-green-50 px-3 py-2 rounded-lg">
+                                    <p className="text-sm font-bold text-green-700">
+                                      ₱{homeowner.monthly_dues.toLocaleString()}
+                                    </p>
+                                    <p className="text-xs text-green-600">Monthly dues</p>
+                                  </div>
+                                )}
+                              </div>
                             </div>
+                          ))}
+                          {getFilteredHomeowners(homeownerSearch).length === 0 && (
+                            <div className="p-4 text-center text-slate-500">
+                              No homeowners found
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {selectedHomeowner && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mt-3 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-semibold text-green-900">
+                              {selectedHomeowner.full_name} - Unit {selectedHomeowner.unit_number}
+                            </p>
+                            <p className="text-xs text-green-700 mt-1">{selectedHomeowner.email}</p>
                           </div>
-                        ))}
-                        {getFilteredHomeowners(homeownerSearch).length === 0 && (
-                          <div className="p-3 text-center text-gray-500">
-                            No homeowners found
-                          </div>
-                        )}
-                      </div>
+                          {selectedHomeowner.monthly_dues && (
+                            <p className="text-base font-bold text-green-800">
+                              ₱{selectedHomeowner.monthly_dues.toLocaleString()}
+                            </p>
+                          )}
+                        </div>
+                      </motion.div>
                     )}
                   </div>
-                  {selectedHomeowner && (
-                    <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-green-800">
-                            {selectedHomeowner.full_name} - Unit {selectedHomeowner.unit_number}
-                          </p>
-                          <p className="text-xs text-green-600">{selectedHomeowner.email}</p>
-                        </div>
-                        {selectedHomeowner.monthly_dues && (
-                          <p className="text-sm font-semibold text-green-700">
-                            ₱{selectedHomeowner.monthly_dues.toLocaleString()}
-                          </p>
-                        )}
-                      </div>
+
+                  {/* Billing Period */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Billing Period <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="billing_period"
+                      value={formData.billing_period}
+                      onChange={handleInputChange}
+                      placeholder="e.g., January 2024"
+                      className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Amount */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Amount <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-500 font-semibold">₱</span>
+                      <input
+                        type="number"
+                        name="amount"
+                        value={formData.amount}
+                        onChange={handleInputChange}
+                        min="0"
+                        step="0.01"
+                        placeholder="0.00"
+                        className="w-full pl-10 pr-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
+                        required
+                      />
                     </div>
-                  )}
+                  </div>
+
+                  {/* Due Date */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Due Date <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5 pointer-events-none" />
+                      <input
+                        type="date"
+                        name="due_date"
+                        value={formData.due_date}
+                        onChange={handleInputChange}
+                        className="w-full pl-11 pr-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
+                        required
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                {/* Billing Period */}
-                <div className="form-control w-full">
-                  <label className="label">
-                    <span className="label-text font-semibold text-gray-700">Billing Period *</span>
+                {/* Status */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-slate-700">
+                    Status
                   </label>
-                  <input 
-                    type="text"
-                    name="billing_period"
-                    value={formData.billing_period}
+                  <select
+                    name="status"
+                    value={formData.status}
                     onChange={handleInputChange}
-                    placeholder="e.g., January 2024"
-                    className="text-black bg-white input input-bordered w-full focus:input-primary"
-                    required
+                    className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all appearance-none cursor-pointer"
+                  >
+                    <option value="unpaid">Unpaid</option>
+                    <option value="paid">Paid</option>
+                    <option value="partially_paid">Partially Paid</option>
+                    <option value="overdue">Overdue</option>
+                  </select>
+                </div>
+
+                {/* Description */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-slate-700">
+                    Description
+                  </label>
+                  <textarea
+                    name="description"
+                    value={formData.description}
+                    onChange={handleInputChange}
+                    placeholder="Additional notes or description..."
+                    rows="4"
+                    className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all resize-none"
                   />
                 </div>
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Amount */}
-                <div className="form-control w-full">
-                  <label className="label">
-                    <span className="label-text font-semibold text-gray-700">Amount *</span>
-                  </label>
-                  <input 
-                    type="number"
-                    name="amount"
-                    value={formData.amount}
-                    onChange={handleInputChange}
-                    min="0"
-                    step="0.01"
-                    placeholder="0.00"
-                    className="text-black bg-white input input-bordered w-full focus:input-primary"
-                    required
-                  />
+                {/* Modal Actions */}
+                <div className="flex justify-end gap-3 pt-6 border-t border-slate-200">
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className="px-6 py-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl font-semibold transition-colors"
+                    disabled={submitting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className={`px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl font-semibold transition-all duration-200 flex items-center gap-2 shadow-lg shadow-red-500/30 ${
+                      submitting ? 'opacity-80 cursor-not-allowed' : ''
+                    }`}
+                    disabled={submitting}
+                  >
+                    {submitting ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-5 h-5" />
+                        Create Bill
+                      </>
+                    )}
+                  </button>
                 </div>
-
-                {/* Due Date */}
-                <div className="form-control w-full">
-                  <label className="label">
-                    <span className="label-text font-semibold text-gray-700">Due Date *</span>
-                  </label>
-                  <input 
-                    type="date"
-                    name="due_date"
-                    value={formData.due_date}
-                    onChange={handleInputChange}
-                    className="text-black bg-white input input-bordered w-full focus:input-primary"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Status */}
-              <div className="form-control w-full">
-                <label className="label">
-                  <span className="label-text font-semibold text-gray-700">Status</span>
-                </label>
-                <select 
-                  name="status"
-                  value={formData.status}
-                  onChange={handleInputChange}
-                  className="text-black bg-white select select-bordered w-full focus:select-primary"
-                >
-                  <option value="unpaid">Unpaid</option>
-                  <option value="paid">Paid</option>
-                  <option value="partially_paid">Partially Paid</option>
-                  <option value="overdue">Overdue</option>
-                </select>
-              </div>
-
-              {/* Description */}
-              <div className="form-control w-full">
-                <label className="label">
-                  <span className="label-text font-semibold text-gray-700">Description</span>
-                </label>
-                <textarea 
-                  name="description"
-                  value={formData.description}
-                  onChange={handleInputChange}
-                  placeholder="Additional notes or description..."
-                  className="text-black bg-white textarea textarea-bordered h-20 w-full focus:textarea-primary resize-none"
-                />
-              </div>
-
-              {/* Modal Actions */}
-              <div className="modal-action">
-                <button 
-                  type="button"
-                  onClick={closeModal}
-                  className="btn btn-ghost"
-                  disabled={submitting}
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit"
-                  className="btn btn-primary bg-gradient-to-r from-red-400 to-red-500 border-0 text-white"
-                  disabled={submitting}
-                >
-                  {submitting && <span className="loading loading-spinner loading-sm"></span>}
-                  {submitting ? 'Creating...' : 'Create Bill'}
-                </button>
-              </div>
-            </form>
-          </div>
-          <div className="modal-backdrop bg-black/50" onClick={closeModal}></div>
-        </div>
+              </form>
+            </div>
+          </motion.div>
+        </motion.div>
       )}
 
       {/* Edit Billing Modal */}
       {isEditModalOpen && (
-        <div className="modal modal-open">
-          <div className="modal-box max-w-2xl bg-white">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-2xl font-bold text-gray-800">Edit Billing</h3>
-              <button
-                onClick={() => {
-                  setIsEditModalOpen(false);
-                  setEditingBilling(null);
-                  resetForm();
-                }}
-                className="btn btn-sm btn-circle btn-ghost hover:bg-gray-100"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Homeowner Selection with Autocomplete */}
-                <div className="form-control w-full relative">
-                  <label className="label">
-                    <span className="label-text font-semibold text-gray-700">Homeowner *</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={editHomeownerSearch}
-                      onChange={(e) => {
-                        setEditHomeownerSearch(e.target.value);
-                        setEditShowHomeownerDropdown(true);
-                        if (!e.target.value.trim()) {
-                          setEditSelectedHomeowner(null);
-                          setFormData(prev => ({ ...prev, homeowner_id: '' }));
-                        }
-                      }}
-                      onFocus={() => setEditShowHomeownerDropdown(true)}
-                      onBlur={() => setTimeout(() => setEditShowHomeownerDropdown(false), 200)}
-                      placeholder="Search homeowner by name, email, or unit..."
-                      className="text-black bg-white input input-bordered w-full focus:input-primary pr-10"
-                      required
-                    />
-                    <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-
-                    {/* Dropdown */}
-                    {editShowHomeownerDropdown && (
-                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                        {getFilteredHomeowners(editHomeownerSearch).map(homeowner => (
-                          <div
-                            key={homeowner.id}
-                            className="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
-                            onClick={() => handleEditHomeownerSelect(homeowner)}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="font-medium text-gray-900">{homeowner.full_name}</p>
-                                <p className="text-sm text-gray-500">{homeowner.email}</p>
-                                <p className="text-xs text-gray-400">Unit {homeowner.unit_number}</p>
-                              </div>
-                              {homeowner.monthly_dues && (
-                                <div className="text-right">
-                                  <p className="text-sm font-medium text-green-600">
-                                    ₱{homeowner.monthly_dues.toLocaleString()}
-                                  </p>
-                                  <p className="text-xs text-gray-400">Monthly dues</p>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                        {getFilteredHomeowners(editHomeownerSearch).length === 0 && (
-                          <div className="p-3 text-center text-gray-500">
-                            No homeowners found
-                          </div>
-                        )}
-                      </div>
-                    )}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setIsEditModalOpen(false);
+              setEditingBilling(null);
+              resetForm();
+            }
+          }}
+        >
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 20 }}
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden"
+          >
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-8 py-6 text-white">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                    <Edit className="w-6 h-6" />
                   </div>
-                  {editSelectedHomeowner && (
-                    <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-green-800">
-                            {editSelectedHomeowner.full_name} - Unit {editSelectedHomeowner.unit_number}
-                          </p>
-                          <p className="text-xs text-green-600">{editSelectedHomeowner.email}</p>
-                        </div>
-                        {editSelectedHomeowner.monthly_dues && (
-                          <p className="text-sm font-semibold text-green-700">
-                            ₱{editSelectedHomeowner.monthly_dues.toLocaleString()}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  )}
+                  <div>
+                    <h3 className="text-2xl font-bold">Edit Billing</h3>
+                    <p className="text-blue-100 text-sm mt-1">Update billing information</p>
+                  </div>
                 </div>
-
-                {/* Billing Period */}
-                <div className="form-control w-full">
-                  <label className="label">
-                    <span className="label-text font-semibold text-gray-700">Billing Period *</span>
-                  </label>
-                  <input 
-                    type="text"
-                    name="billing_period"
-                    value={formData.billing_period}
-                    onChange={handleInputChange}
-                    placeholder="e.g., January 2024"
-                    className="text-black bg-white input input-bordered w-full focus:input-primary"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Amount */}
-                <div className="form-control w-full">
-                  <label className="label">
-                    <span className="label-text font-semibold text-gray-700">Amount *</span>
-                  </label>
-                  <input 
-                    type="number"
-                    name="amount"
-                    value={formData.amount}
-                    onChange={handleInputChange}
-                    min="0"
-                    step="0.01"
-                    placeholder="0.00"
-                    className="text-black bg-white input input-bordered w-full focus:input-primary"
-                    required
-                  />
-                </div>
-
-                {/* Due Date */}
-                <div className="form-control w-full">
-                  <label className="label">
-                    <span className="label-text font-semibold text-gray-700">Due Date *</span>
-                  </label>
-                  <input 
-                    type="date"
-                    name="due_date"
-                    value={formData.due_date}
-                    onChange={handleInputChange}
-                    className="text-black bg-white input input-bordered w-full focus:input-primary"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Status */}
-              <div className="form-control w-full">
-                <label className="label">
-                  <span className="label-text font-semibold text-gray-700">Status</span>
-                </label>
-                <select 
-                  name="status"
-                  value={formData.status}
-                  onChange={handleInputChange}
-                  className="text-black bg-white select select-bordered w-full focus:select-primary"
-                >
-                  <option value="unpaid">Unpaid</option>
-                  <option value="paid">Paid</option>
-                  <option value="partially_paid">Partially Paid</option>
-                  <option value="overdue">Overdue</option>
-                </select>
-              </div>
-
-              {/* Description */}
-              <div className="form-control w-full">
-                <label className="label">
-                  <span className="label-text font-semibold text-gray-700">Description</span>
-                </label>
-                <textarea 
-                  name="description"
-                  value={formData.description}
-                  onChange={handleInputChange}
-                  placeholder="Additional notes or description..."
-                  className="text-black bg-white textarea textarea-bordered h-20 w-full focus:textarea-primary resize-none"
-                />
-              </div>
-
-              {/* Modal Actions */}
-              <div className="modal-action">
-                <button 
-                  type="button"
+                <button
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
                   onClick={() => {
                     setIsEditModalOpen(false);
                     setEditingBilling(null);
                     resetForm();
                   }}
-                  className="btn btn-ghost"
                   disabled={submitting}
                 >
-                  Cancel
-                </button>
-                <button 
-                  type="submit"
-                  className="btn btn-primary bg-gradient-to-r from-red-400 to-red-500 border-0 text-white"
-                  disabled={submitting}
-                >
-                  {submitting && <span className="loading loading-spinner loading-sm"></span>}
-                  {submitting ? 'Updating...' : (
-                    <>
-                      <Edit className="w-4 h-4 mr-2" />
-                      Update Billing
-                    </>
-                  )}
+                  <X className="w-5 h-5" />
                 </button>
               </div>
-            </form>
-          </div>
-          <div className="modal-backdrop bg-black/50" onClick={() => {
-            setIsEditModalOpen(false);
-            setEditingBilling(null);
-            resetForm();
-          }}></div>
-        </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-8 overflow-y-auto max-h-[calc(90vh-140px)]">
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Homeowner Selection with Autocomplete */}
+                  <div className="space-y-2 relative">
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Homeowner <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={editHomeownerSearch}
+                        onChange={(e) => {
+                          setEditHomeownerSearch(e.target.value);
+                          setEditShowHomeownerDropdown(true);
+                          if (!e.target.value.trim()) {
+                            setEditSelectedHomeowner(null);
+                            setFormData(prev => ({ ...prev, homeowner_id: '' }));
+                          }
+                        }}
+                        onFocus={() => setEditShowHomeownerDropdown(true)}
+                        onBlur={() => setTimeout(() => setEditShowHomeownerDropdown(false), 200)}
+                        placeholder="Search by name, email, or unit..."
+                        className="w-full px-4 py-3 pr-10 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        required
+                      />
+                      <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
+
+                      {/* Dropdown */}
+                      {editShowHomeownerDropdown && (
+                        <div className="absolute z-50 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-64 overflow-y-auto">
+                          {getFilteredHomeowners(editHomeownerSearch).map(homeowner => (
+                            <div
+                              key={homeowner.id}
+                              className="p-4 hover:bg-blue-50 cursor-pointer border-b border-slate-100 last:border-b-0 transition-colors"
+                              onClick={() => handleEditHomeownerSelect(homeowner)}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="font-semibold text-slate-900">{homeowner.full_name}</p>
+                                  <p className="text-sm text-slate-600">{homeowner.email}</p>
+                                  <p className="text-xs text-slate-400 mt-1">Unit {homeowner.unit_number}</p>
+                                </div>
+                                {homeowner.monthly_dues && (
+                                  <div className="text-right bg-green-50 px-3 py-2 rounded-lg">
+                                    <p className="text-sm font-bold text-green-700">
+                                      ₱{homeowner.monthly_dues.toLocaleString()}
+                                    </p>
+                                    <p className="text-xs text-green-600">Monthly dues</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                          {getFilteredHomeowners(editHomeownerSearch).length === 0 && (
+                            <div className="p-4 text-center text-slate-500">
+                              No homeowners found
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {editSelectedHomeowner && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mt-3 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-semibold text-green-900">
+                              {editSelectedHomeowner.full_name} - Unit {editSelectedHomeowner.unit_number}
+                            </p>
+                            <p className="text-xs text-green-700 mt-1">{editSelectedHomeowner.email}</p>
+                          </div>
+                          {editSelectedHomeowner.monthly_dues && (
+                            <p className="text-base font-bold text-green-800">
+                              ₱{editSelectedHomeowner.monthly_dues.toLocaleString()}
+                            </p>
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </div>
+
+                  {/* Billing Period */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Billing Period <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="billing_period"
+                      value={formData.billing_period}
+                      onChange={handleInputChange}
+                      placeholder="e.g., January 2024"
+                      className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Amount */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Amount <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-500 font-semibold">₱</span>
+                      <input
+                        type="number"
+                        name="amount"
+                        value={formData.amount}
+                        onChange={handleInputChange}
+                        min="0"
+                        step="0.01"
+                        placeholder="0.00"
+                        className="w-full pl-10 pr-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Due Date */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Due Date <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5 pointer-events-none" />
+                      <input
+                        type="date"
+                        name="due_date"
+                        value={formData.due_date}
+                        onChange={handleInputChange}
+                        className="w-full pl-11 pr-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-slate-700">
+                    Status
+                  </label>
+                  <select
+                    name="status"
+                    value={formData.status}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none cursor-pointer"
+                  >
+                    <option value="unpaid">Unpaid</option>
+                    <option value="paid">Paid</option>
+                    <option value="partially_paid">Partially Paid</option>
+                    <option value="overdue">Overdue</option>
+                  </select>
+                </div>
+
+                {/* Description */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-slate-700">
+                    Description
+                  </label>
+                  <textarea
+                    name="description"
+                    value={formData.description}
+                    onChange={handleInputChange}
+                    placeholder="Additional notes or description..."
+                    rows="4"
+                    className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
+                  />
+                </div>
+
+                {/* Modal Actions */}
+                <div className="flex justify-end gap-3 pt-6 border-t border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditModalOpen(false);
+                      setEditingBilling(null);
+                      resetForm();
+                    }}
+                    className="px-6 py-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl font-semibold transition-colors"
+                    disabled={submitting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className={`px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl font-semibold transition-all duration-200 flex items-center gap-2 shadow-lg shadow-blue-500/30 ${
+                      submitting ? 'opacity-80 cursor-not-allowed' : ''
+                    }`}
+                    disabled={submitting}
+                  >
+                    {submitting ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Updating...
+                      </>
+                    ) : (
+                      <>
+                        <Edit className="w-5 h-5" />
+                        Update Billing
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </motion.div>
+        </motion.div>
       )}
 
       {/* Delete Confirmation Modal */}

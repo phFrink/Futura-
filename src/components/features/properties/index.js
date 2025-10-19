@@ -1,17 +1,43 @@
-'use client';
+"use client";
 
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, MapPin, Bed, Bath, Maximize, Grid, List, X, Home, Loader2, Edit, Trash2, AlertTriangle, Sparkles, XCircle, Upload, Image as ImageIcon } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Plus,
+  Search,
+  MapPin,
+  Bed,
+  Bath,
+  Maximize,
+  Grid,
+  List,
+  X,
+  Home,
+  Loader2,
+  Edit,
+  Trash2,
+  AlertTriangle,
+  Sparkles,
+  XCircle,
+  Upload,
+  Image as ImageIcon,
+} from "lucide-react";
 import { motion } from "framer-motion";
-import { createClient } from '@supabase/supabase-js';
-import { isNewItem, getRelativeTime } from '@/lib/utils';
-import ReactSelect from 'react-select';
-import { toast } from 'react-toastify';
+import { createClient } from "@supabase/supabase-js";
+import { isNewItem, getRelativeTime } from "@/lib/utils";
+import ReactSelect from "react-select";
+import { toast } from "react-toastify";
+import { useRouter } from "next/navigation";
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -23,34 +49,39 @@ const supabase = createClient(
 const customSelectStyles = {
   control: (provided, state) => ({
     ...provided,
-    minHeight: '48px',
-    borderColor: state.isFocused ? '#3b82f6' : '#e2e8f0',
-    boxShadow: state.isFocused ? '0 0 0 2px rgba(59, 130, 246, 0.5)' : 'none',
-    '&:hover': {
-      borderColor: '#3b82f6'
+    minHeight: "48px",
+    borderColor: state.isFocused ? "#3b82f6" : "#e2e8f0",
+    boxShadow: state.isFocused ? "0 0 0 2px rgba(59, 130, 246, 0.5)" : "none",
+    "&:hover": {
+      borderColor: "#3b82f6",
     },
-    borderRadius: '0.5rem',
-    padding: '2px 8px'
+    borderRadius: "0.5rem",
+    padding: "2px 8px",
   }),
   menu: (provided) => ({
     ...provided,
-    zIndex: 9999
+    zIndex: 9999,
   }),
   menuPortal: (provided) => ({
     ...provided,
-    zIndex: 9999
+    zIndex: 9999,
   }),
   option: (provided, state) => ({
     ...provided,
-    backgroundColor: state.isSelected ? '#ef4444' : state.isFocused ? '#fee2e2' : 'white',
-    color: state.isSelected ? 'white' : '#1e293b',
-    '&:active': {
-      backgroundColor: '#dc2626'
-    }
-  })
+    backgroundColor: state.isSelected
+      ? "#ef4444"
+      : state.isFocused
+      ? "#fee2e2"
+      : "white",
+    color: state.isSelected ? "white" : "#1e293b",
+    "&:active": {
+      backgroundColor: "#dc2626",
+    },
+  }),
 };
 
 export default function Properties() {
+  const router = useRouter();
   const [properties, setProperties] = useState([]);
   const [filteredProperties, setFilteredProperties] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -73,15 +104,32 @@ export default function Properties() {
 
   // Common amenities list
   const commonAmenities = [
-    'Living Area', 'Dining Area', 'Kitchen', 'Toilet & Bath',
-    'Balcony', 'Terrace', 'Garage', 'Carport', 'Garden',
-    'Lanai', 'Maid Room', 'Storage Room', 'Family Room',
-    'Laundry Area', 'Powder Room', 'Walk-in Closet', 'Patio',
-    'Deck', 'Attic', 'Basement', 'Fireplace', 'Study Room'
+    "Living Area",
+    "Dining Area",
+    "Kitchen",
+    "Toilet & Bath",
+    "Balcony",
+    "Terrace",
+    "Garage",
+    "Carport",
+    "Garden",
+    "Lanai",
+    "Maid Room",
+    "Storage Room",
+    "Family Room",
+    "Laundry Area",
+    "Powder Room",
+    "Walk-in Closet",
+    "Patio",
+    "Deck",
+    "Attic",
+    "Basement",
+    "Fireplace",
+    "Study Room",
   ];
 
   // Amenity input state
-  const [amenityInput, setAmenityInput] = useState('');
+  const [amenityInput, setAmenityInput] = useState("");
 
   // Photo upload state
   const [propertyPhoto, setPropertyPhoto] = useState(null);
@@ -90,12 +138,14 @@ export default function Properties() {
 
   // Form state
   const [formData, setFormData] = useState({
-    property_title: '',
-    property_lot_id: '',
-    property_details_id: '',
-    property_availability: 'vacant',
+    property_title: "",
+    property_price: 1000000,
+    property_downprice: 20000,
+    property_lot_id: "",
+    property_details_id: "",
+    property_availability: "vacant",
     amenities: [],
-    property_photo: ''
+    property_photo: "",
   });
 
   useEffect(() => {
@@ -115,8 +165,9 @@ export default function Properties() {
 
       // Get all properties with related data using joins
       const { data: propertiesData, error: propertiesError } = await supabase
-        .from('property_info_tbl')
-        .select(`
+        .from("property_info_tbl")
+        .select(
+          `
           *,
           property_detail_tbl!property_details_id(
             detail_id,
@@ -127,19 +178,20 @@ export default function Properties() {
             lot_id,
             lot_number
           )
-        `)
-        .order('created_at', { ascending: false });
+        `
+        )
+        .order("created_at", { ascending: false });
 
       if (propertiesError) {
-        console.error('Error loading properties:', propertiesError);
+        console.error("Error loading properties:", propertiesError);
         return;
       }
 
-      console.log('Properties loaded:', propertiesData);
+      console.log("Properties loaded:", propertiesData);
 
       setProperties(propertiesData || []);
     } catch (error) {
-      console.error('Error loading properties:', error);
+      console.error("Error loading properties:", error);
     } finally {
       setLoading(false);
     }
@@ -148,39 +200,77 @@ export default function Properties() {
   // Load property types from property_detail_tbl
   const loadPropertyTypes = async () => {
     try {
+      // Get all property details
       const { data, error } = await supabase
-        .from('property_detail_tbl')
-        .select('detail_id, property_name, property_area')
-        .order('property_name', { ascending: true });
+        .from("property_detail_tbl")
+        .select("detail_id, property_name, property_area")
+        .order("property_name", { ascending: true });
 
       if (error) {
-        console.error('Error loading property types:', error);
+        console.error("Error loading property types:", error);
         return;
       }
 
-      console.log('Property types with property_area:', data);
-      setPropertyTypes(data || []);
+      // Get all properties to check which property details are used
+      const { data: usedDetails, error: usedError } = await supabase
+        .from("property_info_tbl")
+        .select("property_details_id");
+
+      if (usedError) {
+        console.error("Error loading used property details:", usedError);
+        return;
+      }
+
+      // Mark property details as used if they're already in properties
+      const usedDetailIds = new Set(
+        usedDetails.map((p) => p.property_details_id)
+      );
+      const detailsWithStatus = (data || []).map((detail) => ({
+        ...detail,
+        is_used: usedDetailIds.has(detail.detail_id),
+      }));
+
+      console.log("Property types with property_area:", detailsWithStatus);
+      setPropertyTypes(detailsWithStatus);
     } catch (error) {
-      console.error('Error loading property types:', error);
+      console.error("Error loading property types:", error);
     }
   };
 
   // Load lot numbers from lot_tbl
   const loadLotNumbers = async () => {
     try {
-      const { data, error } = await supabase
-        .from('lot_tbl')
-        .select('lot_id, lot_number, is_occupied')
-        .order('lot_number', { ascending: true });
+      // Get all lots
+      const { data: lots, error: lotsError } = await supabase
+        .from("lot_tbl")
+        .select("lot_id, lot_number, is_occupied")
+        .order("lot_number", { ascending: true });
 
-      if (error) {
-        console.error('Error loading lot numbers:', error);
+      if (lotsError) {
+        console.error("Error loading lot numbers:", lotsError);
         return;
       }
 
-      setLotNumbers(data || []);
+      // Get all properties to check which lots are used
+      const { data: usedLots, error: usedError } = await supabase
+        .from("property_info_tbl")
+        .select("property_lot_id");
+
+      if (usedError) {
+        console.error("Error loading used lots:", usedError);
+        return;
+      }
+
+      // Mark lots as occupied if they're used in properties
+      const usedLotIds = new Set(usedLots.map((p) => p.property_lot_id));
+      const lotsWithStatus = (lots || []).map((lot) => ({
+        ...lot,
+        is_occupied: usedLotIds.has(lot.lot_id),
+      }));
+
+      setLotNumbers(lotsWithStatus);
     } catch (error) {
-      console.error('Error loading lot numbers:', error);
+      console.error("Error loading lot numbers:", error);
     }
   };
 
@@ -190,18 +280,27 @@ export default function Properties() {
 
     // Apply local filters first for better performance
     if (searchTerm) {
-      filtered = filtered.filter(property =>
-        property.property_title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        property.lot_tbl?.lot_number?.toLowerCase().includes(searchTerm.toLowerCase())
+      filtered = filtered.filter(
+        (property) =>
+          property.property_title
+            ?.toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          property.lot_tbl?.lot_number
+            ?.toLowerCase()
+            .includes(searchTerm.toLowerCase())
       );
     }
 
     if (statusFilter !== "all") {
-      filtered = filtered.filter(property => property.property_availability === statusFilter);
+      filtered = filtered.filter(
+        (property) => property.property_availability === statusFilter
+      );
     }
 
     if (typeFilter !== "all") {
-      filtered = filtered.filter(property => property.property_details_id === typeFilter);
+      filtered = filtered.filter(
+        (property) => property.property_details_id === typeFilter
+      );
     }
 
     setFilteredProperties(filtered);
@@ -240,55 +339,62 @@ export default function Properties() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const handleSelectChange = (name, value) => {
     // Auto-fill fields when property type is selected
-    if (name === 'property_type' && value) {
-      const selectedPropertyType = propertyTypes.find(t => t.detail_id === value);
+    if (name === "property_type" && value) {
+      const selectedPropertyType = propertyTypes.find(
+        (t) => t.detail_id === value
+      );
       if (selectedPropertyType && selectedPropertyType.property_area) {
         const specs = selectedPropertyType.property_area;
         const updatedFormData = { ...formData, property_type: value };
 
         // Map specifications to form fields
-        specs.forEach(spec => {
+        specs.forEach((spec) => {
           const specName = spec.name.toLowerCase();
-          if (specName.includes('bedroom')) {
+          if (specName.includes("bedroom")) {
             updatedFormData.bedrooms = spec.value;
-          } else if (specName.includes('bathroom') || specName.includes('bath')) {
+          } else if (
+            specName.includes("bathroom") ||
+            specName.includes("bath")
+          ) {
             updatedFormData.bathrooms = spec.value;
-          } else if (specName.includes('floor') && specName.includes('area')) {
+          } else if (specName.includes("floor") && specName.includes("area")) {
             updatedFormData.floor_area = spec.value;
-          } else if (specName.includes('lot') && specName.includes('area')) {
+          } else if (specName.includes("lot") && specName.includes("area")) {
             updatedFormData.lot_area = spec.value;
           }
         });
+
+        console.log(updatedFormData, "get update form");
 
         setFormData(updatedFormData);
         return;
       }
     }
 
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const resetForm = () => {
     setFormData({
-      property_title: '',
-      property_lot_id: '',
-      property_details_id: '',
-      property_availability: 'vacant',
+      property_title: "",
+      property_lot_id: "",
+      property_details_id: "",
+      property_availability: "vacant",
       amenities: [],
-      property_photo: ''
+      property_photo: "",
     });
-    setAmenityInput('');
+    setAmenityInput("");
     setPropertyPhoto(null);
     setPhotoPreview(null);
   };
@@ -300,22 +406,26 @@ export default function Properties() {
       return;
     }
 
-    if (formData.amenities.some(a => a.toLowerCase() === trimmedAmenity.toLowerCase())) {
+    if (
+      formData.amenities.some(
+        (a) => a.toLowerCase() === trimmedAmenity.toLowerCase()
+      )
+    ) {
       return;
     }
 
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      amenities: [...prev.amenities, trimmedAmenity]
+      amenities: [...prev.amenities, trimmedAmenity],
     }));
-    setAmenityInput('');
+    setAmenityInput("");
   };
 
   // Remove amenity
   const handleRemoveAmenity = (amenity) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      amenities: prev.amenities.filter(a => a !== amenity)
+      amenities: prev.amenities.filter((a) => a !== amenity),
     }));
   };
 
@@ -324,14 +434,14 @@ export default function Properties() {
     const file = e.target.files[0];
     if (file) {
       // Validate file type
-      if (!file.type.startsWith('image/')) {
-        alert('Please select an image file');
+      if (!file.type.startsWith("image/")) {
+        alert("Please select an image file");
         return;
       }
 
       // Validate file size (5MB)
       if (file.size > 5 * 1024 * 1024) {
-        alert('Image size should be less than 5MB');
+        alert("Image size should be less than 5MB");
         return;
       }
 
@@ -350,24 +460,30 @@ export default function Properties() {
   const handleRemovePhoto = () => {
     setPropertyPhoto(null);
     setPhotoPreview(null);
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      property_photo: ''
+      property_photo: "",
     }));
   };
 
   // Handle opening edit modal
   const handleEditProperty = (property) => {
+    console.log("get property", property);
     setEditingProperty(property);
     setFormData({
-      property_title: property.property_title || '',
-      property_lot_id: property.property_lot_id || '',
-      property_details_id: property.property_details_id || '',
-      property_availability: property.property_availability || 'vacant',
+      property_title: property.property_title || "",
+      property_lot_id: property.property_lot_id || "",
+      property_price:
+        Number(property.property_price) > 0
+          ? Number(property.property_price)
+          : 1000000,
+      property_downprice: Number(property.property_downprice),
+      property_details_id: property.property_details_id || "",
+      property_availability: property.property_availability || "vacant",
       amenities: Array.isArray(property.amenities) ? property.amenities : [],
-      property_photo: property.property_photo || ''
+      property_photo: property.property_photo || "",
     });
-    setAmenityInput('');
+    setAmenityInput("");
     setPropertyPhoto(null);
     setPhotoPreview(property.property_photo || null);
     setShowEditModal(true);
@@ -385,13 +501,20 @@ export default function Properties() {
 
     setFormSubmitting(true);
     try {
-      await deleteProperty(deletingProperty.property_id, deletingProperty.property_title);
-      toast.success('Property deleted successfully!');
+      await deleteProperty(
+        deletingProperty.property_id,
+        deletingProperty.property_title
+      );
+      toast.success("Property deleted successfully!");
       setShowDeleteModal(false);
       setDeletingProperty(null);
+
+      // Reload lot numbers and property types to update availability
+      await loadLotNumbers();
+      await loadPropertyTypes();
     } catch (error) {
-      console.error('Error deleting property:', error);
-      toast.info('Error deleting property: ' + error.message);
+      console.error("Error deleting property:", error);
+      toast.info("Error deleting property: " + error.message);
     } finally {
       setFormSubmitting(false);
     }
@@ -401,30 +524,33 @@ export default function Properties() {
   const updateProperty = async (propertyId, updateData) => {
     try {
       const { data, error } = await supabase
-        .from('property_tbl')
-        .update({ 
-          ...updateData, 
-          updated_at: new Date().toISOString() 
+        .from("property_tbl")
+        .update({
+          ...updateData,
+          updated_at: new Date().toISOString(),
         })
-        .eq('id', propertyId)
+        .eq("id", propertyId)
         .select()
         .single();
 
       if (error) throw error;
 
       // Update local state
-      setProperties(prev => 
-        prev.map(prop => 
-          prop.id === propertyId 
-            ? { ...prop, ...data }
-            : prop
+      setProperties((prev) =>
+        prev.map((prop) =>
+          prop.id === propertyId ? { ...prop, ...data } : prop
         )
       );
 
-      await logPropertyActivity('updated', propertyId, data.name, 'Property details updated');
+      await logPropertyActivity(
+        "updated",
+        propertyId,
+        data.name,
+        "Property details updated"
+      );
       return data;
     } catch (error) {
-      console.error('Error updating property:', error);
+      console.error("Error updating property:", error);
       throw error;
     }
   };
@@ -435,25 +561,58 @@ export default function Properties() {
 
     try {
       // Validate required fields
-      if (!formData.property_title.trim() || !formData.property_lot_id || !formData.property_details_id) {
-        throw new Error('Please fill in all required fields');
+      if (
+        !formData.property_title.trim() ||
+        !formData.property_lot_id ||
+        !formData.property_details_id
+      ) {
+        throw new Error("Please fill in all required fields");
+      }
+
+      // Check if lot number is already used by another property
+      const { data: existingProperty, error: checkError } = await supabase
+        .from("property_info_tbl")
+        .select("property_id, property_title")
+        .eq("property_lot_id", formData.property_lot_id)
+        .single();
+
+      if (checkError && checkError.code !== "PGRST116") {
+        // PGRST116 means no rows found, which is good
+        throw checkError;
+      }
+
+      // If editing, allow the same lot if it's the current property's lot
+      if (existingProperty) {
+        if (
+          !editingProperty ||
+          existingProperty.property_id !== editingProperty.property_id
+        ) {
+          const lotInfo = lotNumbers.find(
+            (l) => l.lot_id === formData.property_lot_id
+          );
+          throw new Error(
+            `Lot ${lotInfo?.lot_number || "number"} is already assigned to "${
+              existingProperty.property_title
+            }". Please select a different lot.`
+          );
+        }
       }
 
       // Upload photo if a new file is selected
-      let photoUrl = formData.property_photo || '';
+      let photoUrl = formData.property_photo || "";
       if (propertyPhoto) {
         setPhotoUploading(true);
         const uploadFormData = new FormData();
-        uploadFormData.append('property_photo', propertyPhoto);
+        uploadFormData.append("property_photo", propertyPhoto);
 
-        const uploadResponse = await fetch('/api/upload-property-photo', {
-          method: 'POST',
-          body: uploadFormData
+        const uploadResponse = await fetch("/api/upload-property-photo", {
+          method: "POST",
+          body: uploadFormData,
         });
 
         if (!uploadResponse.ok) {
           const errorData = await uploadResponse.json();
-          throw new Error(errorData.error || 'Failed to upload photo');
+          throw new Error(errorData.error || "Failed to upload photo");
         }
 
         const uploadResult = await uploadResponse.json();
@@ -465,60 +624,134 @@ export default function Properties() {
       const propertyData = {
         property_title: formData.property_title.trim(),
         property_lot_id: formData.property_lot_id || null,
+        property_price: formData.property_price,
+        property_downprice: formData.property_downprice,
         property_details_id: formData.property_details_id || null,
         property_availability: formData.property_availability,
         amenities: formData.amenities,
         property_photo: photoUrl,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       };
 
       if (editingProperty) {
+        // Check if lot has changed
+        const lotChanged =
+          editingProperty.property_lot_id !== formData.property_lot_id;
+        const oldLotId = editingProperty.property_lot_id;
+        const newLotId = formData.property_lot_id;
+
         // Update existing property
         const { data, error } = await supabase
-          .from('property_info_tbl')
+          .from("property_info_tbl")
           .update(propertyData)
-          .eq('property_id', editingProperty.property_id)
-          .select();
+          .eq("property_id", editingProperty.property_id).select(`
+            *,
+            property_detail_tbl!property_details_id(
+              detail_id,
+              property_name,
+              property_area
+            ),
+            lot_tbl!property_lot_id(
+              lot_id,
+              lot_number
+            )
+          `);
 
         if (error) throw error;
 
+        // If lot changed, update both old and new lots
+        if (lotChanged) {
+          // Mark old lot as vacant
+          if (oldLotId) {
+            const { error: oldLotError } = await supabase
+              .from("lot_tbl")
+              .update({ is_occupied: false })
+              .eq("lot_id", oldLotId);
+
+            if (oldLotError) {
+              console.error("Error updating old lot status:", oldLotError);
+            }
+          }
+
+          // Mark new lot as occupied
+          if (newLotId) {
+            const { error: newLotError } = await supabase
+              .from("lot_tbl")
+              .update({ is_occupied: true })
+              .eq("lot_id", newLotId);
+
+            if (newLotError) {
+              console.error("Error updating new lot status:", newLotError);
+            }
+          }
+        }
+
         // Update local state
-        setProperties(prev =>
-          prev.map(prop =>
+        setProperties((prev) =>
+          prev.map((prop) =>
             prop.property_id === editingProperty.property_id ? data[0] : prop
           )
         );
 
-        toast.success('Property updated successfully!');
+        toast.success("Property updated successfully!");
         setShowEditModal(false);
         setEditingProperty(null);
+
+        // Reload lot numbers and property types to update availability
+        await loadLotNumbers();
+        await loadPropertyTypes();
       } else {
         // Create new property
         propertyData.created_at = new Date().toISOString();
 
         const { data, error } = await supabase
-          .from('property_info_tbl')
-          .insert([propertyData])
-          .select();
+          .from("property_info_tbl")
+          .insert([propertyData]).select(`
+            *,
+            property_detail_tbl!property_details_id(
+              detail_id,
+              property_name,
+              property_area
+            ),
+            lot_tbl!property_lot_id(
+              lot_id,
+              lot_number
+            )
+          `);
 
         if (error) {
           throw error;
         }
 
-        // Success - add to local state and close modal
-        if (data && data[0]) {
-          setProperties(prev => [data[0], ...prev]); // Add to top of list
+        // Update lot_tbl to mark lot as occupied
+        if (formData.property_lot_id) {
+          const { error: lotError } = await supabase
+            .from("lot_tbl")
+            .update({ is_occupied: true })
+            .eq("lot_id", formData.property_lot_id);
+
+          if (lotError) {
+            console.error("Error updating lot status:", lotError);
+          }
         }
 
-        toast.success('Property added successfully!');
+        // Success - add to local state and close modal
+        if (data && data[0]) {
+          setProperties((prev) => [data[0], ...prev]); // Add to top of list
+        }
+
+        toast.success("Property added successfully!");
         setShowModal(false);
+
+        // Reload lot numbers and property types to update availability
+        await loadLotNumbers();
+        await loadPropertyTypes();
       }
 
       resetForm();
-
     } catch (error) {
-      console.error('Error adding property:', error);
-      toast.info('Error adding property: ' + error.message);
+      console.error("Error adding property:", error);
+      toast.info("Error adding property: " + error.message);
     } finally {
       setFormSubmitting(false);
     }
@@ -528,95 +761,126 @@ export default function Properties() {
   const updatePropertyStatus = async (propertyId, newStatus) => {
     try {
       const { data, error } = await supabase
-        .from('property_tbl')
-        .update({ 
-          status: newStatus, 
-          updated_at: new Date().toISOString() 
+        .from("property_tbl")
+        .update({
+          status: newStatus,
+          updated_at: new Date().toISOString(),
         })
-        .eq('id', propertyId)
+        .eq("id", propertyId)
         .select()
         .single();
 
       if (error) throw error;
 
       // Update local state
-      setProperties(prev => 
-        prev.map(prop => 
-          prop.id === propertyId 
+      setProperties((prev) =>
+        prev.map((prop) =>
+          prop.id === propertyId
             ? { ...prop, status: newStatus, updated_at: data.updated_at }
             : prop
         )
       );
 
-      await logPropertyActivity('status_updated', propertyId, data.name, `Status changed to ${newStatus}`);
+      await logPropertyActivity(
+        "status_updated",
+        propertyId,
+        data.name,
+        `Status changed to ${newStatus}`
+      );
       return data;
     } catch (error) {
-      console.error('Error updating property status:', error);
+      console.error("Error updating property status:", error);
       throw error;
     }
   };
 
   const deleteProperty = async (propertyId, propertyName) => {
     try {
+      // Get the property to find its lot_id before deleting
+      const propertyToDelete = properties.find(
+        (p) => p.property_id === propertyId
+      );
+      const lotIdToFree = propertyToDelete?.property_lot_id;
+
       const { error } = await supabase
-        .from('property_info_tbl')
+        .from("property_info_tbl")
         .delete()
-        .eq('property_id', propertyId);
+        .eq("property_id", propertyId);
 
       if (error) throw error;
 
+      // Mark the lot as vacant
+      if (lotIdToFree) {
+        const { error: lotError } = await supabase
+          .from("lot_tbl")
+          .update({ is_occupied: false })
+          .eq("lot_id", lotIdToFree);
+
+        if (lotError) {
+          console.error("Error updating lot status:", lotError);
+        }
+      }
+
       // Remove from local state
-      setProperties(prev => prev.filter(prop => prop.property_id !== propertyId));
+      setProperties((prev) =>
+        prev.filter((prop) => prop.property_id !== propertyId)
+      );
 
       return true;
     } catch (error) {
-      console.error('Error deleting property:', error);
+      console.error("Error deleting property:", error);
       throw error;
     }
   };
 
   const searchProperties = async (searchParams) => {
     try {
-      let query = supabase.from('property_tbl').select('*');
+      let query = supabase.from("property_tbl").select("*");
 
       // Apply filters
       if (searchParams.name) {
-        query = query.ilike('name', `%${searchParams.name}%`);
+        query = query.ilike("name", `%${searchParams.name}%`);
       }
-      
-      if (searchParams.status && searchParams.status !== 'all') {
-        query = query.eq('status', searchParams.status);
+
+      if (searchParams.status && searchParams.status !== "all") {
+        query = query.eq("status", searchParams.status);
       }
-      
-      if (searchParams.property_type && searchParams.property_type !== 'all') {
-        query = query.eq('property_type', searchParams.property_type);
+
+      if (searchParams.property_type && searchParams.property_type !== "all") {
+        query = query.eq("property_type", searchParams.property_type);
       }
 
       if (searchParams.min_bedrooms) {
-        query = query.gte('bedrooms', parseInt(searchParams.min_bedrooms));
+        query = query.gte("bedrooms", parseInt(searchParams.min_bedrooms));
       }
 
       if (searchParams.max_bedrooms) {
-        query = query.lte('bedrooms', parseInt(searchParams.max_bedrooms));
+        query = query.lte("bedrooms", parseInt(searchParams.max_bedrooms));
       }
 
       if (searchParams.min_floor_area) {
-        query = query.gte('floor_area', parseFloat(searchParams.min_floor_area));
+        query = query.gte(
+          "floor_area",
+          parseFloat(searchParams.min_floor_area)
+        );
       }
 
       if (searchParams.max_floor_area) {
-        query = query.lte('floor_area', parseFloat(searchParams.max_floor_area));
+        query = query.lte(
+          "floor_area",
+          parseFloat(searchParams.max_floor_area)
+        );
       }
 
-      query = query.order('created_at', { ascending: false });
+      query = query.order("created_at", { ascending: false });
 
       const { data, error } = await query;
-      
+
       if (error) throw error;
-      
+
       return data || [];
     } catch (error) {
-      console.error('Error searching properties:', error);
+      console.error("Error searching properties:", error);
       throw error;
     }
   };
@@ -624,40 +888,47 @@ export default function Properties() {
   const getPropertyStats = async () => {
     try {
       const { data, error } = await supabase
-        .from('property_info_tbl')
-        .select('property_availability, property_details_id');
+        .from("property_info_tbl")
+        .select("property_availability, property_details_id");
 
       if (error) throw error;
 
       const stats = {
         total: data.length,
         by_status: {},
-        by_type: {}
+        by_type: {},
       };
 
-      data.forEach(property => {
+      data.forEach((property) => {
         // Count by availability
-        stats.by_status[property.property_availability] = (stats.by_status[property.property_availability] || 0) + 1;
+        stats.by_status[property.property_availability] =
+          (stats.by_status[property.property_availability] || 0) + 1;
 
         // Count by type
-        stats.by_type[property.property_details_id] = (stats.by_type[property.property_details_id] || 0) + 1;
+        stats.by_type[property.property_details_id] =
+          (stats.by_type[property.property_details_id] || 0) + 1;
       });
 
       return stats;
     } catch (error) {
-      console.error('Error getting property stats:', error);
+      console.error("Error getting property stats:", error);
       throw error;
     }
   };
 
-  const logPropertyActivity = async (action, propertyId, propertyName, details = null) => {
+  const logPropertyActivity = async (
+    action,
+    propertyId,
+    propertyName,
+    details = null
+  ) => {
     try {
       const logData = {
         property_id: propertyId,
         property_name: propertyName,
         action: action,
         details: details,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
 
       // Optional: Create activity log table and insert
@@ -666,122 +937,240 @@ export default function Properties() {
       //   .insert([logData]);
 
       // For now, just console log
-      console.log('Property Activity:', logData);
-      
+      console.log("Property Activity:", logData);
     } catch (error) {
-      console.error('Error logging activity:', error);
+      console.error("Error logging activity:", error);
     }
   };
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'occupied': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-      case 'vacant': return 'bg-rose-50 text-rose-700 border-rose-200';
-      case 'for_sale': return 'bg-blue-50 text-blue-700 border-blue-200';
-      case 'under_construction': return 'bg-amber-50 text-amber-700 border-amber-200';
-      default: return 'bg-slate-50 text-slate-700 border-slate-200';
+      case "occupied":
+        return "bg-emerald-50 text-emerald-700 border-emerald-200";
+      case "vacant":
+        return "bg-rose-50 text-rose-700 border-rose-200";
+      case "for_sale":
+        return "bg-blue-50 text-blue-700 border-blue-200";
+      case "under_construction":
+        return "bg-amber-50 text-amber-700 border-amber-200";
+      default:
+        return "bg-slate-50 text-slate-700 border-slate-200";
     }
   };
 
   const getTypeIcon = (type) => {
     switch (type) {
-      case 'house': return '🏠';
-      case 'townhouse': return '🏘️';
-      case 'condominium': return '🏢';
-      case 'lot': return '🟫';
-      default: return '🏠';
+      case "house":
+        return "🏠";
+      case "townhouse":
+        return "🏘️";
+      case "condominium":
+        return "🏢";
+      case "lot":
+        return "🟫";
+      default:
+        return "🏠";
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-100 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header with Stats */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
+          className="space-y-6"
         >
-          <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent mb-2">
-              Properties
-            </h1>
-            <p className="text-lg text-slate-600">Manage Futura Homes Koronadal properties</p>
-            <div className="flex items-center gap-4 mt-2 text-sm text-slate-500">
-              <span>{filteredProperties.length} of {properties.length} properties</span>
+          {/* Title and Action */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-slate-800 bg-clip-text text-transparent mb-2">
+                Properties Portfolio
+              </h1>
+              <p className="text-base md:text-lg text-slate-600 font-medium">
+                Comprehensive property management for Futura Homes Koronadal
+              </p>
             </div>
+            <Button
+              onClick={() => setShowModal(true)}
+              className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 px-6 py-6 text-base font-semibold group"
+            >
+              <Plus className="w-5 h-5 mr-2 group-hover:rotate-90 transition-transform duration-300" />
+              Add New Property
+            </Button>
           </div>
-          <Button 
-            onClick={() => setShowModal(true)}
-            className="bg-gradient-to-r from-red-400 to-red-500 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-200"
-          >
-            <Plus className="w-5 h-5 mr-2" />
-            Add Property
-          </Button>
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-xl p-5 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-600 mb-1">
+                    Total Properties
+                  </p>
+                  <p className="text-3xl font-bold text-slate-900">
+                    {properties.length}
+                  </p>
+                </div>
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg">
+                  <Home className="w-6 h-6 text-white" />
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+              className="bg-white/80 backdrop-blur-sm border border-emerald-200/60 rounded-xl p-5 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-600 mb-1">
+                    Occupied
+                  </p>
+                  <p className="text-3xl font-bold text-emerald-600">
+                    {
+                      properties.filter(
+                        (p) => p.property_availability === "occupied"
+                      ).length
+                    }
+                  </p>
+                </div>
+                <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg flex items-center justify-center shadow-lg">
+                  <Badge className="w-6 h-6 text-white" />
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="bg-white/80 backdrop-blur-sm border border-rose-200/60 rounded-xl p-5 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-600 mb-1">
+                    Vacant
+                  </p>
+                  <p className="text-3xl font-bold text-rose-600">
+                    {
+                      properties.filter(
+                        (p) => p.property_availability === "vacant"
+                      ).length
+                    }
+                  </p>
+                </div>
+                <div className="w-12 h-12 bg-gradient-to-br from-rose-500 to-rose-600 rounded-lg flex items-center justify-center shadow-lg">
+                  <Home className="w-6 h-6 text-white" />
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.25 }}
+              className="bg-white/80 backdrop-blur-sm border border-amber-200/60 rounded-xl p-5 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-600 mb-1">
+                    Filtered Results
+                  </p>
+                  <p className="text-3xl font-bold text-amber-600">
+                    {filteredProperties.length}
+                  </p>
+                </div>
+                <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg flex items-center justify-center shadow-lg">
+                  <Search className="w-6 h-6 text-white" />
+                </div>
+              </div>
+            </motion.div>
+          </div>
         </motion.div>
 
         {/* Filters */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-white/70 backdrop-blur-sm border border-slate-200 rounded-2xl p-6 shadow-lg"
+          transition={{ delay: 0.3 }}
+          className="bg-white/90 backdrop-blur-md border-2 border-slate-200/80 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-shadow duration-300"
         >
-          <div className="flex flex-col md:flex-row gap-4 items-center">
+          <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center">
             {/* Search */}
             <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
               <Input
-                placeholder="Search properties..."
+                placeholder="Search by title or lot number..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 border-slate-200 focus:border-blue-400 bg-white/80"
+                className="pl-12 pr-4 py-6 text-base border-2 border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white rounded-xl shadow-sm transition-all duration-200"
               />
             </div>
 
             {/* Filters */}
-            <div className="flex gap-3 items-center">
+            <div className="flex flex-wrap gap-3 items-center">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-40 bg-white/80">
+                <SelectTrigger className="w-48 bg-white border-2 border-slate-200 hover:border-slate-300 py-6 rounded-xl shadow-sm transition-all duration-200">
                   <SelectValue placeholder="All Status" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="occupied">Occupied</SelectItem>
-                  <SelectItem value="vacant">Vacant</SelectItem>
-                  <SelectItem value="for_sale">For Sale</SelectItem>
-                  <SelectItem value="under_construction">Under Construction</SelectItem>
+                  <SelectItem value="occupied">🟢 Occupied</SelectItem>
+                  <SelectItem value="vacant">🔴 Vacant</SelectItem>
+                  <SelectItem value="for_sale">🔵 For Sale</SelectItem>
+                  <SelectItem value="under_construction">
+                    🟠 Under Construction
+                  </SelectItem>
                 </SelectContent>
               </Select>
 
               <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="w-40 bg-white/80">
+                <SelectTrigger className="w-48 bg-white border-2 border-slate-200 hover:border-slate-300 py-6 rounded-xl shadow-sm transition-all duration-200">
                   <SelectValue placeholder="All Types" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="house">House</SelectItem>
-                  <SelectItem value="townhouse">Townhouse</SelectItem>
-                  <SelectItem value="condominium">Condominium</SelectItem>
-                  <SelectItem value="lot">Lot</SelectItem>
+                  {propertyTypes.map((type) => (
+                    <SelectItem key={type.detail_id} value={type.detail_id}>
+                      {type.property_name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
 
               {/* View Mode Toggle */}
-              <div className="flex border border-slate-200 rounded-lg bg-white/80">
+              <div className="flex border-2 border-slate-200 rounded-xl bg-white shadow-sm overflow-hidden">
                 <Button
                   variant={viewMode === "grid" ? "default" : "ghost"}
                   size="sm"
                   onClick={() => setViewMode("grid")}
-                  className="rounded-r-none"
+                  className={`rounded-none px-4 py-5 ${
+                    viewMode === "grid"
+                      ? "bg-gradient-to-r from-red-500 to-red-600 text-white"
+                      : "hover:bg-slate-100"
+                  }`}
                 >
                   <Grid className="w-4 h-4" />
                 </Button>
+                <div className="w-px bg-slate-200" />
                 <Button
                   variant={viewMode === "list" ? "default" : "ghost"}
                   size="sm"
                   onClick={() => setViewMode("list")}
-                  className="rounded-l-none"
+                  className={`rounded-none px-4 py-5 ${
+                    viewMode === "list"
+                      ? "bg-gradient-to-r from-red-500 to-red-600 text-white"
+                      : "hover:bg-slate-100"
+                  }`}
                 >
                   <List className="w-4 h-4" />
                 </Button>
@@ -798,32 +1187,70 @@ export default function Properties() {
         >
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {Array(6).fill(0).map((_, i) => (
-                <div key={i} className="h-96 bg-slate-200/60 animate-pulse rounded-2xl" />
-              ))}
+              {Array(6)
+                .fill(0)
+                .map((_, i) => (
+                  <div
+                    key={i}
+                    className="h-96 bg-white border-2 border-slate-200 rounded-2xl overflow-hidden"
+                  >
+                    <div className="h-56 bg-gradient-to-br from-slate-200 via-slate-100 to-slate-200 animate-pulse" />
+                    <div className="p-5 space-y-4">
+                      <div className="h-6 bg-slate-200 rounded animate-pulse w-3/4" />
+                      <div className="h-4 bg-slate-200 rounded animate-pulse w-1/2" />
+                      <div className="h-16 bg-slate-200 rounded-lg animate-pulse" />
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="h-12 bg-slate-200 rounded animate-pulse" />
+                        <div className="h-12 bg-slate-200 rounded animate-pulse" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
             </div>
           ) : filteredProperties.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="w-24 h-24 bg-gradient-to-br from-slate-100 to-slate-200 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Home className="w-12 h-12 text-slate-400" />
-              </div>
-              <h3 className="text-xl font-semibold text-slate-900 mb-2">No properties found</h3>
-              <p className="text-slate-600">Try adjusting your search or filters</p>
+            <div className="text-center py-20">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", duration: 0.6 }}
+                className="w-32 h-32 bg-gradient-to-br from-slate-100 via-blue-50 to-slate-200 rounded-full flex items-center justify-center mx-auto mb-8 shadow-lg"
+              >
+                <Home className="w-16 h-16 text-slate-400" />
+              </motion.div>
+              <h3 className="text-2xl font-bold text-slate-900 mb-3">
+                No properties found
+              </h3>
+              <p className="text-lg text-slate-600 mb-6">
+                Try adjusting your search or filters
+              </p>
+              <Button
+                onClick={() => {
+                  setSearchTerm("");
+                  setStatusFilter("all");
+                  setTypeFilter("all");
+                }}
+                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg"
+              >
+                Clear All Filters
+              </Button>
             </div>
           ) : (
-            <div className={`grid gap-6 ${
-              viewMode === "grid" 
-                ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" 
-                : "grid-cols-1"
-            }`}>
+            <div
+              className={`grid gap-6 ${
+                viewMode === "grid"
+                  ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+                  : "grid-cols-1"
+              }`}
+            >
               {filteredProperties.map((property, index) => (
                 <motion.div
                   key={property.property_id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
+                  className="h-full"
                 >
-                  <Card className="group relative overflow-hidden bg-white border border-slate-200/60 hover:border-red-200 hover:shadow-2xl hover:shadow-red-100/50 transition-all duration-500 hover:-translate-y-2 rounded-2xl">
+                  <Card className="group relative overflow-hidden bg-white border-2 border-slate-200/60 hover:border-red-300 hover:shadow-2xl hover:shadow-red-100/50 transition-all duration-500 hover:-translate-y-2 hover:scale-[1.02] rounded-2xl h-full flex flex-col">
                     {/* Property Photo */}
                     {property.property_photo ? (
                       <div className="relative w-full h-56 overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100">
@@ -831,15 +1258,24 @@ export default function Properties() {
                           src={property.property_photo}
                           alt={property.property_title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 cursor-pointer"
-                          onClick={() => window.open(property.property_photo, '_blank')}
+                          onClick={() =>
+                            window.open(property.property_photo, "_blank")
+                          }
                         />
                         {/* Gradient Overlay */}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
                         {/* Status Badges */}
                         <div className="absolute top-3 right-3 flex gap-2 pointer-events-none">
-                          <Badge className={`${getStatusColor(property.property_availability)} border-0 font-semibold capitalize shadow-lg backdrop-blur-sm`}>
-                            {property.property_availability?.replace('_', ' ') || 'N/A'}
+                          <Badge
+                            className={`${getStatusColor(
+                              property.property_availability
+                            )} border-0 font-semibold capitalize shadow-lg backdrop-blur-sm`}
+                          >
+                            {property.property_availability?.replace(
+                              "_",
+                              " "
+                            ) || "N/A"}
                           </Badge>
                           {isNewItem(property.created_at) && (
                             <Badge className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-0 shadow-lg animate-pulse">
@@ -856,7 +1292,7 @@ export default function Properties() {
                           </h3>
                           <p className="text-white/90 text-sm flex items-center gap-1">
                             <MapPin className="w-3 h-3" />
-                            Lot {property.lot_tbl?.lot_number || 'N/A'}
+                            Lot {property.lot_tbl?.lot_number || "N/A"}
                           </p>
                         </div>
                       </div>
@@ -864,12 +1300,21 @@ export default function Properties() {
                       <div className="relative w-full h-56 bg-gradient-to-br from-slate-100 via-slate-50 to-blue-50 flex items-center justify-center">
                         <div className="text-center">
                           <ImageIcon className="w-16 h-16 text-slate-300 mx-auto mb-2" />
-                          <p className="text-xs text-slate-400 font-medium">No Image</p>
+                          <p className="text-xs text-slate-400 font-medium">
+                            No Image
+                          </p>
                         </div>
                         {/* Status Badges for No Image */}
                         <div className="absolute top-3 right-3 flex gap-2">
-                          <Badge className={`${getStatusColor(property.property_availability)} border-0 font-semibold capitalize shadow-lg`}>
-                            {property.property_availability?.replace('_', ' ') || 'N/A'}
+                          <Badge
+                            className={`${getStatusColor(
+                              property.property_availability
+                            )} border-0 font-semibold capitalize shadow-lg`}
+                          >
+                            {property.property_availability?.replace(
+                              "_",
+                              " "
+                            ) || "N/A"}
                           </Badge>
                           {isNewItem(property.created_at) && (
                             <Badge className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-0 shadow-lg animate-pulse">
@@ -881,7 +1326,7 @@ export default function Properties() {
                       </div>
                     )}
 
-                    <CardContent className="p-5 space-y-4">
+                    <CardContent className="p-5 space-y-4 flex-1 flex flex-col">
                       {/* Property Title (if no photo) */}
                       {!property.property_photo && (
                         <div>
@@ -890,74 +1335,118 @@ export default function Properties() {
                           </CardTitle>
                           <p className="text-sm text-slate-600 flex items-center gap-1">
                             <MapPin className="w-3 h-3" />
-                            Lot {property.lot_tbl?.lot_number || 'N/A'}
+                            Lot {property.lot_tbl?.lot_number || "N/A"}
                           </p>
                         </div>
                       )}
 
                       {/* Property Type Badge */}
-                      <div className="flex items-center gap-2">
-                        <div className="p-2 bg-gradient-to-br from-red-50 to-red-100 rounded-lg">
-                          <Home className="w-4 h-4 text-red-600" />
+                      <div className="flex items-center gap-3 bg-gradient-to-r from-slate-50 to-slate-100/50 p-3 rounded-xl border border-slate-200/50">
+                        <div className="p-2.5 bg-gradient-to-br from-red-500 to-red-600 rounded-lg shadow-md">
+                          <Home className="w-5 h-5 text-white" />
                         </div>
                         <div className="flex-1">
-                          <p className="text-xs text-slate-500 font-medium">Property Type</p>
-                          <p className="text-sm font-semibold text-slate-900 line-clamp-1">
-                            {property.property_detail_tbl?.property_name || 'N/A'}
+                          <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide">
+                            Property Type
+                          </p>
+                          <p className="text-base font-bold text-slate-900 line-clamp-1">
+                            {property.property_detail_tbl?.property_name ||
+                              "N/A"}
                           </p>
                         </div>
                       </div>
 
                       {/* Property Specifications */}
-                      {property.property_detail_tbl?.property_area && property.property_detail_tbl.property_area.length > 0 && (
-                        <div className="pt-4 border-t border-slate-100">
-                          <div className="flex items-center justify-between mb-3">
-                            <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Specifications</p>
-                            <Badge variant="outline" className="text-[10px] border-slate-300">
-                              {property.property_detail_tbl.property_area.length} specs
-                            </Badge>
+                      {property.property_detail_tbl?.property_area &&
+                        property.property_detail_tbl.property_area.length >
+                          0 && (
+                          <div className="pt-4 border-t border-slate-100">
+                            <div className="flex items-center justify-between mb-3">
+                              <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                                Specifications
+                              </p>
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] border-slate-300"
+                              >
+                                {
+                                  property.property_detail_tbl.property_area
+                                    .length
+                                }{" "}
+                                specs
+                              </Badge>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              {property.property_detail_tbl.property_area
+                                .slice(0, 4)
+                                .map((spec, idx) => (
+                                  <div
+                                    key={idx}
+                                    className="flex flex-col bg-gradient-to-br from-slate-50 to-slate-100/50 px-3 py-2 rounded-lg border border-slate-200/50"
+                                  >
+                                    <span className="text-[10px] text-slate-500 uppercase font-semibold tracking-wide">
+                                      {spec.name}
+                                    </span>
+                                    <span className="text-sm text-slate-900 font-bold mt-0.5">
+                                      {spec.value}{" "}
+                                      <span className="text-[10px] text-slate-500 font-normal uppercase">
+                                        {spec.type}
+                                      </span>
+                                    </span>
+                                  </div>
+                                ))}
+                            </div>
+                            {property.property_detail_tbl.property_area.length >
+                              4 && (
+                              <button
+                                onClick={() => {
+                                  setViewingSpecs(property);
+                                  setShowSpecModal(true);
+                                }}
+                                className="w-full mt-2 text-xs text-red-600 hover:text-red-700 font-medium py-1 hover:bg-red-50 rounded-lg transition-colors"
+                              >
+                                View all{" "}
+                                {
+                                  property.property_detail_tbl.property_area
+                                    .length
+                                }{" "}
+                                specifications →
+                              </button>
+                            )}
                           </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            {property.property_detail_tbl.property_area.slice(0, 4).map((spec, idx) => (
-                              <div key={idx} className="flex flex-col bg-gradient-to-br from-slate-50 to-slate-100/50 px-3 py-2 rounded-lg border border-slate-200/50">
-                                <span className="text-[10px] text-slate-500 uppercase font-semibold tracking-wide">{spec.name}</span>
-                                <span className="text-sm text-slate-900 font-bold mt-0.5">
-                                  {spec.value} <span className="text-[10px] text-slate-500 font-normal uppercase">{spec.type}</span>
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                          {property.property_detail_tbl.property_area.length > 4 && (
-                            <button
-                              onClick={() => {
-                                setViewingSpecs(property);
-                                setShowSpecModal(true);
-                              }}
-                              className="w-full mt-2 text-xs text-red-600 hover:text-red-700 font-medium py-1 hover:bg-red-50 rounded-lg transition-colors"
-                            >
-                              View all {property.property_detail_tbl.property_area.length} specifications →
-                            </button>
-                          )}
-                        </div>
-                      )}
+                        )}
 
                       {/* Amenities */}
                       {property.amenities && property.amenities.length > 0 && (
                         <div className="pt-4 border-t border-slate-100">
                           <div className="flex items-center justify-between mb-3">
-                            <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Amenities</p>
-                            <Badge variant="outline" className="text-[10px] border-slate-300">
+                            <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                              Amenities
+                            </p>
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] border-slate-300"
+                            >
                               {property.amenities.length} items
                             </Badge>
                           </div>
                           <div className="flex flex-wrap gap-1.5">
-                            {property.amenities.slice(0, 4).map((amenity, idx) => (
-                              <Badge key={idx} variant="outline" className="text-[10px] px-2 py-1 border-slate-300 bg-white font-medium">
-                                {amenity}
-                              </Badge>
-                            ))}
+                            {property.amenities
+                              .slice(0, 4)
+                              .map((amenity, idx) => (
+                                <Badge
+                                  key={idx}
+                                  variant="outline"
+                                  className="text-[10px] px-2 py-1 border-slate-300 bg-white font-medium"
+                                >
+                                  {amenity}
+                                </Badge>
+                              ))}
                             {property.amenities.length > 4 && (
-                              <Badge variant="outline" className="text-[10px] px-2 py-1 border-red-300 text-red-600 bg-red-50 font-semibold">
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] px-2 py-1 border-red-300 text-red-600 bg-red-50 font-semibold"
+                              >
                                 +{property.amenities.length - 4}
                               </Badge>
                             )}
@@ -965,12 +1454,47 @@ export default function Properties() {
                         </div>
                       )}
 
+                      {/* Pricing Information */}
+                      <div className="pt-4 border-t border-slate-100">
+                        <div className="bg-gradient-to-br from-red-50 via-red-50/50 to-orange-50 p-4 rounded-xl border-2 border-red-200/60 shadow-sm">
+                          {/* Main Price */}
+                          <div className="mb-3">
+                            <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">
+                              Property Price
+                            </p>
+                            <p className="text-3xl font-black text-red-600">
+                              ₱{(property.property_price || 0).toLocaleString("en-PH")}
+                            </p>
+                          </div>
+
+                          {/* Divider */}
+                          <div className="w-full h-px bg-gradient-to-r from-transparent via-red-300 to-transparent my-3"></div>
+
+                          {/* Reservation Fee */}
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">
+                                Reservation Fee
+                              </p>
+                              <p className="text-xl font-bold text-emerald-700">
+                                ₱{(property.property_downprice || 0).toLocaleString("en-PH")}
+                              </p>
+                            </div>
+                            <Badge className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-0 shadow-md">
+                              {property.property_downprice && property.property_price
+                                ? `${((property.property_downprice / property.property_price) * 100).toFixed(1)}%`
+                                : "0%"}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+
                       {/* Action Buttons */}
-                      <div className="flex gap-2 pt-4">
+                      <div className="flex gap-3 pt-4 border-t border-slate-100 mt-auto">
                         <Button
                           size="sm"
                           variant="outline"
-                          className="flex-1 text-blue-600 border-blue-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 hover:border-blue-400 font-semibold transition-all duration-300 shadow-sm hover:shadow-md"
+                          className="flex-1 text-blue-600 border-2 border-blue-300 hover:bg-gradient-to-r hover:from-blue-500 hover:to-blue-600 hover:text-white hover:border-blue-600 font-semibold transition-all duration-300 shadow-md hover:shadow-lg py-5"
                           onClick={() => handleEditProperty(property)}
                         >
                           <Edit className="w-4 h-4 mr-1.5" />
@@ -979,7 +1503,7 @@ export default function Properties() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="flex-1 text-red-600 border-red-300 hover:bg-gradient-to-r hover:from-red-50 hover:to-red-100 hover:border-red-400 font-semibold transition-all duration-300 shadow-sm hover:shadow-md"
+                          className="flex-1 text-red-600 border-2 border-red-300 hover:bg-gradient-to-r hover:from-red-500 hover:to-red-600 hover:text-white hover:border-red-600 font-semibold transition-all duration-300 shadow-md hover:shadow-lg py-5"
                           onClick={() => handleDeleteProperty(property)}
                         >
                           <Trash2 className="w-4 h-4 mr-1.5" />
@@ -996,7 +1520,7 @@ export default function Properties() {
 
         {/* Modern Professional Modal */}
         {showModal && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -1010,129 +1534,281 @@ export default function Properties() {
               className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden"
             >
               {/* Modal Header */}
-              <div className="bg-gradient-to-r from-red-400 to-red-500 px-6 py-4 text-white">
+              <div className="bg-gradient-to-r from-red-500 via-red-600 to-red-500 px-6 py-5 text-white shadow-lg">
                 <div className="flex justify-between items-center">
-                  <div>
-                    <h3 className="text-xl font-bold">Add New Property</h3>
-                    <p className="text-blue-100 text-sm mt-1">Create a new property record</p>
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg">
+                      <Plus className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold">Add New Property</h3>
+                      <p className="text-red-100 text-sm mt-1">
+                        Create a new property record for your portfolio
+                      </p>
+                    </div>
                   </div>
                   <button
-                    className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                    className="p-2.5 hover:bg-white/10 rounded-xl transition-all duration-200 hover:scale-110"
                     onClick={() => setShowModal(false)}
                   >
-                    <X className="w-5 h-5" />
+                    <X className="w-6 h-6" />
                   </button>
                 </div>
               </div>
 
               {/* Modal Body */}
               <form onSubmit={handleSubmit}>
-              <div className="p-6 max-h-[calc(90vh-180px)] overflow-y-auto overflow-x-hidden">
-                <div className="space-y-6 pb-4">
-                  {/* Property Basic Info Section */}
-                  <div className="space-y-4">
-                    <h4 className="text-lg font-semibold text-slate-800 border-b border-slate-200 pb-2">
-                      Basic Information
-                    </h4>
+                <div className="p-6 max-h-[calc(90vh-180px)] overflow-y-auto overflow-x-hidden">
+                  <div className="space-y-6 pb-4">
+                    {/* Property Basic Info Section */}
+                    <div className="space-y-4">
+                      <h4 className="text-lg font-semibold text-slate-800 border-b border-slate-200 pb-2">
+                        Basic Information
+                      </h4>
 
-                    {/* Property Title */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-700">
-                        Property Title <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        name="property_title"
-                        value={formData.property_title}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                        placeholder="Enter property title"
-                        required
-                        maxLength={50}
-                      />
-                    </div>
+                      {/* Property Title */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-700">
+                          Property Title <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          name="property_title"
+                          value={formData.property_title}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                          placeholder="Enter property title"
+                          required
+                          maxLength={50}
+                        />
+                      </div>
 
-                    {/* Property Photo */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-700">
-                        Property Photo
-                      </label>
-                      <div className="flex flex-col gap-3">
-                        {photoPreview ? (
-                          <div className="relative w-full h-48 border-2 border-slate-200 rounded-lg overflow-hidden">
-                            <img
-                              src={photoPreview}
-                              alt="Property preview"
-                              className="w-full h-full object-cover"
-                            />
-                            <button
-                              type="button"
-                              onClick={handleRemovePhoto}
-                              className="absolute top-2 right-2 p-1.5 bg-red-500 hover:bg-red-600 text-white rounded-full transition-colors"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ) : (
-                          <label className="w-full h-48 border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-red-400 hover:bg-red-50 transition-colors">
-                            <Upload className="w-8 h-8 text-slate-400 mb-2" />
-                            <span className="text-sm text-slate-600 font-medium">Click to upload photo</span>
-                            <span className="text-xs text-slate-400 mt-1">PNG, JPG, GIF up to 5MB</span>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={handlePhotoChange}
-                              className="hidden"
-                            />
+                      {/* Reservation Fee */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-700">
+                          Property Price <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="range"
+                          name="property_price"
+                          value={formData.property_price}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                          placeholder="Enter property price"
+                          min="1000000"
+                          max="1000000000"
+                          step="500"
+                        />
+                        <span className="text-base font-semibold text-blue-600">
+                          ₱{formData.property_price.toLocaleString("en-PH")}
+                        </span>
+                      </div>
+
+                      {/* Property Price */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-700">
+                          Reservation Fee{" "}
+                          <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="number"
+                          name="property_downprice"
+                          value={formData.property_downprice}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                          placeholder="Enter property price"
+                          min="20000"
+                          max="1000000000"
+                        />
+                      </div>
+
+                      {/* Property Photo */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-700">
+                          Property Photo
+                        </label>
+                        <div className="flex flex-col gap-3">
+                          {photoPreview ? (
+                            <div className="relative w-full h-48 border-2 border-slate-200 rounded-lg overflow-hidden">
+                              <img
+                                src={photoPreview}
+                                alt="Property preview"
+                                className="w-full h-full object-cover"
+                              />
+                              <button
+                                type="button"
+                                onClick={handleRemovePhoto}
+                                className="absolute top-2 right-2 p-1.5 bg-red-500 hover:bg-red-600 text-white rounded-full transition-colors"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <label className="w-full h-48 border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-red-400 hover:bg-red-50 transition-colors">
+                              <Upload className="w-8 h-8 text-slate-400 mb-2" />
+                              <span className="text-sm text-slate-600 font-medium">
+                                Click to upload photo
+                              </span>
+                              <span className="text-xs text-slate-400 mt-1">
+                                PNG, JPG, GIF up to 5MB
+                              </span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handlePhotoChange}
+                                className="hidden"
+                              />
+                            </label>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Lot and Property Details */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-slate-700">
+                            Lot Number <span className="text-red-500">*</span>
                           </label>
-                        )}
-                      </div>
-                    </div>
+                          <ReactSelect
+                            options={[
+                              ...lotNumbers.map((lot) => {
+                                // When editing, allow the current lot even if marked occupied
+                                const isCurrentLot =
+                                  editingProperty &&
+                                  editingProperty.property_lot_id ===
+                                    lot.lot_id;
+                                const shouldDisable =
+                                  lot.is_occupied && !isCurrentLot;
 
-                    {/* Lot and Property Details */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-slate-700">
-                          Lot Number <span className="text-red-500">*</span>
-                        </label>
-                        <ReactSelect
-                          options={lotNumbers.map(lot => ({
-                            value: lot.lot_id,
-                            label: `${lot.lot_number}${lot.is_occupied ? ' (Occupied)' : ''}`,
-                            isDisabled: lot.is_occupied
-                          }))}
-                          value={formData.property_lot_id ? lotNumbers.find(l => l.lot_id === formData.property_lot_id) ? { value: formData.property_lot_id, label: lotNumbers.find(l => l.lot_id === formData.property_lot_id).lot_number } : null : null}
-                          onChange={(option) => handleSelectChange('property_lot_id', option?.value || '')}
-                          styles={customSelectStyles}
-                          menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                          placeholder="Select Lot Number"
-                          isClearable
-                          required
-                        />
+                                return {
+                                  value: lot.lot_id,
+                                  label: `${lot.lot_number}${
+                                    shouldDisable ? " (Occupied)" : ""
+                                  }${isCurrentLot ? " (Current)" : ""}`,
+                                  isDisabled: shouldDisable,
+                                };
+                              }),
+                              {
+                                value: "__create_new__",
+                                label: "➕ Create New Lot",
+                                className: "font-semibold text-blue-600",
+                              },
+                            ]}
+                            value={
+                              formData.property_lot_id
+                                ? lotNumbers.find(
+                                    (l) => l.lot_id === formData.property_lot_id
+                                  )
+                                  ? {
+                                      value: formData.property_lot_id,
+                                      label: lotNumbers.find(
+                                        (l) =>
+                                          l.lot_id === formData.property_lot_id
+                                      ).lot_number,
+                                    }
+                                  : null
+                                : null
+                            }
+                            onChange={(option) => {
+                              if (option?.value === "__create_new__") {
+                                router.push("/properties/lot");
+                              } else {
+                                handleSelectChange(
+                                  "property_lot_id",
+                                  option?.value || ""
+                                );
+                              }
+                            }}
+                            styles={customSelectStyles}
+                            menuPortalTarget={
+                              typeof document !== "undefined"
+                                ? document.body
+                                : null
+                            }
+                            placeholder="Select Lot Number"
+                            isClearable
+                            required
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-slate-700">
+                            Property Details{" "}
+                            <span className="text-red-500">*</span>
+                          </label>
+                          <ReactSelect
+                            options={[
+                              ...propertyTypes
+                                .filter((type) => {
+                                  // When editing, show the current property detail even if used
+                                  const isCurrentDetail =
+                                    editingProperty &&
+                                    editingProperty.property_details_id ===
+                                      type.detail_id;
+                                  // Only show unused property details or the current one
+                                  return !type.is_used || isCurrentDetail;
+                                })
+                                .map((type) => {
+                                  const isCurrentDetail =
+                                    editingProperty &&
+                                    editingProperty.property_details_id ===
+                                      type.detail_id;
+                                  return {
+                                    value: type.detail_id,
+                                    label: `${type.property_name}${
+                                      isCurrentDetail ? " (Current)" : ""
+                                    }`,
+                                  };
+                                }),
+                              {
+                                value: "__create_new__",
+                                label: "➕ Create New Property Type",
+                                className: "font-semibold text-blue-600",
+                              },
+                            ]}
+                            value={
+                              formData.property_details_id
+                                ? propertyTypes.find(
+                                    (t) =>
+                                      t.detail_id ===
+                                      formData.property_details_id
+                                  )
+                                  ? {
+                                      value: formData.property_details_id,
+                                      label: propertyTypes.find(
+                                        (t) =>
+                                          t.detail_id ===
+                                          formData.property_details_id
+                                      ).property_name,
+                                    }
+                                  : null
+                                : null
+                            }
+                            onChange={(option) => {
+                              if (option?.value === "__create_new__") {
+                                router.push("/properties/proptype");
+                              } else {
+                                handleSelectChange(
+                                  "property_details_id",
+                                  option?.value || ""
+                                );
+                              }
+                            }}
+                            styles={customSelectStyles}
+                            menuPortalTarget={
+                              typeof document !== "undefined"
+                                ? document.body
+                                : null
+                            }
+                            placeholder="Select Property Details"
+                            isClearable
+                            required
+                          />
+                        </div>
                       </div>
 
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-slate-700">
-                          Property Details <span className="text-red-500">*</span>
-                        </label>
-                        <ReactSelect
-                          options={propertyTypes.map(type => ({
-                            value: type.detail_id,
-                            label: type.property_name
-                          }))}
-                          value={formData.property_details_id ? propertyTypes.find(t => t.detail_id === formData.property_details_id) ? { value: formData.property_details_id, label: propertyTypes.find(t => t.detail_id === formData.property_details_id).property_name } : null : null}
-                          onChange={(option) => handleSelectChange('property_details_id', option?.value || '')}
-                          styles={customSelectStyles}
-                          menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                          placeholder="Select Property Details"
-                          isClearable
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    {/* Address */}
-                    {/* <div className="space-y-2">
+                      {/* Address */}
+                      {/* <div className="space-y-2">
                       <label className="text-sm font-medium text-slate-700">
                         Address <span className="text-red-500">*</span>
                       </label>
@@ -1147,63 +1823,89 @@ export default function Properties() {
                       />
                     </div> */}
 
-                    {/* Availability */}
+                      {/* Availability */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-700">
+                          Availability <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          name="property_availability"
+                          value={formData.property_availability}
+                          onChange={(e) =>
+                            handleSelectChange(
+                              "property_availability",
+                              e.target.value
+                            )
+                          }
+                          className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white"
+                        >
+                          <option value="vacant">🟡 Vacant</option>
+                          <option value="occupied">🟢 Occupied</option>
+                          <option value="for_sale">🔵 For Sale</option>
+                          <option value="under_construction">
+                            🟠 Under Construction
+                          </option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Property Details Section - Read Only from Property Details */}
+                    {formData.property_details_id && (
+                      <div className="space-y-4">
+                        <h4 className="text-lg font-semibold text-slate-800 border-b border-slate-200 pb-2">
+                          Property Specifications
+                        </h4>
+
+                        {/* Display specifications from selected property details */}
+                        {(() => {
+                          const selectedType = propertyTypes.find(
+                            (t) => t.detail_id === formData.property_details_id
+                          );
+                          if (
+                            selectedType?.property_area &&
+                            selectedType.property_area.length > 0
+                          ) {
+                            return (
+                              <div className="grid grid-cols-2 gap-3 bg-slate-50 p-4 rounded-lg border-2 border-slate-200">
+                                {selectedType.property_area.map((spec, idx) => (
+                                  <div
+                                    key={idx}
+                                    className="flex items-center justify-between text-sm bg-white px-3 py-2 rounded border border-slate-200"
+                                  >
+                                    <span className="text-slate-600 capitalize font-medium">
+                                      {spec.name}
+                                    </span>
+                                    <span className="text-slate-900 font-semibold">
+                                      {spec.value}{" "}
+                                      <span className="text-slate-500 text-xs uppercase">
+                                        {spec.type}
+                                      </span>
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          }
+                          return (
+                            <p className="text-sm text-slate-500 italic bg-slate-50 p-4 rounded-lg">
+                              No specifications available for this property
+                            </p>
+                          );
+                        })()}
+                      </div>
+                    )}
+
+                    {/* Amenities */}
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-slate-700">
-                        Availability <span className="text-red-500">*</span>
+                        Amenities
                       </label>
-                      <select
-                        name="property_availability"
-                        value={formData.property_availability}
-                        onChange={(e) => handleSelectChange('property_availability', e.target.value)}
-                        className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white"
-                      >
-                        <option value="vacant">🟡 Vacant</option>
-                        <option value="occupied">🟢 Occupied</option>
-                        <option value="for_sale">🔵 For Sale</option>
-                        <option value="under_construction">🟠 Under Construction</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Property Details Section - Read Only from Property Details */}
-                  {formData.property_details_id && (
-                    <div className="space-y-4">
-                      <h4 className="text-lg font-semibold text-slate-800 border-b border-slate-200 pb-2">
-                        Property Specifications
-                      </h4>
-
-                      {/* Display specifications from selected property details */}
-                      {(() => {
-                        const selectedType = propertyTypes.find(t => t.detail_id === formData.property_details_id);
-                        if (selectedType?.property_area && selectedType.property_area.length > 0) {
-                          return (
-                            <div className="grid grid-cols-2 gap-3 bg-slate-50 p-4 rounded-lg border-2 border-slate-200">
-                              {selectedType.property_area.map((spec, idx) => (
-                                <div key={idx} className="flex items-center justify-between text-sm bg-white px-3 py-2 rounded border border-slate-200">
-                                  <span className="text-slate-600 capitalize font-medium">{spec.name}</span>
-                                  <span className="text-slate-900 font-semibold">{spec.value} <span className="text-slate-500 text-xs uppercase">{spec.type}</span></span>
-                                </div>
-                              ))}
-                            </div>
-                          );
-                        }
-                        return (
-                          <p className="text-sm text-slate-500 italic bg-slate-50 p-4 rounded-lg">
-                            No specifications available for this property
-                          </p>
-                        );
-                      })()}
-                    </div>
-                  )}
-
-                  {/* Amenities */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-700">Amenities</label>
 
                       {/* Common Amenities */}
                       <div className="mb-3">
-                        <p className="text-xs text-slate-500 mb-2">Quick Add:</p>
+                        <p className="text-xs text-slate-500 mb-2">
+                          Quick Add:
+                        </p>
                         <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
                           {commonAmenities.map((amenity) => (
                             <button
@@ -1213,8 +1915,8 @@ export default function Properties() {
                               disabled={formData.amenities.includes(amenity)}
                               className={`px-2 py-1 text-xs rounded-md transition-colors ${
                                 formData.amenities.includes(amenity)
-                                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                  : 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-200'
+                                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                  : "bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
                               }`}
                             >
                               {amenity}
@@ -1232,7 +1934,7 @@ export default function Properties() {
                           placeholder="Add custom amenity..."
                           className="flex-1 px-4 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                           onKeyPress={(e) => {
-                            if (e.key === 'Enter') {
+                            if (e.key === "Enter") {
                               e.preventDefault();
                               handleAddAmenity(amenityInput);
                             }
@@ -1250,7 +1952,9 @@ export default function Properties() {
                       {/* Selected Amenities */}
                       {formData.amenities.length > 0 && (
                         <div className="border-2 border-slate-200 rounded-lg p-3 bg-slate-50">
-                          <p className="text-xs font-medium text-slate-700 mb-2">Selected Amenities:</p>
+                          <p className="text-xs font-medium text-slate-700 mb-2">
+                            Selected Amenities:
+                          </p>
                           <div className="flex flex-wrap gap-1">
                             {formData.amenities.map((amenity, idx) => (
                               <Badge
@@ -1275,35 +1979,35 @@ export default function Properties() {
                   </div>
                 </div>
 
-              {/* Modal Actions - Fixed Footer */}
-              <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
-                <button
-                  type="button"
-                  className="px-6 py-3 text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg font-medium transition-colors"
-                  onClick={() => setShowModal(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className={`px-6 py-3 bg-gradient-to-r from-red-400 to-red-500 hover:from-red-700 hover:to-red-800 text-white rounded-lg font-medium transition-all duration-200 flex items-center gap-2 ${
-                    formSubmitting ? 'opacity-80 cursor-not-allowed' : ''
-                  }`}
-                  disabled={formSubmitting}
-                >
-                  {formSubmitting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Adding Property...
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="w-4 h-4" />
-                      Add Property
-                    </>
-                  )}
-                </button>
-              </div>
+                {/* Modal Actions - Fixed Footer */}
+                <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
+                  <button
+                    type="button"
+                    className="px-6 py-3 text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg font-medium transition-colors"
+                    onClick={() => setShowModal(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className={`px-6 py-3 bg-gradient-to-r from-red-400 to-red-500 hover:from-red-700 hover:to-red-800 text-white rounded-lg font-medium transition-all duration-200 flex items-center gap-2 ${
+                      formSubmitting ? "opacity-80 cursor-not-allowed" : ""
+                    }`}
+                    disabled={formSubmitting}
+                  >
+                    {formSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Adding Property...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-4 h-4" />
+                        Add Property
+                      </>
+                    )}
+                  </button>
+                </div>
               </form>
             </motion.div>
           </motion.div>
@@ -1311,12 +2015,14 @@ export default function Properties() {
 
         {/* Edit Property Modal */}
         {showEditModal && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-            onClick={(e) => e.target === e.currentTarget && setShowEditModal(false)}
+            onClick={(e) =>
+              e.target === e.currentTarget && setShowEditModal(false)
+            }
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
@@ -1325,133 +2031,286 @@ export default function Properties() {
               className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden"
             >
               {/* Modal Header */}
-              <div className="bg-gradient-to-r from-red-400 to-red-500 px-6 py-4 text-white">
+              <div className="bg-gradient-to-r from-blue-500 via-blue-600 to-blue-500 px-6 py-5 text-white shadow-lg">
                 <div className="flex justify-between items-center">
-                  <div>
-                    <h3 className="text-xl font-bold">Edit Property</h3>
-                    <p className="text-blue-100 text-sm mt-1">Update property information</p>
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg">
+                      <Edit className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold">Edit Property</h3>
+                      <p className="text-blue-100 text-sm mt-1">
+                        Update property information and details
+                      </p>
+                    </div>
                   </div>
                   <button
-                    className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                    className="p-2.5 hover:bg-white/10 rounded-xl transition-all duration-200 hover:scale-110"
                     onClick={() => {
                       setShowEditModal(false);
                       setEditingProperty(null);
                       resetForm();
                     }}
                   >
-                    <X className="w-5 h-5" />
+                    <X className="w-6 h-6" />
                   </button>
                 </div>
               </div>
 
               {/* Modal Body - Same form as Add Property */}
               <form onSubmit={handleSubmit}>
-              <div className="p-6 max-h-[calc(90vh-180px)] overflow-y-auto overflow-x-hidden">
-                <div className="space-y-6 pb-4">
-                  {/* Property Basic Info Section */}
-                  <div className="space-y-4">
-                    <h4 className="text-lg font-semibold text-slate-800 border-b border-slate-200 pb-2">
-                      Basic Information
-                    </h4>
+                <div className="p-6 max-h-[calc(90vh-180px)] overflow-y-auto overflow-x-hidden">
+                  <div className="space-y-6 pb-4">
+                    {/* Property Basic Info Section */}
+                    <div className="space-y-4">
+                      <h4 className="text-lg font-semibold text-slate-800 border-b border-slate-200 pb-2">
+                        Basic Information
+                      </h4>
 
-                    {/* Property Title */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-700">
-                        Property Title <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        name="property_title"
-                        value={formData.property_title}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                        placeholder="Enter property title"
-                        required
-                        maxLength={50}
-                      />
-                    </div>
+                      {/* Property Title */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-700">
+                          Property Title <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          name="property_title"
+                          value={formData.property_title}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                          placeholder="Enter property title"
+                          required
+                          maxLength={50}
+                        />
+                      </div>
 
-                    {/* Property Photo */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-700">
-                        Property Photo
-                      </label>
-                      <div className="flex flex-col gap-3">
-                        {photoPreview ? (
-                          <div className="relative w-full h-48 border-2 border-slate-200 rounded-lg overflow-hidden">
-                            <img
-                              src={photoPreview}
-                              alt="Property preview"
-                              className="w-full h-full object-cover"
-                            />
-                            <button
-                              type="button"
-                              onClick={handleRemovePhoto}
-                              className="absolute top-2 right-2 p-1.5 bg-red-500 hover:bg-red-600 text-white rounded-full transition-colors"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ) : (
-                          <label className="w-full h-48 border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-red-400 hover:bg-red-50 transition-colors">
-                            <Upload className="w-8 h-8 text-slate-400 mb-2" />
-                            <span className="text-sm text-slate-600 font-medium">Click to upload photo</span>
-                            <span className="text-xs text-slate-400 mt-1">PNG, JPG, GIF up to 5MB</span>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={handlePhotoChange}
-                              className="hidden"
-                            />
+                      {/* Reservation Fee */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-700">
+                          Property Price <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="range"
+                          name="property_price"
+                          value={formData.property_price}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                          placeholder="Enter property price"
+                          min="1000000"
+                          max="1000000000"
+                          step="500"
+                        />
+                        <span className="text-base font-semibold text-blue-600">
+                          {formData.property_price}
+                          {/* ₱{formData.property_price.toLocaleString("en-PH")} */}
+                        </span>
+                      </div>
+
+                      {/* Property Price */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-700">
+                          Reservation Fee{" "}
+                          <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="number"
+                          name="property_downprice"
+                          value={formData.property_downprice}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                          placeholder="Enter property price"
+                          min="20000"
+                          max="1000000000"
+                        />
+                      </div>
+
+                      {/* Property Photo */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-700">
+                          Property Photo
+                        </label>
+                        <div className="flex flex-col gap-3">
+                          {photoPreview ? (
+                            <div className="relative w-full h-48 border-2 border-slate-200 rounded-lg overflow-hidden">
+                              <img
+                                src={photoPreview}
+                                alt="Property preview"
+                                className="w-full h-full object-cover"
+                              />
+                              <button
+                                type="button"
+                                onClick={handleRemovePhoto}
+                                className="absolute top-2 right-2 p-1.5 bg-red-500 hover:bg-red-600 text-white rounded-full transition-colors"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <label className="w-full h-48 border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-red-400 hover:bg-red-50 transition-colors">
+                              <Upload className="w-8 h-8 text-slate-400 mb-2" />
+                              <span className="text-sm text-slate-600 font-medium">
+                                Click to upload photo
+                              </span>
+                              <span className="text-xs text-slate-400 mt-1">
+                                PNG, JPG, GIF up to 5MB
+                              </span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handlePhotoChange}
+                                className="hidden"
+                              />
+                            </label>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Lot and Property Details */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-slate-700">
+                            Lot Number <span className="text-red-500">*</span>
                           </label>
-                        )}
-                      </div>
-                    </div>
+                          <ReactSelect
+                            options={[
+                              ...lotNumbers.map((lot) => {
+                                // When editing, allow the current lot even if marked occupied
+                                const isCurrentLot =
+                                  editingProperty &&
+                                  editingProperty.property_lot_id ===
+                                    lot.lot_id;
+                                const shouldDisable =
+                                  lot.is_occupied && !isCurrentLot;
 
-                    {/* Lot and Property Details */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-slate-700">
-                          Lot Number <span className="text-red-500">*</span>
-                        </label>
-                        <ReactSelect
-                          options={lotNumbers.map(lot => ({
-                            value: lot.lot_id,
-                            label: `${lot.lot_number}${lot.is_occupied ? ' (Occupied)' : ''}`,
-                            isDisabled: lot.is_occupied
-                          }))}
-                          value={formData.property_lot_id ? lotNumbers.find(l => l.lot_id === formData.property_lot_id) ? { value: formData.property_lot_id, label: lotNumbers.find(l => l.lot_id === formData.property_lot_id).lot_number } : null : null}
-                          onChange={(option) => handleSelectChange('property_lot_id', option?.value || '')}
-                          styles={customSelectStyles}
-                          menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                          placeholder="Select Lot Number"
-                          isClearable
-                          required
-                        />
+                                return {
+                                  value: lot.lot_id,
+                                  label: `${lot.lot_number}${
+                                    shouldDisable ? " (Occupied)" : ""
+                                  }${isCurrentLot ? " (Current)" : ""}`,
+                                  isDisabled: shouldDisable,
+                                };
+                              }),
+                              {
+                                value: "__create_new__",
+                                label: "➕ Create New Lot",
+                                className: "font-semibold text-blue-600",
+                              },
+                            ]}
+                            value={
+                              formData.property_lot_id
+                                ? lotNumbers.find(
+                                    (l) => l.lot_id === formData.property_lot_id
+                                  )
+                                  ? {
+                                      value: formData.property_lot_id,
+                                      label: lotNumbers.find(
+                                        (l) =>
+                                          l.lot_id === formData.property_lot_id
+                                      ).lot_number,
+                                    }
+                                  : null
+                                : null
+                            }
+                            onChange={(option) => {
+                              if (option?.value === "__create_new__") {
+                                router.push("/properties/lot");
+                              } else {
+                                handleSelectChange(
+                                  "property_lot_id",
+                                  option?.value || ""
+                                );
+                              }
+                            }}
+                            styles={customSelectStyles}
+                            menuPortalTarget={
+                              typeof document !== "undefined"
+                                ? document.body
+                                : null
+                            }
+                            placeholder="Select Lot Number"
+                            isClearable
+                            required
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-slate-700">
+                            Property Details{" "}
+                            <span className="text-red-500">*</span>
+                          </label>
+                          <ReactSelect
+                            options={[
+                              ...propertyTypes
+                                .filter((type) => {
+                                  // When editing, show the current property detail even if used
+                                  const isCurrentDetail =
+                                    editingProperty &&
+                                    editingProperty.property_details_id ===
+                                      type.detail_id;
+                                  // Only show unused property details or the current one
+                                  return !type.is_used || isCurrentDetail;
+                                })
+                                .map((type) => {
+                                  const isCurrentDetail =
+                                    editingProperty &&
+                                    editingProperty.property_details_id ===
+                                      type.detail_id;
+                                  return {
+                                    value: type.detail_id,
+                                    label: `${type.property_name}${
+                                      isCurrentDetail ? " (Current)" : ""
+                                    }`,
+                                  };
+                                }),
+                              {
+                                value: "__create_new__",
+                                label: "➕ Create New Property Type",
+                                className: "font-semibold text-blue-600",
+                              },
+                            ]}
+                            value={
+                              formData.property_details_id
+                                ? propertyTypes.find(
+                                    (t) =>
+                                      t.detail_id ===
+                                      formData.property_details_id
+                                  )
+                                  ? {
+                                      value: formData.property_details_id,
+                                      label: propertyTypes.find(
+                                        (t) =>
+                                          t.detail_id ===
+                                          formData.property_details_id
+                                      ).property_name,
+                                    }
+                                  : null
+                                : null
+                            }
+                            onChange={(option) => {
+                              if (option?.value === "__create_new__") {
+                                router.push("/properties/proptype");
+                              } else {
+                                handleSelectChange(
+                                  "property_details_id",
+                                  option?.value || ""
+                                );
+                              }
+                            }}
+                            styles={customSelectStyles}
+                            menuPortalTarget={
+                              typeof document !== "undefined"
+                                ? document.body
+                                : null
+                            }
+                            placeholder="Select Property Details"
+                            isClearable
+                            required
+                          />
+                        </div>
                       </div>
 
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-slate-700">
-                          Property Details <span className="text-red-500">*</span>
-                        </label>
-                        <ReactSelect
-                          options={propertyTypes.map(type => ({
-                            value: type.detail_id,
-                            label: type.property_name
-                          }))}
-                          value={formData.property_details_id ? propertyTypes.find(t => t.detail_id === formData.property_details_id) ? { value: formData.property_details_id, label: propertyTypes.find(t => t.detail_id === formData.property_details_id).property_name } : null : null}
-                          onChange={(option) => handleSelectChange('property_details_id', option?.value || '')}
-                          styles={customSelectStyles}
-                          menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                          placeholder="Select Property Details"
-                          isClearable
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    {/* Address */}
-                    {/* <div className="space-y-2">
+                      {/* Address */}
+                      {/* <div className="space-y-2">
                       <label className="text-sm font-medium text-slate-700">
                         Address <span className="text-red-500">*</span>
                       </label>
@@ -1466,63 +2325,89 @@ export default function Properties() {
                       />
                     </div> */}
 
-                    {/* Availability */}
+                      {/* Availability */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-700">
+                          Availability <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          name="property_availability"
+                          value={formData.property_availability}
+                          onChange={(e) =>
+                            handleSelectChange(
+                              "property_availability",
+                              e.target.value
+                            )
+                          }
+                          className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white"
+                        >
+                          <option value="vacant">🟡 Vacant</option>
+                          <option value="occupied">🟢 Occupied</option>
+                          <option value="for_sale">🔵 For Sale</option>
+                          <option value="under_construction">
+                            🟠 Under Construction
+                          </option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Property Details Section - Read Only from Property Details */}
+                    {formData.property_details_id && (
+                      <div className="space-y-4">
+                        <h4 className="text-lg font-semibold text-slate-800 border-b border-slate-200 pb-2">
+                          Property Specifications
+                        </h4>
+
+                        {/* Display specifications from selected property details */}
+                        {(() => {
+                          const selectedType = propertyTypes.find(
+                            (t) => t.detail_id === formData.property_details_id
+                          );
+                          if (
+                            selectedType?.property_area &&
+                            selectedType.property_area.length > 0
+                          ) {
+                            return (
+                              <div className="grid grid-cols-2 gap-3 bg-slate-50 p-4 rounded-lg border-2 border-slate-200">
+                                {selectedType.property_area.map((spec, idx) => (
+                                  <div
+                                    key={idx}
+                                    className="flex items-center justify-between text-sm bg-white px-3 py-2 rounded border border-slate-200"
+                                  >
+                                    <span className="text-slate-600 capitalize font-medium">
+                                      {spec.name}
+                                    </span>
+                                    <span className="text-slate-900 font-semibold">
+                                      {spec.value}{" "}
+                                      <span className="text-slate-500 text-xs uppercase">
+                                        {spec.type}
+                                      </span>
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          }
+                          return (
+                            <p className="text-sm text-slate-500 italic bg-slate-50 p-4 rounded-lg">
+                              No specifications available for this property
+                            </p>
+                          );
+                        })()}
+                      </div>
+                    )}
+
+                    {/* Amenities */}
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-slate-700">
-                        Availability <span className="text-red-500">*</span>
+                        Amenities
                       </label>
-                      <select
-                        name="property_availability"
-                        value={formData.property_availability}
-                        onChange={(e) => handleSelectChange('property_availability', e.target.value)}
-                        className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white"
-                      >
-                        <option value="vacant">🟡 Vacant</option>
-                        <option value="occupied">🟢 Occupied</option>
-                        <option value="for_sale">🔵 For Sale</option>
-                        <option value="under_construction">🟠 Under Construction</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Property Details Section - Read Only from Property Details */}
-                  {formData.property_details_id && (
-                    <div className="space-y-4">
-                      <h4 className="text-lg font-semibold text-slate-800 border-b border-slate-200 pb-2">
-                        Property Specifications
-                      </h4>
-
-                      {/* Display specifications from selected property details */}
-                      {(() => {
-                        const selectedType = propertyTypes.find(t => t.detail_id === formData.property_details_id);
-                        if (selectedType?.property_area && selectedType.property_area.length > 0) {
-                          return (
-                            <div className="grid grid-cols-2 gap-3 bg-slate-50 p-4 rounded-lg border-2 border-slate-200">
-                              {selectedType.property_area.map((spec, idx) => (
-                                <div key={idx} className="flex items-center justify-between text-sm bg-white px-3 py-2 rounded border border-slate-200">
-                                  <span className="text-slate-600 capitalize font-medium">{spec.name}</span>
-                                  <span className="text-slate-900 font-semibold">{spec.value} <span className="text-slate-500 text-xs uppercase">{spec.type}</span></span>
-                                </div>
-                              ))}
-                            </div>
-                          );
-                        }
-                        return (
-                          <p className="text-sm text-slate-500 italic bg-slate-50 p-4 rounded-lg">
-                            No specifications available for this property
-                          </p>
-                        );
-                      })()}
-                    </div>
-                  )}
-
-                  {/* Amenities */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-700">Amenities</label>
 
                       {/* Common Amenities */}
                       <div className="mb-3">
-                        <p className="text-xs text-slate-500 mb-2">Quick Add:</p>
+                        <p className="text-xs text-slate-500 mb-2">
+                          Quick Add:
+                        </p>
                         <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
                           {commonAmenities.map((amenity) => (
                             <button
@@ -1532,8 +2417,8 @@ export default function Properties() {
                               disabled={formData.amenities.includes(amenity)}
                               className={`px-2 py-1 text-xs rounded-md transition-colors ${
                                 formData.amenities.includes(amenity)
-                                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                  : 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-200'
+                                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                  : "bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
                               }`}
                             >
                               {amenity}
@@ -1551,7 +2436,7 @@ export default function Properties() {
                           placeholder="Add custom amenity..."
                           className="flex-1 px-4 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                           onKeyPress={(e) => {
-                            if (e.key === 'Enter') {
+                            if (e.key === "Enter") {
                               e.preventDefault();
                               handleAddAmenity(amenityInput);
                             }
@@ -1569,7 +2454,9 @@ export default function Properties() {
                       {/* Selected Amenities */}
                       {formData.amenities.length > 0 && (
                         <div className="border-2 border-slate-200 rounded-lg p-3 bg-slate-50">
-                          <p className="text-xs font-medium text-slate-700 mb-2">Selected Amenities:</p>
+                          <p className="text-xs font-medium text-slate-700 mb-2">
+                            Selected Amenities:
+                          </p>
                           <div className="flex flex-wrap gap-1">
                             {formData.amenities.map((amenity, idx) => (
                               <Badge
@@ -1594,39 +2481,39 @@ export default function Properties() {
                   </div>
                 </div>
 
-              {/* Modal Actions - Fixed Footer */}
-              <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
-                <button
-                  type="button"
-                  className="px-6 py-3 text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg font-medium transition-colors"
-                  onClick={() => {
-                    setShowEditModal(false);
-                    setEditingProperty(null);
-                    resetForm();
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className={`px-6 py-3 bg-gradient-to-r from-red-400 to-red-500 hover:from-red-700 hover:to-red-800 text-white rounded-lg font-medium transition-all duration-200 flex items-center gap-2 ${
-                    formSubmitting ? 'opacity-80 cursor-not-allowed' : ''
-                  }`}
-                  disabled={formSubmitting}
-                >
-                  {formSubmitting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Updating Property...
-                    </>
-                  ) : (
-                    <>
-                      <Edit className="w-4 h-4" />
-                      Update Property
-                    </>
-                  )}
-                </button>
-              </div>
+                {/* Modal Actions - Fixed Footer */}
+                <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
+                  <button
+                    type="button"
+                    className="px-6 py-3 text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg font-medium transition-colors"
+                    onClick={() => {
+                      setShowEditModal(false);
+                      setEditingProperty(null);
+                      resetForm();
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className={`px-6 py-3 bg-gradient-to-r from-red-400 to-red-500 hover:from-red-700 hover:to-red-800 text-white rounded-lg font-medium transition-all duration-200 flex items-center gap-2 ${
+                      formSubmitting ? "opacity-80 cursor-not-allowed" : ""
+                    }`}
+                    disabled={formSubmitting}
+                  >
+                    {formSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Updating Property...
+                      </>
+                    ) : (
+                      <>
+                        <Edit className="w-4 h-4" />
+                        Update Property
+                      </>
+                    )}
+                  </button>
+                </div>
               </form>
             </motion.div>
           </motion.div>
@@ -1634,12 +2521,14 @@ export default function Properties() {
 
         {/* Delete Confirmation Modal */}
         {showDeleteModal && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-            onClick={(e) => e.target === e.currentTarget && setShowDeleteModal(false)}
+            onClick={(e) =>
+              e.target === e.currentTarget && setShowDeleteModal(false)
+            }
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
@@ -1656,10 +2545,12 @@ export default function Properties() {
                     </div>
                     <div>
                       <h3 className="text-xl font-bold">Delete Property</h3>
-                      <p className="text-red-100 text-sm mt-1">This action cannot be undone</p>
+                      <p className="text-red-100 text-sm mt-1">
+                        This action cannot be undone
+                      </p>
                     </div>
                   </div>
-                  <button 
+                  <button
                     className="p-2 hover:bg-white/10 rounded-lg transition-colors"
                     onClick={() => {
                       setShowDeleteModal(false);
@@ -1682,13 +2573,21 @@ export default function Properties() {
                   </h4>
                   {deletingProperty && (
                     <div className="bg-slate-50 rounded-lg p-4 mb-4">
-                      <p className="font-medium text-slate-900">{deletingProperty.property_title}</p>
-                      <p className="text-sm text-slate-600">Lot {deletingProperty.lot_tbl?.lot_number || 'N/A'}</p>
-                      <p className="text-sm text-slate-600">{deletingProperty.property_detail_tbl?.property_name || 'N/A'}</p>
+                      <p className="font-medium text-slate-900">
+                        {deletingProperty.property_title}
+                      </p>
+                      <p className="text-sm text-slate-600">
+                        Lot {deletingProperty.lot_tbl?.lot_number || "N/A"}
+                      </p>
+                      <p className="text-sm text-slate-600">
+                        {deletingProperty.property_detail_tbl?.property_name ||
+                          "N/A"}
+                      </p>
                     </div>
                   )}
                   <p className="text-slate-600">
-                    This will permanently delete the property and all associated data. This action cannot be reversed.
+                    This will permanently delete the property and all associated
+                    data. This action cannot be reversed.
                   </p>
                 </div>
 
@@ -1707,7 +2606,7 @@ export default function Properties() {
                   <button
                     type="button"
                     className={`px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg font-medium transition-all duration-200 flex items-center gap-2 ${
-                      formSubmitting ? 'opacity-80 cursor-not-allowed' : ''
+                      formSubmitting ? "opacity-80 cursor-not-allowed" : ""
                     }`}
                     onClick={handleConfirmDelete}
                     disabled={formSubmitting}
@@ -1737,7 +2636,9 @@ export default function Properties() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-            onClick={(e) => e.target === e.currentTarget && setShowSpecModal(false)}
+            onClick={(e) =>
+              e.target === e.currentTarget && setShowSpecModal(false)
+            }
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
@@ -1749,9 +2650,14 @@ export default function Properties() {
               <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-4 text-white sticky top-0 z-10">
                 <div className="flex justify-between items-center">
                   <div>
-                    <h3 className="text-xl font-bold">{viewingSpecs.property_title}</h3>
+                    <h3 className="text-xl font-bold">
+                      {viewingSpecs.property_title}
+                    </h3>
                     <p className="text-red-100 text-sm mt-1">
-                      All {viewingSpecs.property_detail_tbl?.property_area?.length || 0} Specifications
+                      All{" "}
+                      {viewingSpecs.property_detail_tbl?.property_area
+                        ?.length || 0}{" "}
+                      Specifications
                     </p>
                   </div>
                   <button
@@ -1768,36 +2674,44 @@ export default function Properties() {
 
               {/* Modal Body */}
               <div className="p-6 overflow-y-auto max-h-[calc(90vh-100px)]">
-                {viewingSpecs.property_detail_tbl?.property_area && viewingSpecs.property_detail_tbl.property_area.length > 0 ? (
+                {viewingSpecs.property_detail_tbl?.property_area &&
+                viewingSpecs.property_detail_tbl.property_area.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {viewingSpecs.property_detail_tbl.property_area.map((spec, idx) => (
-                      <div
-                        key={idx}
-                        className="flex flex-col bg-gradient-to-br from-slate-50 to-slate-100/50 p-4 rounded-xl border border-slate-200/50 hover:shadow-md hover:border-red-200 transition-all duration-300"
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
-                            {spec.name}
-                          </span>
-                          <Badge variant="outline" className="text-[10px] border-slate-300">
-                            #{idx + 1}
-                          </Badge>
+                    {viewingSpecs.property_detail_tbl.property_area.map(
+                      (spec, idx) => (
+                        <div
+                          key={idx}
+                          className="flex flex-col bg-gradient-to-br from-slate-50 to-slate-100/50 p-4 rounded-xl border border-slate-200/50 hover:shadow-md hover:border-red-200 transition-all duration-300"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs text-slate-500 uppercase font-semibold tracking-wide">
+                              {spec.name}
+                            </span>
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] border-slate-300"
+                            >
+                              #{idx + 1}
+                            </Badge>
+                          </div>
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-2xl text-slate-900 font-bold">
+                              {spec.value}
+                            </span>
+                            <span className="text-xs text-slate-500 font-medium uppercase">
+                              {spec.type}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-2xl text-slate-900 font-bold">
-                            {spec.value}
-                          </span>
-                          <span className="text-xs text-slate-500 font-medium uppercase">
-                            {spec.type}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+                      )
+                    )}
                   </div>
                 ) : (
                   <div className="text-center py-12">
                     <Maximize className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                    <p className="text-slate-500">No specifications available</p>
+                    <p className="text-slate-500">
+                      No specifications available
+                    </p>
                   </div>
                 )}
               </div>
@@ -1806,7 +2720,8 @@ export default function Properties() {
               <div className="px-6 py-4 bg-slate-50 border-t border-slate-200">
                 <div className="flex justify-between items-center">
                   <div className="text-sm text-slate-600">
-                    <span className="font-semibold">Property:</span> {viewingSpecs.property_detail_tbl?.property_name || 'N/A'}
+                    <span className="font-semibold">Property:</span>{" "}
+                    {viewingSpecs.property_detail_tbl?.property_name || "N/A"}
                   </div>
                   <button
                     type="button"

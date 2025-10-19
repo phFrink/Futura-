@@ -83,32 +83,58 @@ export default function PropertyMap() {
         transition={{ delay: 0.1 }}
         className="mb-8"
       >
-        <h3 className="text-2xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-          <MapPin className="w-6 h-6 text-blue-600" />
-          Block {blockLetter}
-        </h3>
-        <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-2">
+        <div className="flex items-center gap-3 mb-4 bg-gradient-to-r from-red-50 to-rose-50 px-4 py-3 rounded-xl border border-red-100">
+          <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-lg flex items-center justify-center shadow-lg shadow-red-500/30">
+            <MapPin className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-slate-900">Block {blockLetter}</h3>
+            <p className="text-xs text-slate-600">{blockProperties.length} Properties</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-3">
           {blockProperties.map((property) => {
             const homeowner = getHomeownerForProperty(property.id);
+            const isSelected = selectedProperty?.id === property.id;
             return (
               <motion.div
                 key={property.id}
-                whileHover={{ scale: 1.05 }}
+                whileHover={{ scale: 1.08, y: -2 }}
                 whileTap={{ scale: 0.95 }}
-                className={`relative cursor-pointer rounded-lg p-3 border-2 transition-all duration-300 hover:shadow-lg ${
-                  selectedProperty?.id === property.id 
-                    ? 'border-blue-500 bg-blue-50' 
-                    : 'border-slate-200 bg-white hover:border-blue-300'
+                className={`relative cursor-pointer rounded-xl p-3 border-2 transition-all duration-300 ${
+                  isSelected
+                    ? 'border-red-500 bg-gradient-to-br from-red-50 to-rose-50 shadow-lg shadow-red-500/20'
+                    : 'border-slate-200 bg-white hover:border-red-300 hover:shadow-md'
                 }`}
                 onClick={() => setSelectedProperty(property)}
               >
-                {/* Status indicator dot */}
-                <div className={`absolute top-1 right-1 w-3 h-3 rounded-full ${getStatusColor(property.status)}`}></div>
-                
+                {/* Status indicator dot with pulse animation */}
+                <div className="absolute top-2 right-2">
+                  <div className={`relative w-3 h-3 rounded-full ${getStatusColor(property.status)} ${property.status === 'occupied' ? 'animate-pulse' : ''}`}>
+                    <div className={`absolute inset-0 rounded-full ${getStatusColor(property.status)} opacity-40 animate-ping`}></div>
+                  </div>
+                </div>
+
                 {/* House icon */}
-                <div className="flex flex-col items-center">
-                  <Home className={`w-8 h-8 mb-1 ${property.status === 'occupied' ? 'text-green-600' : 'text-slate-400'}`} />
-                  <span className="text-xs font-semibold text-slate-700">{property.unit_number || 'N/A'}</span>
+                <div className="flex flex-col items-center gap-1">
+                  <div className={`p-2 rounded-lg transition-colors ${
+                    isSelected
+                      ? 'bg-red-100'
+                      : property.status === 'occupied'
+                        ? 'bg-green-50'
+                        : 'bg-slate-50'
+                  }`}>
+                    <Home className={`w-6 h-6 ${
+                      isSelected
+                        ? 'text-red-600'
+                        : property.status === 'occupied'
+                          ? 'text-green-600'
+                          : 'text-slate-400'
+                    }`} />
+                  </div>
+                  <span className={`text-xs font-bold ${isSelected ? 'text-red-700' : 'text-slate-700'}`}>
+                    {property.unit_number || 'N/A'}
+                  </span>
                 </div>
               </motion.div>
             );
@@ -125,9 +151,19 @@ export default function PropertyMap() {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
         >
-          <h1 className="text-4xl font-bold text-slate-900 mb-2">Camella Homes Koronadal Map</h1>
-          <p className="text-lg text-slate-600">Interactive property layout with detailed house information</p>
+          <div>
+            <h1 className="text-4xl font-bold text-slate-900 mb-2">Property Map</h1>
+            <p className="text-lg text-slate-600">Interactive property layout with detailed house information</p>
+          </div>
+          <div className="flex items-center gap-3 bg-white px-5 py-3 rounded-xl border border-slate-200 shadow-sm">
+            <MapPin className="w-5 h-5 text-red-500" />
+            <div>
+              <p className="text-xs text-slate-500 font-medium">Total Properties</p>
+              <p className="text-xl font-bold text-slate-900">{properties.length}</p>
+            </div>
+          </div>
         </motion.div>
 
         {/* Search Bar */}
@@ -138,12 +174,12 @@ export default function PropertyMap() {
           className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-2xl p-6 shadow-lg"
         >
           <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-            <Input
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
+            <input
               placeholder="Search by unit number or property name..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 border-slate-200 focus:border-blue-400"
+              className="w-full pl-12 pr-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
             />
           </div>
         </motion.div>
@@ -152,27 +188,29 @@ export default function PropertyMap() {
           {/* Map Area */}
           <div className="lg:col-span-2">
             <Card className="bg-white/80 backdrop-blur-sm border-slate-200 shadow-lg">
-              <CardHeader>
-                <CardTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                  <Home className="w-5 h-5 text-blue-600" />
+              <CardHeader className="border-b border-slate-100">
+                <CardTitle className="text-xl font-bold text-slate-900 flex items-center gap-2 mb-4">
+                  <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-lg flex items-center justify-center shadow-lg shadow-red-500/30">
+                    <Home className="w-5 h-5 text-white" />
+                  </div>
                   Property Layout
                 </CardTitle>
-                <div className="flex items-center gap-4 text-sm">
-                  <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-3 text-sm">
+                  <div className="flex items-center gap-2 bg-green-50 px-3 py-1.5 rounded-lg border border-green-200">
                     <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                    <span>Occupied</span>
+                    <span className="text-green-700 font-medium">Occupied</span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 bg-red-50 px-3 py-1.5 rounded-lg border border-red-200">
                     <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                    <span>Vacant</span>
+                    <span className="text-red-700 font-medium">Vacant</span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200">
                     <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                    <span>For Sale</span>
+                    <span className="text-blue-700 font-medium">For Sale</span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 bg-orange-50 px-3 py-1.5 rounded-lg border border-orange-200">
                     <div className="w-3 h-3 rounded-full bg-orange-500"></div>
-                    <span>Under Construction</span>
+                    <span className="text-orange-700 font-medium">Construction</span>
                   </div>
                 </div>
               </CardHeader>
@@ -198,10 +236,15 @@ export default function PropertyMap() {
           {/* Property Details Panel */}
           <div className="lg:col-span-1">
             <Card className="bg-white/80 backdrop-blur-sm border-slate-200 shadow-lg sticky top-6">
-              <CardHeader>
-                <CardTitle className="text-xl font-bold text-slate-900">Property Details</CardTitle>
+              <CardHeader className="bg-gradient-to-r from-red-50 to-rose-50 border-b border-red-100">
+                <CardTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                  <div className="w-8 h-8 bg-gradient-to-br from-red-500 to-red-600 rounded-lg flex items-center justify-center shadow-lg shadow-red-500/30">
+                    <Home className="w-4 h-4 text-white" />
+                  </div>
+                  Property Details
+                </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-6">
                 {selectedProperty ? (
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
@@ -210,55 +253,64 @@ export default function PropertyMap() {
                   >
                     {/* Property Header */}
                     <div className="text-center">
-                      <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                        <Home className="w-8 h-8 text-blue-700" />
+                      <div className="w-20 h-20 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-red-500/30">
+                        <Home className="w-10 h-10 text-white" />
                       </div>
-                      <h3 className="text-2xl font-bold text-slate-900 mb-2">{selectedProperty.name}</h3>
-                      <Badge className={`${getStatusBadgeColor(selectedProperty.status)} border font-medium`}>
-                        {selectedProperty.status}
+                      <h3 className="text-2xl font-bold text-slate-900 mb-3">{selectedProperty.name}</h3>
+                      <Badge className={`${getStatusBadgeColor(selectedProperty.status)} border font-medium text-sm px-3 py-1`}>
+                        {selectedProperty.status.replace('_', ' ').toUpperCase()}
                       </Badge>
                     </div>
 
                     {/* Property Info */}
-                    <div className="bg-slate-50 rounded-xl p-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-slate-600">Unit Number</span>
-                        <span className="font-bold text-slate-900">{selectedProperty.unit_number || 'N/A'}</span>
+                    <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-5 space-y-3 border border-slate-200">
+                      <div className="flex items-center justify-between py-2 border-b border-slate-200">
+                        <span className="text-sm font-semibold text-slate-600">Unit Number</span>
+                        <span className="font-bold text-slate-900 text-lg">{selectedProperty.unit_number || 'N/A'}</span>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-slate-600">Property Type</span>
-                        <span className="capitalize text-slate-900">{selectedProperty.property_type}</span>
+                      <div className="flex items-center justify-between py-2 border-b border-slate-200">
+                        <span className="text-sm font-semibold text-slate-600">Property Type</span>
+                        <span className="capitalize text-slate-900 font-medium">{selectedProperty.property_type}</span>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-slate-600">Address</span>
-                        <span className="text-sm text-slate-900 text-right">{selectedProperty.address}</span>
+                      <div className="flex items-center justify-between py-2">
+                        <span className="text-sm font-semibold text-slate-600">Address</span>
+                        <span className="text-sm text-slate-900 text-right font-medium max-w-[200px]">{selectedProperty.address}</span>
                       </div>
                     </div>
 
                     {/* Property Specifications */}
                     {(selectedProperty.bedrooms || selectedProperty.bathrooms || selectedProperty.floor_area) && (
-                      <div className="bg-slate-50 rounded-xl p-4">
-                        <h4 className="font-semibold text-slate-900 mb-3">Specifications</h4>
-                        <div className="grid grid-cols-3 gap-3">
+                      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-5 border border-blue-200">
+                        <h4 className="font-bold text-blue-900 mb-4 flex items-center gap-2">
+                          <Maximize className="w-4 h-4" />
+                          Specifications
+                        </h4>
+                        <div className="grid grid-cols-3 gap-4">
                           {selectedProperty.bedrooms && (
-                            <div className="text-center">
-                              <Bed className="w-5 h-5 text-slate-600 mx-auto mb-1" />
-                              <p className="text-sm text-slate-600">Bedrooms</p>
-                              <p className="font-bold text-slate-900">{selectedProperty.bedrooms}</p>
+                            <div className="text-center bg-white rounded-lg p-3 border border-blue-100">
+                              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-2">
+                                <Bed className="w-5 h-5 text-blue-600" />
+                              </div>
+                              <p className="text-xs text-blue-600 font-medium mb-1">Bedrooms</p>
+                              <p className="font-bold text-blue-900 text-lg">{selectedProperty.bedrooms}</p>
                             </div>
                           )}
                           {selectedProperty.bathrooms && (
-                            <div className="text-center">
-                              <Bath className="w-5 h-5 text-slate-600 mx-auto mb-1" />
-                              <p className="text-sm text-slate-600">Bathrooms</p>
-                              <p className="font-bold text-slate-900">{selectedProperty.bathrooms}</p>
+                            <div className="text-center bg-white rounded-lg p-3 border border-blue-100">
+                              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-2">
+                                <Bath className="w-5 h-5 text-blue-600" />
+                              </div>
+                              <p className="text-xs text-blue-600 font-medium mb-1">Bathrooms</p>
+                              <p className="font-bold text-blue-900 text-lg">{selectedProperty.bathrooms}</p>
                             </div>
                           )}
                           {selectedProperty.floor_area && (
-                            <div className="text-center">
-                              <Maximize className="w-5 h-5 text-slate-600 mx-auto mb-1" />
-                              <p className="text-sm text-slate-600">Floor Area</p>
-                              <p className="font-bold text-slate-900">{selectedProperty.floor_area}m²</p>
+                            <div className="text-center bg-white rounded-lg p-3 border border-blue-100">
+                              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-2">
+                                <Maximize className="w-5 h-5 text-blue-600" />
+                              </div>
+                              <p className="text-xs text-blue-600 font-medium mb-1">Floor Area</p>
+                              <p className="font-bold text-blue-900 text-lg">{selectedProperty.floor_area}m²</p>
                             </div>
                           )}
                         </div>
@@ -269,31 +321,39 @@ export default function PropertyMap() {
                     {(() => {
                       const homeowner = getHomeownerForProperty(selectedProperty.id);
                       return homeowner ? (
-                        <div className="bg-blue-50 rounded-xl p-4">
-                          <h4 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
-                            <User className="w-4 h-4" />
+                        <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-5 border border-green-200">
+                          <h4 className="font-bold text-green-900 mb-4 flex items-center gap-2">
+                            <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                              <User className="w-4 h-4 text-green-600" />
+                            </div>
                             Homeowner Information
                           </h4>
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              <User className="w-4 h-4 text-blue-600" />
-                              <span className="text-sm font-medium text-blue-900">{homeowner.full_name}</span>
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-3 bg-white rounded-lg p-3 border border-green-100">
+                              <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <User className="w-4 h-4 text-green-600" />
+                              </div>
+                              <span className="text-sm font-semibold text-green-900">{homeowner.full_name}</span>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <Mail className="w-4 h-4 text-blue-600" />
-                              <span className="text-sm text-blue-800">{homeowner.email}</span>
+                            <div className="flex items-center gap-3 bg-white rounded-lg p-3 border border-green-100">
+                              <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <Mail className="w-4 h-4 text-green-600" />
+                              </div>
+                              <span className="text-sm text-green-800">{homeowner.email}</span>
                             </div>
                             {homeowner.phone && (
-                              <div className="flex items-center gap-2">
-                                <Phone className="w-4 h-4 text-blue-600" />
-                                <span className="text-sm text-blue-800">{homeowner.phone}</span>
+                              <div className="flex items-center gap-3 bg-white rounded-lg p-3 border border-green-100">
+                                <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                  <Phone className="w-4 h-4 text-green-600" />
+                                </div>
+                                <span className="text-sm text-green-800">{homeowner.phone}</span>
                               </div>
                             )}
                             {homeowner.monthly_dues && (
-                              <div className="pt-2 border-t border-blue-200">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-sm font-medium text-blue-700">Monthly Dues</span>
-                                  <span className="font-bold text-blue-900">₱{homeowner.monthly_dues.toLocaleString()}</span>
+                              <div className="pt-2 mt-2 border-t border-green-200">
+                                <div className="flex items-center justify-between bg-white rounded-lg p-3 border border-green-100">
+                                  <span className="text-sm font-semibold text-green-700">Monthly Dues</span>
+                                  <span className="font-bold text-green-900 text-lg">₱{homeowner.monthly_dues.toLocaleString()}</span>
                                 </div>
                               </div>
                             )}
@@ -301,8 +361,11 @@ export default function PropertyMap() {
                         </div>
                       ) : (
                         selectedProperty.status === 'vacant' && (
-                          <div className="bg-red-50 rounded-xl p-4 text-center">
-                            <h4 className="font-semibold text-red-900 mb-2">Property Available</h4>
+                          <div className="bg-gradient-to-br from-red-50 to-rose-50 rounded-xl p-5 text-center border border-red-200">
+                            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                              <Home className="w-8 h-8 text-red-600" />
+                            </div>
+                            <h4 className="font-bold text-red-900 mb-2">Property Available</h4>
                             <p className="text-sm text-red-700">This unit is currently vacant and available for occupancy.</p>
                           </div>
                         )
@@ -311,11 +374,16 @@ export default function PropertyMap() {
 
                     {/* Amenities */}
                     {selectedProperty.amenities && selectedProperty.amenities.length > 0 && (
-                      <div className="bg-slate-50 rounded-xl p-4">
-                        <h4 className="font-semibold text-slate-900 mb-3">Amenities</h4>
-                        <div className="flex flex-wrap gap-1">
+                      <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl p-5 border border-purple-200">
+                        <h4 className="font-bold text-purple-900 mb-3 flex items-center gap-2">
+                          <div className="w-6 h-6 bg-purple-100 rounded-lg flex items-center justify-center">
+                            <Maximize className="w-3 h-3 text-purple-600" />
+                          </div>
+                          Amenities
+                        </h4>
+                        <div className="flex flex-wrap gap-2">
                           {selectedProperty.amenities.map((amenity, idx) => (
-                            <Badge key={idx} variant="outline" className="text-xs">
+                            <Badge key={idx} className="bg-white text-purple-700 border border-purple-200 font-medium text-xs px-3 py-1">
                               {amenity}
                             </Badge>
                           ))}

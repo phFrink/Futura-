@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from 'react-toastify';
 import {
   Select,
   SelectContent,
@@ -103,6 +104,9 @@ export default function Inquiries() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [editingInquiry, setEditingInquiry] = useState(null);
   const [deletingInquiry, setDeletingInquiry] = useState(null);
+  const [showFollowUpModal, setShowFollowUpModal] = useState(false);
+  const [selectedInquiry, setSelectedInquiry] = useState(null);
+  const [followUpMessage, setFollowUpMessage] = useState('');
 
   // Form state
   const [formData, setFormData] = useState({
@@ -125,16 +129,22 @@ export default function Inquiries() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("inquiry_tbl")
-        .select("*")
-        .order("created_date", { ascending: false });
 
-      if (error) throw error;
+      // Fetch from API endpoint
+      const response = await fetch(
+        `/api/client-inquiries?roleId=49d60eb8-184b-48b3-9f4f-d002d3008ea7`
+      );
 
-      setInquiries(data || []);
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to load inquiries');
+      }
+
+      setInquiries(result.data || []);
     } catch (error) {
       console.error("Error loading inquiries:", error);
+      toast.error('Failed to load inquiries: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -146,18 +156,16 @@ export default function Inquiries() {
     if (searchTerm) {
       filtered = filtered.filter(
         (i) =>
-          i.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          i.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          i.subject?.toLowerCase().includes(searchTerm.toLowerCase())
+          i.client_firstname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          i.client_lastname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          i.client_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          i.property_title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          i.message?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
     if (statusFilter !== "all") {
       filtered = filtered.filter((i) => i.status === statusFilter);
-    }
-
-    if (categoryFilter !== "all") {
-      filtered = filtered.filter((i) => i.category === categoryFilter);
     }
 
     setFilteredInquiries(filtered);
@@ -193,19 +201,102 @@ export default function Inquiries() {
     setIsDeleteModalOpen(true);
   };
 
+  // Handle status update
+  const updateInquiryStatus = async (inquiryId, newStatus) => {
+    setSubmitting(true);
+    try {
+      const response = await fetch('/api/client-inquiries', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          inquiryId: inquiryId,
+          status: newStatus
+        })
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to update status');
+      }
+
+      // Update local state
+      setInquiries(prev =>
+        prev.map(inquiry =>
+          inquiry.inquiry_id === inquiryId
+            ? { ...inquiry, status: newStatus }
+            : inquiry
+        )
+      );
+
+      toast.success(`Inquiry ${newStatus === 'approved' ? 'approved' : 'declined'} successfully!`);
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast.error('Error updating status: ' + error.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Handle follow up
+  const handleFollowUp = (inquiry) => {
+    setSelectedInquiry(inquiry);
+    setFollowUpMessage('');
+    setShowFollowUpModal(true);
+  };
+
+  // Send follow up email
+  const sendFollowUpEmail = async () => {
+    if (!followUpMessage.trim()) {
+      toast.error('Please enter a message');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const response = await fetch('/api/send-follow-up', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          inquiryId: selectedInquiry.inquiry_id,
+          clientEmail: selectedInquiry.client_email,
+          clientName: `${selectedInquiry.client_firstname} ${selectedInquiry.client_lastname}`,
+          propertyTitle: selectedInquiry.property_title,
+          message: followUpMessage
+        })
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to send follow-up');
+      }
+
+      toast.success('Follow-up email sent successfully!');
+      setShowFollowUpModal(false);
+      setFollowUpMessage('');
+      setSelectedInquiry(null);
+    } catch (error) {
+      console.error('Error sending follow-up:', error);
+      toast.error('Error sending follow-up: ' + error.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   // Handle confirming delete
   const handleConfirmDelete = async () => {
     if (!deletingInquiry) return;
 
     setSubmitting(true);
     try {
-      await deleteInquiry(deletingInquiry.id, deletingInquiry.subject);
-      alert("Inquiry deleted successfully!");
+      await deleteInquiry(deletingInquiry.inquiry_id, deletingInquiry.property_title);
+      toast.success("Inquiry deleted successfully!");
       setIsDeleteModalOpen(false);
       setDeletingInquiry(null);
     } catch (error) {
       console.error("Error deleting inquiry:", error);
-      alert("Error deleting inquiry: " + error.message);
+      toast.error("Error deleting inquiry: " + error.message);
     } finally {
       setSubmitting(false);
     }
@@ -240,18 +331,24 @@ export default function Inquiries() {
   };
 
   // Delete inquiry function
-  const deleteInquiry = async (inquiryId, inquirySubject) => {
+  const deleteInquiry = async (inquiryId, inquiryTitle) => {
     try {
-      const { error } = await supabase
-        .from("inquiry_tbl")
-        .delete()
-        .eq("id", inquiryId);
+      const response = await fetch(
+        `/api/client-inquiries?inquiryId=${inquiryId}`,
+        {
+          method: 'DELETE',
+        }
+      );
 
-      if (error) throw error;
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to delete inquiry');
+      }
 
       // Remove from local state
       setInquiries((prev) =>
-        prev.filter((inquiry) => inquiry.id !== inquiryId)
+        prev.filter((inquiry) => inquiry.inquiry_id !== inquiryId)
       );
 
       return true;
@@ -291,7 +388,7 @@ export default function Inquiries() {
         };
 
         const data = await updateInquiry(editingInquiry.id, updateData);
-        alert("Inquiry updated successfully!");
+        toast.success("Inquiry updated successfully!");
         setIsEditModalOpen(false);
         setEditingInquiry(null);
       } else {
@@ -320,14 +417,14 @@ export default function Inquiries() {
         const modal = document.getElementById("inquiry_modal");
         if (modal) modal.close();
 
-        alert("Inquiry submitted successfully!");
+        toast.success("Inquiry submitted successfully!");
       }
 
       // Reset form
       resetForm();
     } catch (error) {
       console.error("Error submitting inquiry:", error);
-      alert("Error submitting inquiry. Please try again.");
+      toast.error("Error submitting inquiry. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -350,6 +447,16 @@ export default function Inquiries() {
           color: "bg-yellow-100 text-yellow-800 border-yellow-200",
           icon: Clock,
         };
+      case "approved":
+        return {
+          color: "bg-green-100 text-green-800 border-green-200",
+          icon: CheckCircle,
+        };
+      case "declined":
+        return {
+          color: "bg-red-100 text-red-800 border-red-200",
+          icon: XCircle,
+        };
       case "in_progress":
         return {
           color: "bg-blue-100 text-blue-800 border-blue-200",
@@ -357,8 +464,8 @@ export default function Inquiries() {
         };
       case "responded":
         return {
-          color: "bg-green-100 text-green-800 border-green-200",
-          icon: CheckCircle,
+          color: "bg-purple-100 text-purple-800 border-purple-200",
+          icon: Send,
         };
       case "closed":
         return {
@@ -404,17 +511,18 @@ export default function Inquiries() {
                   </h1>
                   <p className="text-sm text-slate-600 flex items-center gap-2">
                     <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                    Manage homeowner and prospect inquiries
+                    View client inquiries from website
                   </p>
                 </div>
               </div>
-              <Button
-                onClick={openModal}
-                className="bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg shadow-red-500/30 hover:shadow-xl hover:shadow-red-500/40 hover:from-red-600 hover:to-red-700 transition-all duration-300 rounded-xl px-6"
-              >
-                <Plus className="w-5 h-5 mr-2" />
-              New Inquiry
-              </Button>
+              <div className="flex items-center gap-2">
+                <Badge className="bg-blue-100 text-blue-700 border-blue-200 px-3 py-1">
+                  Role ID: 49d60...3008ea7
+                </Badge>
+                <Badge className="bg-purple-100 text-purple-700 border-purple-200 px-3 py-1">
+                  {filteredInquiries.length} Total
+                </Badge>
+              </div>
             </div>
           </motion.div>
 
@@ -424,7 +532,7 @@ export default function Inquiries() {
               <div className="relative flex-1 max-w-md">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
                 <Input
-                  placeholder="Search by name, email, subject..."
+                  placeholder="Search by name, email, property title, message..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 bg-white"
@@ -438,24 +546,11 @@ export default function Inquiries() {
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="declined">Declined</SelectItem>
                     <SelectItem value="in_progress">In Progress</SelectItem>
                     <SelectItem value="responded">Responded</SelectItem>
                     <SelectItem value="closed">Closed</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={categoryFilter}
-                  onValueChange={setCategoryFilter}
-                >
-                  <SelectTrigger className="w-40 bg-white">
-                    <SelectValue placeholder="All Categories" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    <SelectItem value="general">General</SelectItem>
-                    <SelectItem value="billing">Billing</SelectItem>
-                    <SelectItem value="services">Services</SelectItem>
-                    <SelectItem value="property_info">Property Info</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -485,9 +580,10 @@ export default function Inquiries() {
                   const { color, icon: StatusIcon } = getStatusProps(
                     inquiry.status
                   );
+                  const fullName = `${inquiry.client_firstname || ''} ${inquiry.client_lastname || ''}`.trim();
                   return (
                     <Card
-                      key={inquiry.id}
+                      key={inquiry.inquiry_id}
                       className="group overflow-hidden bg-white/80 backdrop-blur-sm border-slate-200 hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-500 hover:-translate-y-1"
                     >
                       <CardContent className="p-6">
@@ -499,66 +595,91 @@ export default function Inquiries() {
                                   <StatusIcon className="w-3 h-3 mr-1" />
                                   {inquiry.status.replace("_", " ")}
                                 </Badge>
-                                {isNewItem(inquiry.created_date) && (
+                                {isNewItem(inquiry.created_at) && (
                                   <Badge className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-0 shadow-md animate-pulse">
                                     <Sparkles className="w-3 h-3 mr-1" />
                                     New
                                   </Badge>
                                 )}
                               </div>
-                              <Badge variant="outline" className="capitalize">
-                                {inquiry.category.replace("_", " ")}
-                              </Badge>
+                              {inquiry.is_authenticated ? (
+                                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                  <User className="w-3 h-3 mr-1" />
+                                  Verified User
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+                                  Guest
+                                </Badge>
+                              )}
                             </div>
                             <h3 className="font-bold text-slate-900 text-lg mb-1">
-                              {inquiry.subject}
+                              {inquiry.property_title || 'General Inquiry'}
                             </h3>
-                            <p className="text-slate-600 text-sm line-clamp-2">
+                            <p className="text-slate-600 text-sm line-clamp-3 mb-2">
                               {inquiry.message}
                             </p>
                           </div>
                           <div className="md:text-right md:w-64 flex-shrink-0">
-                            <p className="font-semibold text-slate-800">
-                              {inquiry.name}
+                            <p className="font-semibold text-slate-800 mb-1">
+                              {fullName || 'No Name'}
                             </p>
-                            <div className="flex items-center md:justify-end gap-2 text-sm text-slate-500">
+                            <div className="flex items-center md:justify-end gap-2 text-sm text-slate-500 mb-1">
                               <Mail className="w-3 h-3" />
-                              {inquiry.email}
+                              {inquiry.client_email}
                             </div>
-                            {inquiry.phone && (
+                            {inquiry.client_phone && (
                               <div className="flex items-center md:justify-end gap-2 text-sm text-slate-500">
                                 <Phone className="w-3 h-3" />
-                                {inquiry.phone}
+                                {inquiry.client_phone}
                               </div>
                             )}
                           </div>
                         </div>
                         <div className="text-xs text-slate-500 pt-4 mt-4 border-t border-slate-200">
-                          Received on {formatDate(inquiry.created_date)}
-                          {inquiry.assigned_to && (
-                            <span className="mx-2">|</span>
-                          )}
-                          {inquiry.assigned_to && (
-                            <span>Assigned to: {inquiry.assigned_to}</span>
-                          )}
+                          Received on {formatDate(inquiry.created_at)}
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="flex gap-2 pt-3 mt-3 border-t border-slate-200">
-                          <button
-                            className="btn btn-outline btn-sm text-blue-600 border-blue-200 hover:bg-blue-50 flex-1"
-                            onClick={() => handleEditInquiry(inquiry)}
-                          >
-                            <Edit className="w-4 h-4 mr-1" />
-                            Edit
-                          </button>
-                          <button
-                            className="btn btn-outline btn-sm text-red-600 border-red-200 hover:bg-red-50 flex-1"
-                            onClick={() => handleDeleteInquiry(inquiry)}
-                          >
-                            <Trash2 className="w-4 h-4 mr-1" />
-                            Delete
-                          </button>
+                        <div className="space-y-2 pt-3 mt-3 border-t border-slate-200">
+                          <div className="flex gap-2">
+                            {inquiry.status === 'pending' && (
+                              <>
+                                <button
+                                  className="btn btn-outline btn-sm text-green-600 border-green-200 hover:bg-green-50 flex-1"
+                                  onClick={() => updateInquiryStatus(inquiry.inquiry_id, 'approved')}
+                                  disabled={submitting}
+                                >
+                                  <CheckCircle className="w-4 h-4 mr-1" />
+                                  Approve
+                                </button>
+                                <button
+                                  className="btn btn-outline btn-sm text-orange-600 border-orange-200 hover:bg-orange-50 flex-1"
+                                  onClick={() => updateInquiryStatus(inquiry.inquiry_id, 'declined')}
+                                  disabled={submitting}
+                                >
+                                  <XCircle className="w-4 h-4 mr-1" />
+                                  Decline
+                                </button>
+                              </>
+                            )}
+                            {inquiry.status === 'approved' && (
+                              <button
+                                className="btn btn-outline btn-sm text-blue-600 border-blue-200 hover:bg-blue-50 flex-1"
+                                onClick={() => handleFollowUp(inquiry)}
+                              >
+                                <Send className="w-4 h-4 mr-1" />
+                                Follow Up
+                              </button>
+                            )}
+                            <button
+                              className="btn btn-outline btn-sm text-red-600 border-red-200 hover:bg-red-50 flex-1"
+                              onClick={() => handleDeleteInquiry(inquiry)}
+                            >
+                              <Trash2 className="w-4 h-4 mr-1" />
+                              Delete
+                            </button>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -1050,20 +1171,20 @@ export default function Inquiries() {
                 {deletingInquiry && (
                   <div className="bg-slate-50 rounded-lg p-4 mb-4 text-left">
                     <h5 className="font-medium text-slate-900 mb-1">
-                      {deletingInquiry.subject}
+                      {deletingInquiry.property_title || 'General Inquiry'}
                     </h5>
                     <p className="text-sm text-slate-600 mb-2">
-                      From: {deletingInquiry.name}
+                      From: {deletingInquiry.client_firstname} {deletingInquiry.client_lastname}
                     </p>
                     <p className="text-sm text-slate-600 mb-2">
-                      Email: {deletingInquiry.email}
+                      Email: {deletingInquiry.client_email}
                     </p>
                     <div className="flex items-center justify-between text-xs text-slate-500">
                       <span className="capitalize">
-                        {deletingInquiry.category.replace("_", " ")}
+                        {deletingInquiry.status.replace("_", " ")}
                       </span>
                       <span className="capitalize">
-                        {deletingInquiry.status.replace("_", " ")}
+                        {deletingInquiry.is_authenticated ? 'Verified User' : 'Guest'}
                       </span>
                     </div>
                   </div>
@@ -1103,6 +1224,133 @@ export default function Inquiries() {
                     <>
                       <Trash2 className="w-4 h-4" />
                       Delete Inquiry
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Follow Up Modal */}
+      {showFollowUpModal && selectedInquiry && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4 text-white rounded-t-2xl">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                    <Send className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold">Send Follow-Up Email</h3>
+                    <p className="text-blue-100 text-sm mt-1">
+                      Contact client about their inquiry
+                    </p>
+                  </div>
+                </div>
+                <button
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                  onClick={() => {
+                    setShowFollowUpModal(false);
+                    setFollowUpMessage('');
+                    setSelectedInquiry(null);
+                  }}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6">
+              {/* Client Info */}
+              <div className="bg-slate-50 rounded-lg p-4 mb-6">
+                <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  Client Information
+                </h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Name:</span>
+                    <span className="font-medium text-slate-900">
+                      {selectedInquiry.client_firstname} {selectedInquiry.client_lastname}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Email:</span>
+                    <span className="font-medium text-slate-900">{selectedInquiry.client_email}</span>
+                  </div>
+                  {selectedInquiry.property_title && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Property:</span>
+                      <span className="font-medium text-slate-900">{selectedInquiry.property_title}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Original Message */}
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  Original Inquiry:
+                </label>
+                <div className="bg-slate-50 rounded-lg p-3 text-sm text-slate-600 border border-slate-200">
+                  {selectedInquiry.message}
+                </div>
+              </div>
+
+              {/* Follow Up Message */}
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  Your Follow-Up Message *
+                </label>
+                <textarea
+                  rows={6}
+                  value={followUpMessage}
+                  onChange={(e) => setFollowUpMessage(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  placeholder="Write your follow-up message to the client..."
+                  required
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  {followUpMessage.length} characters
+                </p>
+              </div>
+
+              {/* Modal Actions */}
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  className="px-6 py-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg font-medium transition-colors"
+                  onClick={() => {
+                    setShowFollowUpModal(false);
+                    setFollowUpMessage('');
+                    setSelectedInquiry(null);
+                  }}
+                  disabled={submitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className={`px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg font-medium transition-all duration-200 flex items-center gap-2 ${
+                    submitting || !followUpMessage.trim() ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
+                  onClick={sendFollowUpEmail}
+                  disabled={submitting || !followUpMessage.trim()}
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" />
+                      Send Follow-Up
                     </>
                   )}
                 </button>

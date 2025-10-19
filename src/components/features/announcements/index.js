@@ -414,396 +414,479 @@ export default function Announcements() {
         </motion.div>
       </div>
 
-      {/* DaisyUI Modal */}
-      <div className={`modal ${isModalOpen ? 'modal-open' : ''}`}>
-        <div className="modal-box max-w-3xl bg-white border border-gray-200 shadow-2xl">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-2xl font-bold text-gray-900">Create New Announcement</h3>
-            <button 
-              onClick={() => setIsModalOpen(false)}
-              className="btn btn-sm btn-circle btn-ghost"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-          
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text font-medium">Title*</span>
-              </label>
-              <input
-                type="text"
-                name="title"
-                value={formData.title}
-                onChange={handleInputChange}
-                className="text-black bg-white input input-bordered w-full focus:input-primary"
-                placeholder="Enter announcement title"
-                required
-              />
-            </div>
-
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text font-medium">Content*</span>
-              </label>
-              <textarea
-                name="content"
-                value={formData.content}
-                onChange={handleInputChange}
-                className="text-black bg-white textarea textarea-bordered h-32 focus:textarea-primary resize-none"
-                placeholder="Write your announcement content here..."
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-medium">Category*</span>
-                </label>
-                <select
-                  name="category"
-                  value={formData.category}
-                  onChange={handleInputChange}
-                  className="text-black bg-white select select-bordered w-full focus:select-primary"
-                  required
+      {/* Create Announcement Modal */}
+      {isModalOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={(e) => e.target === e.currentTarget && setIsModalOpen(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 20 }}
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden"
+          >
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-red-500 to-red-600 px-8 py-6 text-white">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                    <Megaphone className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold">Create New Announcement</h3>
+                    <p className="text-red-100 text-sm mt-1">Broadcast important updates to residents</p>
+                  </div>
+                </div>
+                <button
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                  onClick={() => setIsModalOpen(false)}
+                  disabled={formSubmitting}
                 >
-                  <option value="general">General</option>
-                  <option value="maintenance">Maintenance</option>
-                  <option value="events">Events</option>
-                  <option value="emergency">Emergency</option>
-                </select>
-              </div>
-
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-medium">Priority</span>
-                </label>
-                <select
-                  name="priority"
-                  value={formData.priority}
-                  onChange={handleInputChange}
-                  className="text-black bg-white select select-bordered w-full focus:select-primary"
-                >
-                  <option value="normal">Normal</option>
-                  <option value="high">High</option>
-                  <option value="urgent">Urgent</option>
-                </select>
+                  <X className="w-5 h-5" />
+                </button>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-medium">Target Audience</span>
-                </label>
-                <select
-                  name="target_audience"
-                  value={formData.target_audience}
-                  onChange={handleInputChange}
-                  className="text-black bg-white select select-bordered w-full focus:select-primary"
-                >
-                  <option value="all_residents">All Residents</option>
-                  <option value="homeowners">Homeowners Only</option>
-                  <option value="tenants">Tenants Only</option>
-                  <option value="board_members">Board Members</option>
-                </select>
-              </div>
+            {/* Modal Body */}
+            <div className="p-8 overflow-y-auto max-h-[calc(90vh-140px)]">
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-slate-700">
+                    Title <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="title"
+                    value={formData.title}
+                    onChange={handleInputChange}
+                    placeholder="Enter announcement title"
+                    className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
+                    required
+                  />
+                </div>
 
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-medium">Author*</span>
-                </label>
-                <input
-                  type="text"
-                  name="author"
-                  value={formData.author}
-                  onChange={handleInputChange}
-                  className="text-black bg-white input input-bordered w-full focus:input-primary"
-                  placeholder="Enter author name"
-                  required
-                />
-              </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-slate-700">
+                    Content <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    name="content"
+                    value={formData.content}
+                    onChange={handleInputChange}
+                    placeholder="Write your announcement content here..."
+                    rows="5"
+                    className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all resize-none"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Category <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      name="category"
+                      value={formData.category}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all appearance-none cursor-pointer"
+                      required
+                    >
+                      <option value="general">General</option>
+                      <option value="maintenance">Maintenance</option>
+                      <option value="events">Events</option>
+                      <option value="emergency">Emergency</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Priority
+                    </label>
+                    <select
+                      name="priority"
+                      value={formData.priority}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all appearance-none cursor-pointer"
+                    >
+                      <option value="normal">Normal</option>
+                      <option value="high">High</option>
+                      <option value="urgent">Urgent</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Target Audience
+                    </label>
+                    <div className="relative">
+                      <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5 pointer-events-none" />
+                      <select
+                        name="target_audience"
+                        value={formData.target_audience}
+                        onChange={handleInputChange}
+                        className="w-full pl-11 pr-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all appearance-none cursor-pointer"
+                      >
+                        <option value="all_residents">All Residents</option>
+                        <option value="homeowners">Homeowners Only</option>
+                        <option value="tenants">Tenants Only</option>
+                        <option value="board_members">Board Members</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Author <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="author"
+                      value={formData.author}
+                      onChange={handleInputChange}
+                      placeholder="Enter author name"
+                      className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Publish Date
+                    </label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5 pointer-events-none" />
+                      <input
+                        type="date"
+                        name="publish_date"
+                        value={formData.publish_date}
+                        onChange={handleInputChange}
+                        className="w-full pl-11 pr-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Status
+                    </label>
+                    <select
+                      name="status"
+                      value={formData.status}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all appearance-none cursor-pointer"
+                    >
+                      <option value="draft">Draft</option>
+                      <option value="published">Published</option>
+                      <option value="archived">Archived</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <div className="flex items-center gap-3">
+                    <Pin className="w-5 h-5 text-slate-600" />
+                    <div>
+                      <p className="text-sm font-semibold text-slate-700">Pin to top</p>
+                      <p className="text-xs text-slate-500">Pinned announcements appear at the top of the list</p>
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    name="is_pinned"
+                    checked={formData.is_pinned}
+                    onChange={handleInputChange}
+                    className="w-12 h-6 rounded-full appearance-none bg-slate-300 checked:bg-red-500 relative cursor-pointer transition-colors duration-200 ease-in-out before:content-[''] before:absolute before:w-5 before:h-5 before:rounded-full before:bg-white before:top-0.5 before:left-0.5 before:transition-transform before:duration-200 checked:before:translate-x-6"
+                  />
+                </div>
+
+                {/* Modal Actions */}
+                <div className="flex justify-end gap-3 pt-6 border-t border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="px-6 py-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl font-semibold transition-colors"
+                    disabled={formSubmitting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className={`px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl font-semibold transition-all duration-200 flex items-center gap-2 shadow-lg shadow-red-500/30 ${
+                      formSubmitting ? 'opacity-80 cursor-not-allowed' : ''
+                    }`}
+                    disabled={formSubmitting}
+                  >
+                    {formSubmitting ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      <>
+                        <Megaphone className="w-5 h-5" />
+                        Create Announcement
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-medium">Publish Date</span>
-                </label>
-                <input
-                  type="date"
-                  name="publish_date"
-                  value={formData.publish_date}
-                  onChange={handleInputChange}
-                  className="text-black bg-white input input-bordered w-full focus:input-primary"
-                />
-              </div>
-
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-medium">Status</span>
-                </label>
-                <select
-                  name="status"
-                  value={formData.status}
-                  onChange={handleInputChange}
-                  className="text-black bg-white select select-bordered w-full focus:select-primary"
-                >
-                  <option value="draft">Draft</option>
-                  <option value="published">Published</option>
-                  <option value="archived">Archived</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="form-control">
-              <label className="label cursor-pointer">
-                <span className="label-text font-medium">Pin to top</span>
-                <input
-                  type="checkbox"
-                  name="is_pinned"
-                  checked={formData.is_pinned}
-                  onChange={handleInputChange}
-                  className="toggle toggle-primary"
-                />
-              </label>
-              <div className="label">
-                <span className="label-text-alt text-gray-500">Pinned announcements appear at the top of the list</span>
-              </div>
-            </div>
-
-            <div className="modal-action pt-6">
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="btn btn-ghost"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={formSubmitting}
-                className="btn btn-primary bg-gradient-to-r from-red-400 to-red-500 text-white border-none"
-              >
-                {formSubmitting ? (
-                  <>
-                    <span className="loading loading-spinner loading-sm"></span>
-                    Creating...
-                  </>
-                ) : (
-                  'Create Announcement'
-                )}
-              </button>
-            </div>
-          </form>
-        </div>
-        <div className="modal-backdrop" onClick={() => setIsModalOpen(false)}></div>
-      </div>
+          </motion.div>
+        </motion.div>
+      )}
 
       {/* Edit Announcement Modal */}
-      <div className={`modal ${isEditModalOpen ? 'modal-open' : ''}`}>
-        <div className="modal-box max-w-3xl bg-white border border-gray-200 shadow-2xl">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-2xl font-bold text-gray-900">Edit Announcement</h3>
-            <button 
-              onClick={() => {
-                setIsEditModalOpen(false);
-                setEditingAnnouncement(null);
-                resetForm();
-              }}
-              className="btn btn-sm btn-circle btn-ghost"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-          
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text font-medium">Title*</span>
-              </label>
-              <input
-                type="text"
-                name="title"
-                value={formData.title}
-                onChange={handleInputChange}
-                className="text-black bg-white input input-bordered w-full focus:input-primary"
-                placeholder="Enter announcement title"
-                required
-              />
-            </div>
-
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text font-medium">Content*</span>
-              </label>
-              <textarea
-                name="content"
-                value={formData.content}
-                onChange={handleInputChange}
-                className="text-black bg-white textarea textarea-bordered h-32 focus:textarea-primary resize-none"
-                placeholder="Write your announcement content here..."
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-medium">Category*</span>
-                </label>
-                <select
-                  name="category"
-                  value={formData.category}
-                  onChange={handleInputChange}
-                  className="text-black bg-white select select-bordered w-full focus:select-primary"
-                  required
+      {isEditModalOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setIsEditModalOpen(false);
+              setEditingAnnouncement(null);
+              resetForm();
+            }
+          }}
+        >
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 20 }}
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden"
+          >
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-8 py-6 text-white">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                    <Edit className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold">Edit Announcement</h3>
+                    <p className="text-blue-100 text-sm mt-1">Update announcement information</p>
+                  </div>
+                </div>
+                <button
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                  onClick={() => {
+                    setIsEditModalOpen(false);
+                    setEditingAnnouncement(null);
+                    resetForm();
+                  }}
+                  disabled={formSubmitting}
                 >
-                  <option value="general">General</option>
-                  <option value="maintenance">Maintenance</option>
-                  <option value="events">Events</option>
-                  <option value="emergency">Emergency</option>
-                </select>
-              </div>
-
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-medium">Priority</span>
-                </label>
-                <select
-                  name="priority"
-                  value={formData.priority}
-                  onChange={handleInputChange}
-                  className="text-black bg-white select select-bordered w-full focus:select-primary"
-                >
-                  <option value="normal">Normal</option>
-                  <option value="high">High</option>
-                  <option value="urgent">Urgent</option>
-                </select>
+                  <X className="w-5 h-5" />
+                </button>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-medium">Target Audience</span>
-                </label>
-                <select
-                  name="target_audience"
-                  value={formData.target_audience}
-                  onChange={handleInputChange}
-                  className="text-black bg-white select select-bordered w-full focus:select-primary"
-                >
-                  <option value="all_residents">All Residents</option>
-                  <option value="homeowners">Homeowners Only</option>
-                  <option value="tenants">Tenants Only</option>
-                  <option value="board_members">Board Members</option>
-                </select>
-              </div>
+            {/* Modal Body */}
+            <div className="p-8 overflow-y-auto max-h-[calc(90vh-140px)]">
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-slate-700">
+                    Title <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="title"
+                    value={formData.title}
+                    onChange={handleInputChange}
+                    placeholder="Enter announcement title"
+                    className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    required
+                  />
+                </div>
 
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-medium">Author*</span>
-                </label>
-                <input
-                  type="text"
-                  name="author"
-                  value={formData.author}
-                  onChange={handleInputChange}
-                  className="text-black bg-white input input-bordered w-full focus:input-primary"
-                  placeholder="Enter author name"
-                  required
-                />
-              </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-slate-700">
+                    Content <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    name="content"
+                    value={formData.content}
+                    onChange={handleInputChange}
+                    placeholder="Write your announcement content here..."
+                    rows="5"
+                    className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Category <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      name="category"
+                      value={formData.category}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none cursor-pointer"
+                      required
+                    >
+                      <option value="general">General</option>
+                      <option value="maintenance">Maintenance</option>
+                      <option value="events">Events</option>
+                      <option value="emergency">Emergency</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Priority
+                    </label>
+                    <select
+                      name="priority"
+                      value={formData.priority}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none cursor-pointer"
+                    >
+                      <option value="normal">Normal</option>
+                      <option value="high">High</option>
+                      <option value="urgent">Urgent</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Target Audience
+                    </label>
+                    <div className="relative">
+                      <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5 pointer-events-none" />
+                      <select
+                        name="target_audience"
+                        value={formData.target_audience}
+                        onChange={handleInputChange}
+                        className="w-full pl-11 pr-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none cursor-pointer"
+                      >
+                        <option value="all_residents">All Residents</option>
+                        <option value="homeowners">Homeowners Only</option>
+                        <option value="tenants">Tenants Only</option>
+                        <option value="board_members">Board Members</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Author <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="author"
+                      value={formData.author}
+                      onChange={handleInputChange}
+                      placeholder="Enter author name"
+                      className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Publish Date
+                    </label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5 pointer-events-none" />
+                      <input
+                        type="date"
+                        name="publish_date"
+                        value={formData.publish_date}
+                        onChange={handleInputChange}
+                        className="w-full pl-11 pr-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Status
+                    </label>
+                    <select
+                      name="status"
+                      value={formData.status}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none cursor-pointer"
+                    >
+                      <option value="draft">Draft</option>
+                      <option value="published">Published</option>
+                      <option value="archived">Archived</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <div className="flex items-center gap-3">
+                    <Pin className="w-5 h-5 text-slate-600" />
+                    <div>
+                      <p className="text-sm font-semibold text-slate-700">Pin to top</p>
+                      <p className="text-xs text-slate-500">Pinned announcements appear at the top of the list</p>
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    name="is_pinned"
+                    checked={formData.is_pinned}
+                    onChange={handleInputChange}
+                    className="w-12 h-6 rounded-full appearance-none bg-slate-300 checked:bg-blue-500 relative cursor-pointer transition-colors duration-200 ease-in-out before:content-[''] before:absolute before:w-5 before:h-5 before:rounded-full before:bg-white before:top-0.5 before:left-0.5 before:transition-transform before:duration-200 checked:before:translate-x-6"
+                  />
+                </div>
+
+                {/* Modal Actions */}
+                <div className="flex justify-end gap-3 pt-6 border-t border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditModalOpen(false);
+                      setEditingAnnouncement(null);
+                      resetForm();
+                    }}
+                    className="px-6 py-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl font-semibold transition-colors"
+                    disabled={formSubmitting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className={`px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl font-semibold transition-all duration-200 flex items-center gap-2 shadow-lg shadow-blue-500/30 ${
+                      formSubmitting ? 'opacity-80 cursor-not-allowed' : ''
+                    }`}
+                    disabled={formSubmitting}
+                  >
+                    {formSubmitting ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Updating...
+                      </>
+                    ) : (
+                      <>
+                        <Edit className="w-5 h-5" />
+                        Update Announcement
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-medium">Publish Date</span>
-                </label>
-                <input
-                  type="date"
-                  name="publish_date"
-                  value={formData.publish_date}
-                  onChange={handleInputChange}
-                  className="text-black bg-white input input-bordered w-full focus:input-primary"
-                />
-              </div>
-
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-medium">Status</span>
-                </label>
-                <select
-                  name="status"
-                  value={formData.status}
-                  onChange={handleInputChange}
-                  className="text-black bg-white select select-bordered w-full focus:select-primary"
-                >
-                  <option value="draft">Draft</option>
-                  <option value="published">Published</option>
-                  <option value="archived">Archived</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="form-control">
-              <label className="label cursor-pointer">
-                <span className="label-text font-medium">Pin to top</span>
-                <input
-                  type="checkbox"
-                  name="is_pinned"
-                  checked={formData.is_pinned}
-                  onChange={handleInputChange}
-                  className="toggle toggle-primary"
-                />
-              </label>
-              <div className="label">
-                <span className="label-text-alt text-gray-500">Pinned announcements appear at the top of the list</span>
-              </div>
-            </div>
-
-            <div className="modal-action pt-6">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsEditModalOpen(false);
-                  setEditingAnnouncement(null);
-                  resetForm();
-                }}
-                className="btn btn-ghost"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={formSubmitting}
-                className="btn btn-primary bg-gradient-to-r from-red-400 to-red-500 text-white border-none"
-              >
-                {formSubmitting ? (
-                  <>
-                    <span className="loading loading-spinner loading-sm"></span>
-                    Updating...
-                  </>
-                ) : (
-                  <>
-                    <Edit className="w-4 h-4 mr-2" />
-                    Update Announcement
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
-        </div>
-        <div className="modal-backdrop" onClick={() => {
-          setIsEditModalOpen(false);
-          setEditingAnnouncement(null);
-          resetForm();
-        }}></div>
-      </div>
+          </motion.div>
+        </motion.div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {isDeleteModalOpen && (

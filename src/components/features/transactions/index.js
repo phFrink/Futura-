@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from "react";
 import { createClient } from '@supabase/supabase-js'
 import { isNewItem, getRelativeTime } from '@/lib/utils'
+import ReactSelect from 'react-select';
+import { toast } from 'react-toastify';
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -149,6 +151,8 @@ export default function Transactions() {
 
   const loadData = async () => {
     try {
+      setLoading(true);
+
       // Fetch transactions from Supabase
       const { data: transactionsData, error: transactionsError } = await supabase
         .from('transaction_tbl')
@@ -165,10 +169,21 @@ export default function Transactions() {
 
       if (propertiesError) throw propertiesError;
 
-      // Fetch homeowners from Supabase
+      // Fetch homeowners for dropdown with property information
       const { data: homeownersData, error: homeownersError } = await supabase
-        .from('homeowner_tbl')
-        .select('*')
+        .from('buyer_home_owner_tbl')
+        .select(`
+          id,
+          full_name,
+          unit_number,
+          property_id,
+          property_info_tbl!buyer_home_owner_tbl_property_id_fkey(
+            property_id,
+            property_title,
+            lot_tbl(lot_number),
+            property_detail_tbl(property_name)
+          )
+        `)
         .order('full_name');
 
       if (homeownersError) throw homeownersError;
@@ -178,7 +193,6 @@ export default function Transactions() {
       setHomeowners(homeownersData || []);
     } catch (error) {
       console.error('Error loading data:', error);
-      toast.info('Error loading data: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -218,6 +232,23 @@ export default function Transactions() {
     setFormData(prev => ({
       ...prev,
       [name]: value
+    }));
+  };
+
+  const handleHomeownerChange = (selectedOption) => {
+    if (!selectedOption) {
+      setFormData(prev => ({ ...prev, homeowner_id: '', property_id: '' }));
+      return;
+    }
+
+    const selectedHomeowner = homeowners.find(
+      h => h.id.toString() === selectedOption.value
+    );
+
+    setFormData(prev => ({
+      ...prev,
+      homeowner_id: selectedOption.value,
+      property_id: selectedHomeowner?.property_id?.toString() || ''
     }));
   };
 
@@ -472,311 +503,239 @@ export default function Transactions() {
           </Card>
         </motion.div>
 
-        {/* DaisyUI Modal */}
+        {/* Create Transaction Modal */}
         {isModalOpen && (
-          <div className="modal modal-open">
-            <div className="modal-box max-w-2xl bg-white">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="font-bold text-2xl text-slate-900">Add New Transaction</h3>
-                <button 
-                  className="btn btn-sm btn-circle btn-ghost"
-                  onClick={closeModal}
-                >
-                  <X className="w-4 h-4" />
-                </button>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            onClick={(e) => e.target === e.currentTarget && closeModal()}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden"
+            >
+              {/* Modal Header */}
+              <div className="bg-gradient-to-r from-red-500 to-red-600 px-8 py-6 text-white">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                      <DollarSign className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold">Add New Transaction</h3>
+                      <p className="text-red-100 text-sm mt-1">Record a financial transaction</p>
+                    </div>
+                  </div>
+                  <button
+                    className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                    onClick={closeModal}
+                    disabled={formSubmitting}
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Homeowner Selection */}
-                  <div className="form-control">
-                    <label className="label">
-                      <span className="label-text font-medium text-slate-700">Homeowner *</span>
-                    </label>
-                    <select 
-                      name="homeowner_id"
-                      value={formData.homeowner_id}
-                      onChange={handleInputChange}
-                      className="select select-bordered w-full bg-white"
-                      required
-                    >
-                      <option value="">Select Homeowner</option>
-                      {homeowners.map(homeowner => (
-                        <option key={homeowner.id} value={homeowner.id}>
-                          {homeowner.full_name}
-                        </option>
-                      ))}
-                    </select>
+              {/* Modal Body */}
+              <div className="p-8 overflow-y-auto max-h-[calc(90vh-140px)]">
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="block text-sm font-semibold text-slate-700">
+                        Homeowner <span className="text-red-500">*</span>
+                      </label>
+                      <ReactSelect
+                        options={homeowners.map(homeowner => ({
+                          value: homeowner.id.toString(),
+                          label: homeowner.full_name +
+                            (homeowner.property_info_tbl ?
+                              ` - ${homeowner.property_info_tbl.property_detail_tbl?.property_name || 'N/A'} (Lot ${homeowner.property_info_tbl.lot_tbl?.lot_number || 'N/A'})`
+                              : ' - No Property')
+                        }))}
+                        value={formData.homeowner_id ? homeowners.find(h => h.id.toString() === formData.homeowner_id) ? {
+                          value: formData.homeowner_id,
+                          label: homeowners.find(h => h.id.toString() === formData.homeowner_id)?.full_name || ''
+                        } : null : null}
+                        onChange={handleHomeownerChange}
+                        placeholder="Select Homeowner"
+                        isClearable
+                        className="react-select-container"
+                        classNamePrefix="react-select"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="block text-sm font-semibold text-slate-700">
+                        Property <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={
+                          formData.property_id && homeowners.find(h => h.id.toString() === formData.homeowner_id)?.property_info_tbl
+                            ? homeowners.find(h => h.id.toString() === formData.homeowner_id).property_info_tbl.property_title
+                            : ''
+                        }
+                        placeholder="Auto-filled from homeowner"
+                        readOnly
+                        className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl cursor-not-allowed"
+                      />
+                    </div>
                   </div>
 
-                  {/* Property Selection */}
-                  <div className="form-control">
-                    <label className="label">
-                      <span className="label-text font-medium text-slate-700">Property</span>
-                    </label>
-                    <select 
-                      name="property_id"
-                      value={formData.property_id}
-                      onChange={handleInputChange}
-                      className="select select-bordered w-full bg-white"
-                    >
-                      <option value="">Select Property (Optional)</option>
-                      {properties.map(property => (
-                        <option key={property.id} value={property.id}>
-                          {property.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="block text-sm font-semibold text-slate-700">
+                        Transaction Type <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <Receipt className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5 pointer-events-none" />
+                        <select
+                          name="transaction_type"
+                          value={formData.transaction_type}
+                          onChange={handleInputChange}
+                          className="w-full pl-11 pr-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all appearance-none cursor-pointer"
+                          required
+                        >
+                          <option value="">Select Type</option>
+                          <option value="payment">Payment</option>
+                          <option value="billing">Billing</option>
+                          <option value="fee">Fee</option>
+                          <option value="penalty">Penalty</option>
+                          <option value="refund">Refund</option>
+                          <option value="deposit">Deposit</option>
+                        </select>
+                      </div>
+                    </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Transaction Type */}
-                  <div className="form-control">
-                    <label className="label">
-                      <span className="label-text font-medium text-slate-700">Transaction Type *</span>
-                    </label>
-                    <select 
-                      name="transaction_type"
-                      value={formData.transaction_type}
-                      onChange={handleInputChange}
-                      className="select select-bordered w-full bg-white"
-                      required
-                    >
-                      <option value="">Select Type</option>
-                      <option value="payment">Payment</option>
-                      <option value="billing">Billing</option>
-                      <option value="fee">Fee</option>
-                      <option value="penalty">Penalty</option>
-                      <option value="refund">Refund</option>
-                      <option value="deposit">Deposit</option>
-                    </select>
+                    <div className="space-y-2">
+                      <label className="block text-sm font-semibold text-slate-700">
+                        Amount <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-500 font-semibold">₱</span>
+                        <input
+                          type="number"
+                          name="amount"
+                          value={formData.amount}
+                          onChange={handleInputChange}
+                          step="0.01"
+                          min="0"
+                          placeholder="0.00"
+                          className="w-full pl-10 pr-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
+                          required
+                        />
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Amount */}
-                  <div className="form-control">
-                    <label className="label">
-                      <span className="label-text font-medium text-slate-700">Amount *</span>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Transaction Date <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500">₱</span>
-                      <input 
-                        type="number"
-                        name="amount"
-                        value={formData.amount}
+                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5 pointer-events-none" />
+                      <input
+                        type="date"
+                        name="transaction_date"
+                        value={formData.transaction_date}
                         onChange={handleInputChange}
-                        step="0.01"
-                        min="0"
-                        className="input input-bordered w-full pl-8 bg-white"
-                        placeholder="0.00"
+                        className="w-full pl-11 pr-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
                         required
                       />
                     </div>
                   </div>
-                </div>
 
-                {/* Transaction Date */}
-                <div className="form-control">
-                  <label className="label">
-                    <span className="label-text font-medium text-slate-700">Transaction Date *</span>
-                  </label>
-                  <input 
-                    type="date"
-                    name="transaction_date"
-                    value={formData.transaction_date}
-                    onChange={handleInputChange}
-                    className="input input-bordered w-full bg-white"
-                    required
-                  />
-                </div>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Description <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      name="description"
+                      value={formData.description}
+                      onChange={handleInputChange}
+                      placeholder="Enter transaction description..."
+                      rows="3"
+                      className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all resize-none"
+                      required
+                    />
+                  </div>
 
-                {/* Description */}
-                <div className="form-control">
-                  <label className="label">
-                    <span className="label-text font-medium text-slate-700">Description *</span>
-                  </label>
-                  <textarea 
-                    name="description"
-                    value={formData.description}
-                    onChange={handleInputChange}
-                    className="textarea textarea-bordered w-full h-24 bg-white resize-none"
-                    placeholder="Enter transaction description..."
-                    required
-                  />
-                </div>
-
-                {/* Form Actions */}
-                <div className="modal-action">
-                  <button 
-                    type="button"
-                    className="btn btn-ghost"
-                    onClick={closeModal}
-                    disabled={formSubmitting}
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    type="submit"
-                    className="btn bg-gradient-to-r from-red-400 to-red-500 text-white border-none"
-                    disabled={formSubmitting}
-                  >
-                    {formSubmitting ? (
-                      <>
-                        <span className="loading loading-spinner loading-sm"></span>
-                        Adding...
-                      </>
-                    ) : (
-                      'Add Transaction'
-                    )}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
+                  {/* Modal Actions */}
+                  <div className="flex justify-end gap-3 pt-6 border-t border-slate-200">
+                    <button
+                      type="button"
+                      onClick={closeModal}
+                      className="px-6 py-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl font-semibold transition-colors"
+                      disabled={formSubmitting}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className={`px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl font-semibold transition-all duration-200 flex items-center gap-2 shadow-lg shadow-red-500/30 ${
+                        formSubmitting ? 'opacity-80 cursor-not-allowed' : ''
+                      }`}
+                      disabled={formSubmitting}
+                    >
+                      {formSubmitting ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          Adding...
+                        </>
+                      ) : (
+                        <>
+                          <DollarSign className="w-5 h-5" />
+                          Add Transaction
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
 
         {/* Edit Transaction Modal */}
         {isEditModalOpen && (
-          <div className="modal modal-open">
-            <div className="modal-box max-w-2xl bg-white">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="font-bold text-2xl text-slate-900">Edit Transaction</h3>
-                <button 
-                  className="btn btn-sm btn-circle btn-ghost"
-                  onClick={() => {
-                    setIsEditModalOpen(false);
-                    setEditingTransaction(null);
-                    resetForm();
-                  }}
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Homeowner Selection */}
-                  <div className="form-control">
-                    <label className="label">
-                      <span className="label-text font-medium text-slate-700">Homeowner *</span>
-                    </label>
-                    <select 
-                      name="homeowner_id"
-                      value={formData.homeowner_id}
-                      onChange={handleInputChange}
-                      className="select select-bordered w-full bg-white"
-                      required
-                    >
-                      <option value="">Select Homeowner</option>
-                      {homeowners.map(homeowner => (
-                        <option key={homeowner.id} value={homeowner.id}>
-                          {homeowner.full_name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Property Selection */}
-                  <div className="form-control">
-                    <label className="label">
-                      <span className="label-text font-medium text-slate-700">Property</span>
-                    </label>
-                    <select 
-                      name="property_id"
-                      value={formData.property_id}
-                      onChange={handleInputChange}
-                      className="select select-bordered w-full bg-white"
-                    >
-                      <option value="">Select Property (Optional)</option>
-                      {properties.map(property => (
-                        <option key={property.id} value={property.id}>
-                          {property.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Transaction Type */}
-                  <div className="form-control">
-                    <label className="label">
-                      <span className="label-text font-medium text-slate-700">Transaction Type *</span>
-                    </label>
-                    <select 
-                      name="transaction_type"
-                      value={formData.transaction_type}
-                      onChange={handleInputChange}
-                      className="select select-bordered w-full bg-white"
-                      required
-                    >
-                      <option value="">Select Type</option>
-                      <option value="payment">Payment</option>
-                      <option value="billing">Billing</option>
-                      <option value="fee">Fee</option>
-                      <option value="penalty">Penalty</option>
-                      <option value="refund">Refund</option>
-                      <option value="deposit">Deposit</option>
-                    </select>
-                  </div>
-
-                  {/* Amount */}
-                  <div className="form-control">
-                    <label className="label">
-                      <span className="label-text font-medium text-slate-700">Amount *</span>
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500">₱</span>
-                      <input 
-                        type="number"
-                        name="amount"
-                        value={formData.amount}
-                        onChange={handleInputChange}
-                        step="0.01"
-                        min="0"
-                        className="input input-bordered w-full pl-8 bg-white"
-                        placeholder="0.00"
-                        required
-                      />
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setIsEditModalOpen(false);
+                setEditingTransaction(null);
+                resetForm();
+              }
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden"
+            >
+              {/* Modal Header */}
+              <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-8 py-6 text-white">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                      <Edit className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold">Edit Transaction</h3>
+                      <p className="text-blue-100 text-sm mt-1">Update transaction information</p>
                     </div>
                   </div>
-                </div>
-
-                {/* Transaction Date */}
-                <div className="form-control">
-                  <label className="label">
-                    <span className="label-text font-medium text-slate-700">Transaction Date *</span>
-                  </label>
-                  <input 
-                    type="date"
-                    name="transaction_date"
-                    value={formData.transaction_date}
-                    onChange={handleInputChange}
-                    className="input input-bordered w-full bg-white"
-                    required
-                  />
-                </div>
-
-                {/* Description */}
-                <div className="form-control">
-                  <label className="label">
-                    <span className="label-text font-medium text-slate-700">Description *</span>
-                  </label>
-                  <textarea 
-                    name="description"
-                    value={formData.description}
-                    onChange={handleInputChange}
-                    className="textarea textarea-bordered w-full h-24 bg-white resize-none"
-                    placeholder="Enter transaction description..."
-                    required
-                  />
-                </div>
-
-                {/* Form Actions */}
-                <div className="modal-action">
-                  <button 
-                    type="button"
-                    className="btn btn-ghost"
+                  <button
+                    className="p-2 hover:bg-white/10 rounded-lg transition-colors"
                     onClick={() => {
                       setIsEditModalOpen(false);
                       setEditingTransaction(null);
@@ -784,34 +743,174 @@ export default function Transactions() {
                     }}
                     disabled={formSubmitting}
                   >
-                    Cancel
-                  </button>
-                  <button 
-                    type="submit"
-                    className="btn bg-gradient-to-r from-red-400 to-red-500 text-white border-none"
-                    disabled={formSubmitting}
-                  >
-                    {formSubmitting ? (
-                      <>
-                        <span className="loading loading-spinner loading-sm"></span>
-                        Updating...
-                      </>
-                    ) : (
-                      <>
-                        <Edit className="w-4 h-4 mr-2" />
-                        Update Transaction
-                      </>
-                    )}
+                    <X className="w-5 h-5" />
                   </button>
                 </div>
-              </form>
-            </div>
-            <div className="modal-backdrop bg-black/50" onClick={() => {
-              setIsEditModalOpen(false);
-              setEditingTransaction(null);
-              resetForm();
-            }}></div>
-          </div>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-8 overflow-y-auto max-h-[calc(90vh-140px)]">
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="block text-sm font-semibold text-slate-700">
+                        Homeowner <span className="text-red-500">*</span>
+                      </label>
+                      <ReactSelect
+                        options={homeowners.map(homeowner => ({
+                          value: homeowner.id.toString(),
+                          label: homeowner.full_name +
+                            (homeowner.property_info_tbl ?
+                              ` - ${homeowner.property_info_tbl.property_detail_tbl?.property_name || 'N/A'} (Lot ${homeowner.property_info_tbl.lot_tbl?.lot_number || 'N/A'})`
+                              : ' - No Property')
+                        }))}
+                        value={formData.homeowner_id ? homeowners.find(h => h.id.toString() === formData.homeowner_id) ? {
+                          value: formData.homeowner_id,
+                          label: homeowners.find(h => h.id.toString() === formData.homeowner_id)?.full_name || ''
+                        } : null : null}
+                        onChange={handleHomeownerChange}
+                        placeholder="Select Homeowner"
+                        isClearable
+                        className="react-select-container"
+                        classNamePrefix="react-select"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="block text-sm font-semibold text-slate-700">
+                        Property <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={
+                          formData.property_id && homeowners.find(h => h.id.toString() === formData.homeowner_id)?.property_info_tbl
+                            ? homeowners.find(h => h.id.toString() === formData.homeowner_id).property_info_tbl.property_title
+                            : ''
+                        }
+                        placeholder="Auto-filled from homeowner"
+                        readOnly
+                        className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl cursor-not-allowed"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="block text-sm font-semibold text-slate-700">
+                        Transaction Type <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <Receipt className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5 pointer-events-none" />
+                        <select
+                          name="transaction_type"
+                          value={formData.transaction_type}
+                          onChange={handleInputChange}
+                          className="w-full pl-11 pr-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none cursor-pointer"
+                          required
+                        >
+                          <option value="">Select Type</option>
+                          <option value="payment">Payment</option>
+                          <option value="billing">Billing</option>
+                          <option value="fee">Fee</option>
+                          <option value="penalty">Penalty</option>
+                          <option value="refund">Refund</option>
+                          <option value="deposit">Deposit</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="block text-sm font-semibold text-slate-700">
+                        Amount <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-500 font-semibold">₱</span>
+                        <input
+                          type="number"
+                          name="amount"
+                          value={formData.amount}
+                          onChange={handleInputChange}
+                          step="0.01"
+                          min="0"
+                          placeholder="0.00"
+                          className="w-full pl-10 pr-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                          required
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Transaction Date <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5 pointer-events-none" />
+                      <input
+                        type="date"
+                        name="transaction_date"
+                        value={formData.transaction_date}
+                        onChange={handleInputChange}
+                        className="w-full pl-11 pr-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Description <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      name="description"
+                      value={formData.description}
+                      onChange={handleInputChange}
+                      placeholder="Enter transaction description..."
+                      rows="3"
+                      className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
+                      required
+                    />
+                  </div>
+
+                  {/* Modal Actions */}
+                  <div className="flex justify-end gap-3 pt-6 border-t border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEditModalOpen(false);
+                        setEditingTransaction(null);
+                        resetForm();
+                      }}
+                      className="px-6 py-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl font-semibold transition-colors"
+                      disabled={formSubmitting}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className={`px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl font-semibold transition-all duration-200 flex items-center gap-2 shadow-lg shadow-blue-500/30 ${
+                        formSubmitting ? 'opacity-80 cursor-not-allowed' : ''
+                      }`}
+                      disabled={formSubmitting}
+                    >
+                      {formSubmitting ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          Updating...
+                        </>
+                      ) : (
+                        <>
+                          <Edit className="w-5 h-5" />
+                          Update Transaction
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
 
         {/* Delete Confirmation Modal */}

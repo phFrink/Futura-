@@ -5,16 +5,15 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import ReactSelect from "react-select";
 import { Plus, Search, AlertTriangle, Building2, User, X, Edit, Trash2, AlertTriangle as AlertTriangleIcon, Loader2, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
-import { createClient } from '@supabase/supabase-js';
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { formattedDate, isNewItem, getRelativeTime } from "@/lib/utils";
 
 // Initialize Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+const supabase = createClientComponentClient();
 
 export default function Complaints() {
   const [complaints, setComplaints] = useState([]);
@@ -76,10 +75,21 @@ export default function Complaints() {
 
       if (propertiesError) throw propertiesError;
 
-      // Fetch homeowners for dropdown
+      // Fetch homeowners for dropdown with property information
       const { data: homeownersData, error: homeownersError } = await supabase
-        .from('homeowner_tbl')
-        .select('*')
+        .from('buyer_home_owner_tbl')
+        .select(`
+          id,
+          full_name,
+          unit_number,
+          property_id,
+          property_info_tbl!buyer_home_owner_tbl_property_id_fkey(
+            property_id,
+            property_title,
+            lot_tbl(lot_number),
+            property_detail_tbl(property_name)
+          )
+        `)
         .order('full_name');
 
       if (homeownersError) throw homeownersError;
@@ -150,6 +160,23 @@ export default function Complaints() {
     setFormData(prev => ({
       ...prev,
       [name]: value
+    }));
+  };
+
+  const handleHomeownerChange = (selectedOption) => {
+    if (!selectedOption) {
+      setFormData(prev => ({ ...prev, homeowner_id: '', property_id: '' }));
+      return;
+    }
+
+    const selectedHomeowner = homeowners.find(
+      h => h.id.toString() === selectedOption.value
+    );
+
+    setFormData(prev => ({
+      ...prev,
+      homeowner_id: selectedOption.value,
+      property_id: selectedHomeowner?.property_id?.toString() || ''
     }));
   };
 
@@ -475,368 +502,483 @@ export default function Complaints() {
         </motion.div>
       </div>
 
-      {/* DaisyUI Modal */}
-      <div className={`modal ${isModalOpen ? 'modal-open' : ''}`}>
-        <div className="modal-box max-w-2xl bg-white border border-gray-200 shadow-2xl">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-2xl font-bold text-gray-900">File New Complaint</h3>
-            <button 
-              onClick={() => setIsModalOpen(false)}
-              className="btn btn-sm btn-circle btn-ghost"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-          
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-medium">Subject*</span>
-                </label>
-                <input
-                  type="text"
-                  name="subject"
-                  value={formData.subject}
-                  onChange={handleInputChange}
-                  className="input input-bordered text-black bg-white w-full focus:input-primary"
-                  placeholder="Enter complaint subject"
-                  required
-                />
-              </div>
-              
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-medium">Complaint Type*</span>
-                </label>
-                <select
-                  name="complaint_type"
-                  value={formData.complaint_type}
-                  onChange={handleInputChange}
-                  className="text-black bg-white select select-bordered w-full focus:select-primary"
-                  required
+      {/* Create Complaint Modal */}
+      {isModalOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={(e) => e.target === e.currentTarget && setIsModalOpen(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 20 }}
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden"
+          >
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-red-500 to-red-600 px-8 py-6 text-white">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                    <AlertTriangle className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold">File New Complaint</h3>
+                    <p className="text-red-100 text-sm mt-1">Submit a new homeowner complaint</p>
+                  </div>
+                </div>
+                <button
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                  onClick={() => setIsModalOpen(false)}
+                  disabled={formSubmitting}
                 >
-                  <option value="">Select type</option>
-                  <option value="maintenance">Maintenance</option>
-                  <option value="noise">Noise</option>
-                  <option value="parking">Parking</option>
-                  <option value="security">Security</option>
-                  <option value="billing">Billing</option>
-                  <option value="other">Other</option>
-                </select>
+                  <X className="w-5 h-5" />
+                </button>
               </div>
             </div>
 
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text font-medium">Description*</span>
-              </label>
-              <textarea
-                name="description"
-                value={formData.description}
-                onChange={handleInputChange}
-                className="text-black bg-white textarea textarea-bordered h-24 focus:textarea-primary resize-none"
-                placeholder="Describe the complaint in detail..."
-                required
-              />
+            {/* Modal Body */}
+            <div className="p-8 overflow-y-auto max-h-[calc(90vh-140px)]">
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Subject <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="subject"
+                      value={formData.subject}
+                      onChange={handleInputChange}
+                      placeholder="Enter complaint subject"
+                      className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Complaint Type <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      name="complaint_type"
+                      value={formData.complaint_type}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all appearance-none cursor-pointer"
+                      required
+                    >
+                      <option value="">Select type</option>
+                      <option value="maintenance">Maintenance</option>
+                      <option value="noise">Noise</option>
+                      <option value="parking">Parking</option>
+                      <option value="security">Security</option>
+                      <option value="billing">Billing</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-slate-700">
+                    Description <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    name="description"
+                    value={formData.description}
+                    onChange={handleInputChange}
+                    placeholder="Describe the complaint in detail..."
+                    rows="4"
+                    className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all resize-none"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="homeowner" className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
+                      Homeowner <span className="text-red-500">*</span>
+                    </Label>
+                    <ReactSelect
+                      className="mt-2"
+                      options={homeowners.map(homeowner => ({
+                        value: homeowner.id.toString(),
+                        label: `${homeowner.full_name} - Unit ${homeowner.unit_number}${
+                          homeowner.property_info_tbl
+                            ? ` (${homeowner.property_info_tbl.property_title})`
+                            : ''
+                        }`
+                      }))}
+                      value={
+                        formData.homeowner_id
+                          ? {
+                              value: formData.homeowner_id,
+                              label: homeowners.find(h => h.id.toString() === formData.homeowner_id)
+                                ? `${homeowners.find(h => h.id.toString() === formData.homeowner_id).full_name} - Unit ${
+                                    homeowners.find(h => h.id.toString() === formData.homeowner_id).unit_number
+                                  }${
+                                    homeowners.find(h => h.id.toString() === formData.homeowner_id).property_info_tbl
+                                      ? ` (${homeowners.find(h => h.id.toString() === formData.homeowner_id).property_info_tbl.property_title})`
+                                      : ''
+                                  }`
+                                : 'Select homeowner'
+                            }
+                          : null
+                      }
+                      onChange={handleHomeownerChange}
+                      placeholder="Search and select a homeowner..."
+                      isClearable
+                      isSearchable
+                      styles={{
+                        control: (base) => ({
+                          ...base,
+                          minHeight: '44px',
+                          borderRadius: '0.75rem',
+                          borderColor: '#cbd5e1',
+                          backgroundColor: '#f8fafc'
+                        })
+                      }}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="property" className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
+                      Property <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      type="text"
+                      className="mt-2 h-11 bg-slate-50 border-slate-300 cursor-not-allowed rounded-xl"
+                      value={
+                        formData.property_id && homeowners.find(h => h.id.toString() === formData.homeowner_id)?.property_info_tbl
+                          ? homeowners.find(h => h.id.toString() === formData.homeowner_id).property_info_tbl.property_title
+                          : ''
+                      }
+                      placeholder="Auto-filled from homeowner"
+                      readOnly
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Severity
+                    </label>
+                    <select
+                      name="severity"
+                      value={formData.severity}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all appearance-none cursor-pointer"
+                    >
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                      <option value="critical">Critical</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Status
+                    </label>
+                    <select
+                      name="status"
+                      value={formData.status}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all appearance-none cursor-pointer"
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="investigating">Investigating</option>
+                      <option value="in_progress">In Progress</option>
+                      <option value="resolved">Resolved</option>
+                      <option value="closed">Closed</option>
+                      <option value="escalated">Escalated</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Modal Actions */}
+                <div className="flex justify-end gap-3 pt-6 border-t border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="px-6 py-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl font-semibold transition-colors"
+                    disabled={formSubmitting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className={`px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl font-semibold transition-all duration-200 flex items-center gap-2 shadow-lg shadow-red-500/30 ${
+                      formSubmitting ? 'opacity-80 cursor-not-allowed' : ''
+                    }`}
+                    disabled={formSubmitting}
+                  >
+                    {formSubmitting ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      <>
+                        <AlertTriangle className="w-5 h-5" />
+                        File Complaint
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-medium">Homeowner*</span>
-                </label>
-                <select
-                  name="homeowner_id"
-                  value={formData.homeowner_id}
-                  onChange={handleInputChange}
-                  className="text-black bg-white select select-bordered w-full focus:select-primary"
-                  required
-                >
-                  <option value="">Select homeowner</option>
-                  {homeowners.map(homeowner => (
-                    <option key={homeowner.id} value={homeowner.id}>
-                      {homeowner.full_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-medium">Property*</span>
-                </label>
-                <select
-                  name="property_id"
-                  value={formData.property_id}
-                  onChange={handleInputChange}
-                  className="text-black bg-white select select-bordered w-full focus:select-primary"
-                  required
-                >
-                  <option value="">Select property</option>
-                  {properties.map(property => (
-                    <option key={property.id} value={property.id}>
-                      {property.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-medium">Severity</span>
-                </label>
-                <select
-                  name="severity"
-                  value={formData.severity}
-                  onChange={handleInputChange}
-                  className="text-black bg-white select select-bordered w-full focus:select-primary"
-                >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                  <option value="critical">Critical</option>
-                </select>
-              </div>
-
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-medium">Status</span>
-                </label>
-                <select
-                  name="status"
-                  value={formData.status}
-                  onChange={handleInputChange}
-                  className="text-black bg-white select select-bordered w-full focus:select-primary"
-                >
-                  <option value="pending">Pending</option>
-                  <option value="investigating">Investigating</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="resolved">Resolved</option>
-                  <option value="closed">Closed</option>
-                  <option value="escalated">Escalated</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="modal-action pt-6">
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="btn btn-ghost"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={formSubmitting}
-                className="btn btn-primary bg-gradient-to-r from-red-400 to-red-500 text-white border-none"
-              >
-                {formSubmitting ? (
-                  <>
-                    <span className="loading loading-spinner loading-sm"></span>
-                    Submitting...
-                  </>
-                ) : (
-                  'File Complaint'
-                )}
-              </button>
-            </div>
-          </form>
-        </div>
-        <div className="modal-backdrop" onClick={() => setIsModalOpen(false)}></div>
-      </div>
+          </motion.div>
+        </motion.div>
+      )}
 
       {/* Edit Complaint Modal */}
-      <div className={`modal ${isEditModalOpen ? 'modal-open' : ''}`}>
-        <div className="modal-box max-w-2xl bg-white border border-gray-200 shadow-2xl">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-2xl font-bold text-gray-900">Edit Complaint</h3>
-            <button 
-              onClick={() => {
-                setIsEditModalOpen(false);
-                setEditingComplaint(null);
-                resetForm();
-              }}
-              className="btn btn-sm btn-circle btn-ghost"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-          
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-medium">Subject*</span>
-                </label>
-                <input
-                  type="text"
-                  name="subject"
-                  value={formData.subject}
-                  onChange={handleInputChange}
-                  className="input input-bordered text-black bg-white w-full focus:input-primary"
-                  placeholder="Enter complaint subject"
-                  required
-                />
-              </div>
-              
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-medium">Complaint Type*</span>
-                </label>
-                <select
-                  name="complaint_type"
-                  value={formData.complaint_type}
-                  onChange={handleInputChange}
-                  className="text-black bg-white select select-bordered w-full focus:select-primary"
-                  required
+      {isEditModalOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setIsEditModalOpen(false);
+              setEditingComplaint(null);
+              resetForm();
+            }
+          }}
+        >
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 20 }}
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden"
+          >
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-8 py-6 text-white">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                    <Edit className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold">Edit Complaint</h3>
+                    <p className="text-blue-100 text-sm mt-1">Update complaint information</p>
+                  </div>
+                </div>
+                <button
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                  onClick={() => {
+                    setIsEditModalOpen(false);
+                    setEditingComplaint(null);
+                    resetForm();
+                  }}
+                  disabled={formSubmitting}
                 >
-                  <option value="">Select type</option>
-                  <option value="maintenance">Maintenance</option>
-                  <option value="noise">Noise</option>
-                  <option value="parking">Parking</option>
-                  <option value="security">Security</option>
-                  <option value="billing">Billing</option>
-                  <option value="other">Other</option>
-                </select>
+                  <X className="w-5 h-5" />
+                </button>
               </div>
             </div>
 
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text font-medium">Description*</span>
-              </label>
-              <textarea
-                name="description"
-                value={formData.description}
-                onChange={handleInputChange}
-                className="text-black bg-white textarea textarea-bordered h-24 focus:textarea-primary resize-none"
-                placeholder="Describe the complaint in detail..."
-                required
-              />
+            {/* Modal Body */}
+            <div className="p-8 overflow-y-auto max-h-[calc(90vh-140px)]">
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Subject <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="subject"
+                      value={formData.subject}
+                      onChange={handleInputChange}
+                      placeholder="Enter complaint subject"
+                      className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Complaint Type <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      name="complaint_type"
+                      value={formData.complaint_type}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none cursor-pointer"
+                      required
+                    >
+                      <option value="">Select type</option>
+                      <option value="maintenance">Maintenance</option>
+                      <option value="noise">Noise</option>
+                      <option value="parking">Parking</option>
+                      <option value="security">Security</option>
+                      <option value="billing">Billing</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-slate-700">
+                    Description <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    name="description"
+                    value={formData.description}
+                    onChange={handleInputChange}
+                    placeholder="Describe the complaint in detail..."
+                    rows="4"
+                    className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-homeowner" className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
+                      Homeowner <span className="text-red-500">*</span>
+                    </Label>
+                    <ReactSelect
+                      className="mt-2"
+                      options={homeowners.map(homeowner => ({
+                        value: homeowner.id.toString(),
+                        label: `${homeowner.full_name} - Unit ${homeowner.unit_number}${
+                          homeowner.property_info_tbl
+                            ? ` (${homeowner.property_info_tbl.property_title})`
+                            : ''
+                        }`
+                      }))}
+                      value={
+                        formData.homeowner_id
+                          ? {
+                              value: formData.homeowner_id,
+                              label: homeowners.find(h => h.id.toString() === formData.homeowner_id)
+                                ? `${homeowners.find(h => h.id.toString() === formData.homeowner_id).full_name} - Unit ${
+                                    homeowners.find(h => h.id.toString() === formData.homeowner_id).unit_number
+                                  }${
+                                    homeowners.find(h => h.id.toString() === formData.homeowner_id).property_info_tbl
+                                      ? ` (${homeowners.find(h => h.id.toString() === formData.homeowner_id).property_info_tbl.property_title})`
+                                      : ''
+                                  }`
+                                : 'Select homeowner'
+                            }
+                          : null
+                      }
+                      onChange={handleHomeownerChange}
+                      placeholder="Search and select a homeowner..."
+                      isClearable
+                      isSearchable
+                      styles={{
+                        control: (base) => ({
+                          ...base,
+                          minHeight: '44px',
+                          borderRadius: '0.75rem',
+                          borderColor: '#cbd5e1',
+                          backgroundColor: '#f8fafc'
+                        })
+                      }}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-property" className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
+                      Property <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      type="text"
+                      className="mt-2 h-11 bg-slate-50 border-slate-300 cursor-not-allowed rounded-xl"
+                      value={
+                        formData.property_id && homeowners.find(h => h.id.toString() === formData.homeowner_id)?.property_info_tbl
+                          ? homeowners.find(h => h.id.toString() === formData.homeowner_id).property_info_tbl.property_title
+                          : ''
+                      }
+                      placeholder="Select homeowner first"
+                      readOnly
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Severity
+                    </label>
+                    <select
+                      name="severity"
+                      value={formData.severity}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none cursor-pointer"
+                    >
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                      <option value="critical">Critical</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Status
+                    </label>
+                    <select
+                      name="status"
+                      value={formData.status}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none cursor-pointer"
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="investigating">Investigating</option>
+                      <option value="in_progress">In Progress</option>
+                      <option value="resolved">Resolved</option>
+                      <option value="closed">Closed</option>
+                      <option value="escalated">Escalated</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Modal Actions */}
+                <div className="flex justify-end gap-3 pt-6 border-t border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditModalOpen(false);
+                      setEditingComplaint(null);
+                      resetForm();
+                    }}
+                    className="px-6 py-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl font-semibold transition-colors"
+                    disabled={formSubmitting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className={`px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl font-semibold transition-all duration-200 flex items-center gap-2 shadow-lg shadow-blue-500/30 ${
+                      formSubmitting ? 'opacity-80 cursor-not-allowed' : ''
+                    }`}
+                    disabled={formSubmitting}
+                  >
+                    {formSubmitting ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Updating...
+                      </>
+                    ) : (
+                      <>
+                        <Edit className="w-5 h-5" />
+                        Update Complaint
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-medium">Homeowner*</span>
-                </label>
-                <select
-                  name="homeowner_id"
-                  value={formData.homeowner_id}
-                  onChange={handleInputChange}
-                  className="text-black bg-white select select-bordered w-full focus:select-primary"
-                  required
-                >
-                  <option value="">Select homeowner</option>
-                  {homeowners.map(homeowner => (
-                    <option key={homeowner.id} value={homeowner.id}>
-                      {homeowner.full_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-medium">Property*</span>
-                </label>
-                <select
-                  name="property_id"
-                  value={formData.property_id}
-                  onChange={handleInputChange}
-                  className="text-black bg-white select select-bordered w-full focus:select-primary"
-                  required
-                >
-                  <option value="">Select property</option>
-                  {properties.map(property => (
-                    <option key={property.id} value={property.id}>
-                      {property.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-medium">Severity</span>
-                </label>
-                <select
-                  name="severity"
-                  value={formData.severity}
-                  onChange={handleInputChange}
-                  className="text-black bg-white select select-bordered w-full focus:select-primary"
-                >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                  <option value="critical">Critical</option>
-                </select>
-              </div>
-
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-medium">Status</span>
-                </label>
-                <select
-                  name="status"
-                  value={formData.status}
-                  onChange={handleInputChange}
-                  className="text-black bg-white select select-bordered w-full focus:select-primary"
-                >
-                  <option value="pending">Pending</option>
-                  <option value="investigating">Investigating</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="resolved">Resolved</option>
-                  <option value="closed">Closed</option>
-                  <option value="escalated">Escalated</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="modal-action pt-6">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsEditModalOpen(false);
-                  setEditingComplaint(null);
-                  resetForm();
-                }}
-                className="btn btn-ghost"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={formSubmitting}
-                className="btn btn-primary bg-gradient-to-r from-red-400 to-red-500 text-white border-none"
-              >
-                {formSubmitting ? (
-                  <>
-                    <span className="loading loading-spinner loading-sm"></span>
-                    Updating...
-                  </>
-                ) : (
-                  <>
-                    <Edit className="w-4 h-4 mr-2" />
-                    Update Complaint
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
-        </div>
-        <div className="modal-backdrop" onClick={() => {
-          setIsEditModalOpen(false);
-          setEditingComplaint(null);
-          resetForm();
-        }}></div>
-      </div>
+          </motion.div>
+        </motion.div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {isDeleteModalOpen && (

@@ -24,6 +24,7 @@ import {
 import { motion } from "framer-motion";
 import { createClient } from '@supabase/supabase-js';
 import { format } from "date-fns";
+import { toast } from "react-toastify";
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -109,12 +110,19 @@ export default function Reports() {
   const generateReport = async () => {
     setLoading(true);
     try {
-      let query = supabase.from(`${activeReport === 'service_requests' ? 'request_tbl' :
+      // Determine table name based on active report
+      const tableName = activeReport === 'service_requests' ? 'request_tbl' :
         activeReport === 'homeowners' ? 'homeowner_tbl' :
         activeReport === 'properties' ? 'property_tbl' :
         activeReport === 'complaints' ? 'complaint_tbl' :
         activeReport === 'billings' ? 'billing_tbl' :
-        'announcement_tbl'}`).select('*');
+        'announcement_tbl';
+
+      console.log('Generating report for table:', tableName);
+      console.log('Date filters:', { startDate, endDate });
+
+      // Simple query without ordering first
+      let query = supabase.from(tableName).select('*');
 
       // Apply date filters if provided
       if (startDate && endDate) {
@@ -125,22 +133,54 @@ export default function Reports() {
           activeReport === 'announcements' ? 'publish_date' :
           'created_at';
 
-        if (dateField !== 'created_at' || activeReport === 'service_requests' || activeReport === 'complaints') {
-          query = query.gte(dateField, startDate).lte(dateField, endDate);
-        }
+        console.log('Applying date filter on field:', dateField);
+        query = query.gte(dateField, startDate).lte(dateField, endDate);
       }
 
-      const { data, error } = await query.order('created_at', { ascending: false });
+      const { data, error } = await query;
 
       if (error) {
-        console.error('Error generating report:', error);
+        console.error('Supabase error:', error);
+        console.error('Error code:', error.code);
+        console.error('Error message:', error.message);
+        console.error('Error details:', error.details);
+        console.error('Error hint:', error.hint);
+
+        // Set empty data to show "No data" message
+        setReportData([]);
+        setFilteredData([]);
         return;
       }
 
-      setReportData(data || []);
-      setFilteredData(data || []);
+      console.log('Report data retrieved:', data?.length, 'records');
+
+      // Sort data client-side to avoid ordering errors
+      let sortedData = data || [];
+      if (sortedData.length > 0) {
+        sortedData = [...sortedData].sort((a, b) => {
+          // Try to sort by created_at, id, or any available field
+          if (a.created_at && b.created_at) {
+            return new Date(b.created_at) - new Date(a.created_at);
+          }
+          if (a.id && b.id) {
+            return b.id - a.id;
+          }
+          return 0;
+        });
+      }
+
+      setReportData(sortedData);
+      setFilteredData(sortedData);
     } catch (error) {
-      console.error('Error generating report:', error);
+      console.error('Exception in generateReport:', error);
+      console.error('Error type:', typeof error);
+      console.error('Error name:', error?.name);
+      console.error('Error message:', error?.message);
+      console.error('Error stack:', error?.stack);
+
+      // Set empty data on error
+      setReportData([]);
+      setFilteredData([]);
     } finally {
       setLoading(false);
     }
@@ -539,94 +579,115 @@ export default function Reports() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
                       {/* Date Filters */}
                       <div className="space-y-2">
-                        <label className="block text-xs font-medium text-slate-700">Start Date</label>
-                        <Input
+                        <label className="block text-sm font-semibold text-slate-700">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Calendar className="w-4 h-4 text-red-500" />
+                            Start Date
+                          </div>
+                        </label>
+                        <input
                           type="date"
                           value={startDate}
                           onChange={(e) => setStartDate(e.target.value)}
-                          className="w-full text-sm"
+                          className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="block text-xs font-medium text-slate-700">End Date</label>
-                        <Input
+                        <label className="block text-sm font-semibold text-slate-700">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Calendar className="w-4 h-4 text-red-500" />
+                            End Date
+                          </div>
+                        </label>
+                        <input
                           type="date"
                           value={endDate}
                           onChange={(e) => setEndDate(e.target.value)}
-                          className="w-full text-sm"
+                          className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="block text-xs font-medium text-slate-700">Search</label>
+                        <label className="block text-sm font-semibold text-slate-700">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Search className="w-4 h-4 text-red-500" />
+                            Search
+                          </div>
+                        </label>
                         <div className="relative">
-                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-                          <Input
+                          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
+                          <input
                             type="text"
                             placeholder="Search records..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-10 text-sm"
+                            className="w-full pl-12 pr-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
                           />
                         </div>
                       </div>
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-slate-200">
-                      <Button
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6 border-t border-slate-200">
+                      <button
                         onClick={generateReport}
                         disabled={loading || !activeReport}
-                        className="bg-red-600 hover:bg-red-700 h-10"
+                        className={`px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-red-500/30 ${
+                          loading || !activeReport ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
                       >
                         {loading ? (
                           <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            <Loader2 className="w-5 h-5 animate-spin" />
                             Loading...
                           </>
                         ) : (
                           <>
-                            <FileBarChart className="w-4 h-4 mr-2" />
-                            Generate
+                            <FileBarChart className="w-5 h-5" />
+                            Generate Report
                           </>
                         )}
-                      </Button>
-                      <Button
+                      </button>
+                      <button
                         onClick={downloadPDF}
                         disabled={filteredData.length === 0 || pdfLoading}
-                        variant="outline"
-                        className="border-red-200 text-red-600 hover:bg-red-50 h-10"
+                        className={`px-6 py-3 bg-white border-2 border-red-200 text-red-600 hover:bg-red-50 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
+                          filteredData.length === 0 || pdfLoading ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
                       >
                         {pdfLoading ? (
                           <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            <Loader2 className="w-5 h-5 animate-spin" />
                             Generating...
                           </>
                         ) : (
                           <>
-                            <Download className="w-4 h-4 mr-2" />
+                            <Download className="w-5 h-5" />
                             Download PDF
                           </>
                         )}
-                      </Button>
-                      <Button
+                      </button>
+                      <button
                         onClick={printReport}
                         disabled={filteredData.length === 0}
-                        variant="outline"
-                        className="border-red-200 text-red-600 hover:bg-red-50 h-10"
+                        className={`px-6 py-3 bg-white border-2 border-red-200 text-red-600 hover:bg-red-50 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
+                          filteredData.length === 0 ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
                       >
-                        <Printer className="w-4 h-4 mr-2" />
+                        <Printer className="w-5 h-5" />
                         Print Report
-                      </Button>
+                      </button>
                     </div>
 
                     {filteredData.length > 0 && (
-                      <div className="flex justify-center pt-4">
-                        <Badge className="bg-red-100 text-red-800 border-red-200">
-                          {filteredData.length} records found
-                        </Badge>
+                      <div className="flex justify-center pt-6">
+                        <div className="bg-gradient-to-r from-red-50 to-rose-50 px-5 py-2.5 rounded-xl border border-red-200 shadow-sm">
+                          <p className="text-sm font-bold text-red-800">
+                            {filteredData.length} {filteredData.length === 1 ? 'record' : 'records'} found
+                          </p>
+                        </div>
                       </div>
                     )}
                   </CardContent>
