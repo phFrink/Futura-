@@ -4,7 +4,9 @@ import { ClientAuthProvider } from '@/contexts/ClientAuthContext'
 
 const Page = () => {
   return (
+    <ClientAuthProvider>
       <ClientLandingPage/>
+    </ClientAuthProvider>
   )
 }
 
