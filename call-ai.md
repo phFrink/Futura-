@@ -1,1 +1,0 @@
-Ang Reservations po na module palitan ng Appointment sa location ng http://localhost:3000/reservations
