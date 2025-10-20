@@ -1,13 +1,9 @@
+'use client';
+
 import React from 'react'
-import ClientLandingPage from './client-home/page'
-import { ClientAuthProvider } from '@/contexts/ClientAuthContext'
+import { redirect } from 'next/navigation'
 
-const Page = () => {
-  return (
-    <ClientAuthProvider>
-      <ClientLandingPage/>
-    </ClientAuthProvider>
-  )
+export default function Page() {
+  // Redirect to client-home as the main homepage
+  redirect('/client-home')
 }
-
-export default Page
