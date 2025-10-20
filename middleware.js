@@ -47,10 +47,16 @@ export async function middleware(req) {
 
   // Redirect to login if not authenticated or session error
   if (!session || error) {
+    // Redirect to homepage for dashboard, login for other routes
+    if (pathname === '/dashboard') {
+      console.log('🔒 No session found on dashboard, redirecting to homepage')
+      return NextResponse.redirect(new URL('/', req.url))
+    }
+
     console.log('🔒 No session found, redirecting to login')
-    const redirectUrl = new URL('/', req.url)
+    const redirectUrl = new URL('/login', req.url)
     redirectUrl.searchParams.set('redirectTo', pathname)
-    return NextResponse.redirect('/')
+    return NextResponse.redirect(redirectUrl)
   }
 
   // Get user role from user metadata
@@ -66,8 +72,8 @@ export async function middleware(req) {
       if (!userRole || !normalizedRoles.includes(userRole)) {
         console.log('❌ Access denied:', { route, userRole, allowedRoles })
 
-        // Redirect to homepage with error message
-        const redirectUrl = new URL('/', req.url)
+        // Redirect to dashboard with error message
+        const redirectUrl = new URL('/dashboard', req.url)
         redirectUrl.searchParams.set('error', 'unauthorized')
         return NextResponse.redirect(redirectUrl)
       }
