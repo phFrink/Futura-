@@ -28,7 +28,16 @@ const roleBasedRoutes = {
 }
 
 // Public routes that don't require authentication
-const publicRoutes = ['/login', '/signup', '/forgot-password', '/reset-password']
+const publicRoutes = [
+  '/',
+  '/login',
+  '/signup',
+  '/forgot-password',
+  '/reset-password',
+  '/client-home',
+  '/client-login',
+  '/client-signup'
+]
 
 export async function middleware(req) {
   const res = NextResponse.next()
