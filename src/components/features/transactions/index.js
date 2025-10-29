@@ -1,145 +1,53 @@
-'use client'
+"use client";
 import React, { useState, useEffect } from "react";
-import { createClient } from '@supabase/supabase-js'
-import { isNewItem, getRelativeTime } from '@/lib/utils'
-import ReactSelect from 'react-select';
-import { toast } from 'react-toastify';
+import { toast } from "react-toastify";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TrendingUp, TrendingDown, DollarSign, Receipt, CreditCard, Building2, Plus, Calendar, User, X, Edit, Trash2, AlertTriangle, Loader2, Sparkles } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  TrendingUp,
+  DollarSign,
+  Receipt,
+  CreditCard,
+  Calendar,
+  Filter,
+  RefreshCw,
+  Loader2,
+  FileText,
+  CheckCircle,
+  Clock,
+  XCircle,
+  Search,
+  Download,
+  Printer,
+} from "lucide-react";
 import { motion } from "framer-motion";
-import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
-
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-)
+import { format } from "date-fns";
+import {
+  generateTransactionReceipt,
+  generateDateRangeReceipt,
+} from "@/lib/receipt-generator";
 
 export default function Transactions() {
   const [transactions, setTransactions] = useState([]);
-  const [properties, setProperties] = useState([]);
-  const [homeowners, setHomeowners] = useState([]);
   const [filteredTransactions, setFilteredTransactions] = useState([]);
-  const [selectedPeriod, setSelectedPeriod] = useState("current_month");
   const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [formSubmitting, setFormSubmitting] = useState(false);
-  const [editingTransaction, setEditingTransaction] = useState(null);
-  const [deletingTransaction, setDeletingTransaction] = useState(null);
 
-  // Form state
-  const [formData, setFormData] = useState({
-    homeowner_id: '',
-    property_id: '',
-    transaction_type: '',
-    amount: '',
-    description: '',
-    transaction_date: new Date().toISOString().split('T')[0]
-  });
-
-  // Handle opening edit modal
-  const handleEditTransaction = (transaction) => {
-    setEditingTransaction(transaction);
-    setFormData({
-      homeowner_id: transaction.homeowner_id?.toString() || '',
-      property_id: transaction.property_id?.toString() || '',
-      transaction_type: transaction.transaction_type,
-      amount: transaction.amount?.toString() || '',
-      description: transaction.description,
-      transaction_date: transaction.transaction_date
-    });
-    setIsEditModalOpen(true);
-  };
-
-  // Handle opening delete modal
-  const handleDeleteTransaction = (transaction) => {
-    setDeletingTransaction(transaction);
-    setIsDeleteModalOpen(true);
-  };
-
-  // Handle confirming delete
-  const handleConfirmDelete = async () => {
-    if (!deletingTransaction) return;
-
-    setFormSubmitting(true);
-    try {
-      await deleteTransaction(deletingTransaction.id);
-      toast.success('Transaction deleted successfully!');
-      setIsDeleteModalOpen(false);
-      setDeletingTransaction(null);
-    } catch (error) {
-      console.error('Error deleting transaction:', error);
-      toast.info('Error deleting transaction: ' + error.message);
-    } finally {
-      setFormSubmitting(false);
-    }
-  };
-
-  // Update transaction function
-  const updateTransaction = async (transactionId, updateData) => {
-    try {
-      const { data, error } = await supabase
-        .from('transaction_tbl')
-        .update(updateData)
-        .eq('id', transactionId)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Update local state
-      setTransactions(prev => 
-        prev.map(transaction => 
-          transaction.id === transactionId 
-            ? { ...transaction, ...data }
-            : transaction
-        )
-      );
-
-      return data;
-    } catch (error) {
-      console.error('Error updating transaction:', error);
-      throw error;
-    }
-  };
-
-  // Delete transaction function
-  const deleteTransaction = async (transactionId) => {
-    try {
-      const { error } = await supabase
-        .from('transaction_tbl')
-        .delete()
-        .eq('id', transactionId);
-
-      if (error) throw error;
-
-      // Remove from local state
-      setTransactions(prev => prev.filter(transaction => transaction.id !== transactionId));
-      
-      return true;
-    } catch (error) {
-      console.error('Error deleting transaction:', error);
-      throw error;
-    }
-  };
-
-  // Reset form data
-  const resetForm = () => {
-    setFormData({
-      homeowner_id: '',
-      property_id: '',
-      transaction_type: '',
-      amount: '',
-      description: '',
-      transaction_date: new Date().toISOString().split('T')[0]
-    });
-  };
+  // Filter states
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState("all");
+  const [paymentMethod, setPaymentMethod] = useState("all");
+  const [contractId, setContractId] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     loadData();
@@ -147,52 +55,40 @@ export default function Transactions() {
 
   useEffect(() => {
     filterTransactions();
-  }, [transactions, selectedPeriod]);
+  }, [
+    transactions,
+    startDate,
+    endDate,
+    paymentStatus,
+    paymentMethod,
+    contractId,
+    searchTerm,
+  ]);
 
   const loadData = async () => {
     try {
       setLoading(true);
 
-      // Fetch transactions from Supabase
-      const { data: transactionsData, error: transactionsError } = await supabase
-        .from('transaction_tbl')
-        .select('*')
-        .order('transaction_date', { ascending: false });
+      // Fetch contract payment transactions from API
+      const response = await fetch("/api/contracts/payment/transactions");
 
-      if (transactionsError) throw transactionsError;
+      if (!response.ok) {
+        throw new Error("Failed to fetch transactions");
+      }
 
-      // Fetch properties from Supabase
-      const { data: propertiesData, error: propertiesError } = await supabase
-        .from('properties')
-        .select('*')
-        .order('name');
+      const result = await response.json();
 
-      if (propertiesError) throw propertiesError;
+      if (!result.success) {
+        console.error("Error loading transactions:", result.error);
+        toast.error(result.error || "Failed to load transactions");
+        throw new Error(result.error);
+      }
 
-      // Fetch homeowners for dropdown with property information
-      const { data: homeownersData, error: homeownersError } = await supabase
-        .from('buyer_home_owner_tbl')
-        .select(`
-          id,
-          full_name,
-          unit_number,
-          property_id,
-          property_info_tbl!buyer_home_owner_tbl_property_id_fkey(
-            property_id,
-            property_title,
-            lot_tbl(lot_number),
-            property_detail_tbl(property_name)
-          )
-        `)
-        .order('full_name');
-
-      if (homeownersError) throw homeownersError;
-
-      setTransactions(transactionsData || []);
-      setProperties(propertiesData || []);
-      setHomeowners(homeownersData || []);
+      setTransactions(result.data || []);
+      console.log("✅ Loaded", result.data.length, "transactions");
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error("Error loading data:", error);
+      toast.error("Failed to load transactions");
     } finally {
       setLoading(false);
     }
@@ -200,202 +96,330 @@ export default function Transactions() {
 
   const filterTransactions = () => {
     let filtered = transactions;
-    const now = new Date();
-    let startDate, endDate;
 
-    switch (selectedPeriod) {
-      case 'current_month': startDate = startOfMonth(now); endDate = endOfMonth(now); break;
-      case 'last_month': const lastMonth = subMonths(now, 1); startDate = startOfMonth(lastMonth); endDate = endOfMonth(lastMonth); break;
-      case 'last_3_months': startDate = subMonths(now, 3); endDate = now; break;
-      case 'all_time': startDate = null; endDate = null; break;
-      default: startDate = null; endDate = null;
-    }
-
-    if (startDate && endDate) {
-      filtered = filtered.filter(t => {
+    // Filter by date range
+    if (startDate) {
+      filtered = filtered.filter((t) => {
         const transactionDate = new Date(t.transaction_date);
-        return transactionDate >= startDate && transactionDate <= endDate;
+        return transactionDate >= new Date(startDate);
       });
     }
+
+    if (endDate) {
+      filtered = filtered.filter((t) => {
+        const transactionDate = new Date(t.transaction_date);
+        return transactionDate <= new Date(endDate);
+      });
+    }
+
+    // Filter by payment status
+    if (paymentStatus !== "all") {
+      filtered = filtered.filter((t) => t.payment_status === paymentStatus);
+    }
+
+    // Filter by payment method
+    if (paymentMethod !== "all") {
+      filtered = filtered.filter((t) => t.payment_method === paymentMethod);
+    }
+
+    // Filter by contract ID
+    if (contractId !== "all") {
+      filtered = filtered.filter(
+        (t) => t.contract_id?.toString() === contractId
+      );
+    }
+
+    // Filter by search term (transaction_id, client_name, contract_id)
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+
+      // Debug: Log first transaction structure
+      if (filtered.length > 0) {
+        console.log("Sample transaction:", filtered[0]);
+        console.log("Available fields:", Object.keys(filtered[0]));
+      }
+
+      filtered = filtered.filter((t) => {
+        // Check transaction_id, client_name, and contract_id fields
+        const transactionId = (
+          t.transaction_id?.toString() || ""
+        ).toLowerCase();
+
+        const clientName = (
+          t.property_contracts?.client_name || ""
+        ).toLowerCase();
+        const contractIdStr = (t.contract_id?.toString() || "").toLowerCase();
+
+        const matches =
+          transactionId.includes(searchLower) ||
+          clientName.includes(searchLower) ||
+          contractIdStr.includes(searchLower);
+
+        // Debug: Log what we're comparing (only for long searches like UUIDs)
+        if (searchLower.length > 10 && transactionId) {
+          console.log("Searching for:", searchLower);
+          console.log("Checking transaction_id:", transactionId);
+          console.log("Checking client_name:", clientName);
+          console.log("Checking contract_id:", contractIdStr);
+          console.log("Match found:", matches);
+        }
+
+        return matches;
+      });
+    }
+
     setFilteredTransactions(filtered);
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+  const handleResetFilters = () => {
+    setStartDate("");
+    setEndDate("");
+    setPaymentStatus("all");
+    setPaymentMethod("all");
+    setContractId("all");
+    setSearchTerm("");
   };
 
-  const handleSelectChange = (name, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleHomeownerChange = (selectedOption) => {
-    if (!selectedOption) {
-      setFormData(prev => ({ ...prev, homeowner_id: '', property_id: '' }));
-      return;
-    }
-
-    const selectedHomeowner = homeowners.find(
-      h => h.id.toString() === selectedOption.value
-    );
-
-    setFormData(prev => ({
-      ...prev,
-      homeowner_id: selectedOption.value,
-      property_id: selectedHomeowner?.property_id?.toString() || ''
-    }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setFormSubmitting(true);
-
+  // Generate individual receipt
+  const handleGenerateReceipt = async (transactionId, action = "download") => {
     try {
-      // Validate form data
-      if (!formData.homeowner_id || !formData.transaction_type || !formData.amount || !formData.description) {
-        toast.info('Please fill in all required fields');
+      toast.info("Generating receipt...");
+
+      const response = await fetch(
+        `/api/transactions/receipt?transaction_id=${transactionId}`
+      );
+      const result = await response.json();
+
+      if (!result.success) {
+        toast.error(result.error || "Failed to generate receipt");
         return;
       }
 
-      if (editingTransaction) {
-        // Update existing transaction
-        const updateData = {
-          homeowner_id: parseInt(formData.homeowner_id),
-          property_id: formData.property_id ? parseInt(formData.property_id) : null,
-          transaction_type: formData.transaction_type,
-          amount: parseFloat(formData.amount),
-          description: formData.description,
-          transaction_date: formData.transaction_date
-        };
-        
-        await updateTransaction(editingTransaction.id, updateData);
-        toast.success('Transaction updated successfully!');
-        setIsEditModalOpen(false);
-        setEditingTransaction(null);
+      // Generate PDF
+      const doc = generateTransactionReceipt(result.data);
+
+      if (action === "print") {
+        // Open print dialog
+        doc.autoPrint();
+        window.open(doc.output("bloburl"), "_blank");
+        toast.success("Opening print dialog...");
       } else {
-        // Insert into Supabase
-        const { data, error } = await supabase
-          .from('transaction_tbl')
-          .insert([
-            {
-              homeowner_id: parseInt(formData.homeowner_id),
-              property_id: formData.property_id ? parseInt(formData.property_id) : null,
-              transaction_type: formData.transaction_type,
-              amount: parseFloat(formData.amount),
-              description: formData.description,
-              transaction_date: formData.transaction_date,
-              created_at: new Date().toISOString()
-            }
-          ])
-          .select();
+        // Download PDF
+        doc.save(`receipt-${transactionId}.pdf`);
+        toast.success("Receipt downloaded successfully!");
+      }
+    } catch (error) {
+      console.error("Error generating receipt:", error);
+      toast.error("Failed to generate receipt");
+    }
+  };
 
-        if (error) throw error;
-
-        // Success
-        toast.success('Transaction added successfully!');
-        
-        // Close modal and refresh data
-        setIsModalOpen(false);
-        loadData();
+  // Generate date range receipt
+  const handleGenerateDateRangeReceipt = async (action = "download") => {
+    try {
+      if (!startDate && !endDate) {
+        toast.error("Please select a date range first");
+        return;
       }
 
-      // Reset form
-      resetForm();
+      toast.info("Generating summary receipt...");
 
+      const params = new URLSearchParams();
+      if (startDate) params.append("start_date", startDate);
+      if (endDate) params.append("end_date", endDate);
+
+      const response = await fetch(`/api/transactions/receipt?${params}`);
+      const result = await response.json();
+
+      if (!result.success) {
+        toast.error(result.error || "Failed to generate receipt");
+        return;
+      }
+
+      if (result.data.length === 0) {
+        toast.error("No transactions found in the selected date range");
+        return;
+      }
+
+      // Generate PDF
+      const doc = generateDateRangeReceipt(
+        result.data,
+        result.startDate,
+        result.endDate
+      );
+
+      if (action === "print") {
+        // Open print dialog
+        doc.autoPrint();
+        window.open(doc.output("bloburl"), "_blank");
+        toast.success("Opening print dialog...");
+      } else {
+        // Download PDF
+        const filename = `transaction-summary-${startDate || "start"}-to-${
+          endDate || "end"
+        }.pdf`;
+        doc.save(filename);
+        toast.success("Summary receipt downloaded successfully!");
+      }
     } catch (error) {
-      console.error('Error saving transaction:', error);
-      toast.info('Error saving transaction: ' + error.message);
-    } finally {
-      setFormSubmitting(false);
+      console.error("Error generating date range receipt:", error);
+      toast.error("Failed to generate summary receipt");
     }
   };
 
-  const closeModal = () => {
-    setIsModalOpen(false);
-    resetForm();
-  };
-
-  const getPropertyName = (id) => properties.find(p => p.id === id)?.name || 'N/A';
-  const getHomeownerName = (id) => homeowners.find(h => h.id === id)?.full_name || 'N/A';
-  
-  const getTypeColor = (type) => {
-    switch (type) {
-      case 'payment': return 'bg-green-100 text-green-800';
-      case 'billing': return 'bg-blue-100 text-blue-800';
-      case 'fee': return 'bg-purple-100 text-purple-800';
-      case 'penalty': return 'bg-orange-100 text-orange-800';
-      case 'refund':
-      case 'deposit': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "completed":
+        return "bg-green-100 text-green-800 border-green-200";
+      case "pending":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case "failed":
+        return "bg-red-100 text-red-800 border-red-200";
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
 
-  const incomeTypes = ['payment', 'deposit'];
-  const expenseTypes = ['penalty', 'refund', 'fee'];
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case "completed":
+        return <CheckCircle className="w-4 h-4" />;
+      case "pending":
+        return <Clock className="w-4 h-4" />;
+      case "failed":
+        return <XCircle className="w-4 h-4" />;
+      default:
+        return <FileText className="w-4 h-4" />;
+    }
+  };
 
-  const totalIncome = filteredTransactions.filter(t => incomeTypes.includes(t.transaction_type)).reduce((sum, t) => sum + t.amount, 0);
-  const totalExpenses = filteredTransactions.filter(t => expenseTypes.includes(t.transaction_type)).reduce((sum, t) => sum + t.amount, 0);
-  const netIncome = totalIncome - totalExpenses;
+  // Calculate summary statistics
+  const totalAmount = filteredTransactions.reduce(
+    (sum, t) => sum + parseFloat(t.total_amount || 0),
+    0
+  );
+  const totalPenalties = filteredTransactions.reduce(
+    (sum, t) => sum + parseFloat(t.penalty_paid || 0),
+    0
+  );
+  const completedCount = filteredTransactions.filter(
+    (t) => t.payment_status === "completed"
+  ).length;
+
+  // Get unique payment methods for filter
+  const uniquePaymentMethods = [
+    ...new Set(transactions.map((t) => t.payment_method).filter(Boolean)),
+  ];
+
+  // Get unique contract IDs for filter
+  const uniqueContractIds = [
+    ...new Set(transactions.map((t) => t.contract_id).filter(Boolean)),
+  ].sort((a, b) => a - b);
 
   return (
     <div className="min-h-screen p-6 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
+        >
           <div>
-            <h1 className="text-4xl font-bold text-slate-900 mb-2">Transactions</h1>
-            <p className="text-lg text-slate-600">Track all financial movements</p>
+            <h1 className="text-4xl font-bold text-slate-900 mb-2">
+              Contract Payment Transactions
+            </h1>
+            <p className="text-lg text-slate-600">
+              Monitor and manage all payment transactions
+            </p>
           </div>
-          <Button 
-            onClick={() => setIsModalOpen(true)}
-            className="bg-gradient-to-r from-red-400 to-red-500 text-white shadow-lg"
-          >
-            <Plus className="w-5 h-5 mr-2" /> Add Transaction
-          </Button>
+          <div className="flex gap-3">
+            <Button
+              onClick={() => handleGenerateDateRangeReceipt("print")}
+              className="bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-lg hover:shadow-xl transition-all"
+            >
+              <Printer className="w-5 h-5 mr-2" /> Print Receipt
+            </Button>
+            <Button
+              onClick={() => handleGenerateDateRangeReceipt("download")}
+              className="bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg hover:shadow-xl transition-all"
+            >
+              <Download className="w-5 h-5 mr-2" /> Download Receipt
+            </Button>
+            <Button
+              onClick={loadData}
+              className="bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg hover:shadow-xl transition-all"
+            >
+              <RefreshCw className="w-5 h-5 mr-2" /> Refresh
+            </Button>
+          </div>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+        {/* Summary Cards */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
+            <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 shadow-lg">
               <CardContent className="p-6">
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="text-sm font-medium text-green-600">Total Income</p>
-                    <p className="text-3xl font-bold text-green-900 mt-1">₱{totalIncome.toLocaleString()}</p>
+                    <p className="text-sm font-medium text-blue-700">
+                      Total Transactions
+                    </p>
+                    <p className="text-3xl font-bold text-blue-900 mt-1">
+                      {filteredTransactions.length}
+                    </p>
+                    <p className="text-xs text-blue-600 mt-1">
+                      {completedCount} completed
+                    </p>
                   </div>
-                  <div className="p-3 rounded-xl bg-green-100">
-                    <TrendingUp className="w-6 h-6 text-green-600" />
+                  <div className="p-3 rounded-xl bg-blue-200/50">
+                    <Receipt className="w-6 h-6 text-blue-700" />
                   </div>
                 </div>
               </CardContent>
             </Card>
-            <Card className="bg-gradient-to-r from-red-50 to-rose-50 border-red-200">
+
+            <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200 shadow-lg">
               <CardContent className="p-6">
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="text-sm font-medium text-red-600">Total Expenses</p>
-                    <p className="text-3xl font-bold text-red-900 mt-1">₱{totalExpenses.toLocaleString()}</p>
+                    <p className="text-sm font-medium text-green-700">
+                      Total Amount Paid
+                    </p>
+                    <p className="text-3xl font-bold text-green-900 mt-1">
+                      ₱{totalAmount.toLocaleString()}
+                    </p>
+                    <p className="text-xs text-green-600 mt-1">
+                      All transactions
+                    </p>
                   </div>
-                  <div className="p-3 rounded-xl bg-red-100">
-                    <TrendingDown className="w-6 h-6 text-red-600" />
+                  <div className="p-3 rounded-xl bg-green-200/50">
+                    <DollarSign className="w-6 h-6 text-green-700" />
                   </div>
                 </div>
               </CardContent>
             </Card>
-            <Card className={`${netIncome >= 0 ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200' : 'bg-gradient-to-r from-orange-50 to-amber-50 border-orange-200'}`}>
+
+            <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200 shadow-lg">
               <CardContent className="p-6">
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className={`text-sm font-medium ${netIncome >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>Net Income</p>
-                    <p className={`text-3xl font-bold mt-1 ${netIncome >= 0 ? 'text-blue-900' : 'text-orange-900'}`}>₱{netIncome.toLocaleString()}</p>
+                    <p className="text-sm font-medium text-orange-700">
+                      Total Penalties
+                    </p>
+                    <p className="text-3xl font-bold text-orange-900 mt-1">
+                      ₱{totalPenalties.toLocaleString()}
+                    </p>
+                    <p className="text-xs text-orange-600 mt-1">
+                      Penalty charges
+                    </p>
                   </div>
-                  <div className={`p-3 rounded-xl ${netIncome >= 0 ? 'bg-blue-100' : 'bg-orange-100'}`}>
-                    <DollarSign className={`w-6 h-6 ${netIncome >= 0 ? 'text-blue-600' : 'text-orange-600'}`} />
+                  <div className="p-3 rounded-xl bg-orange-200/50">
+                    <TrendingUp className="w-6 h-6 text-orange-700" />
                   </div>
                 </div>
               </CardContent>
@@ -403,634 +427,338 @@ export default function Transactions() {
           </div>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
-          <Card className="bg-white/80 backdrop-blur-sm border-slate-200">
+        {/* Filters Section */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
+        >
+          <Card className="bg-white border-slate-200 shadow-md">
             <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                    <CreditCard className="w-5 h-5" />Recent Transactions
-                  </CardTitle>
-                   <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-                      <SelectTrigger className="w-48">
-                        <SelectValue placeholder="Select Period" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="current_month">Current Month</SelectItem>
-                        <SelectItem value="last_month">Last Month</SelectItem>
-                        <SelectItem value="last_3_months">Last 3 Months</SelectItem>
-                        <SelectItem value="all_time">All Time</SelectItem>
-                      </SelectContent>
-                    </Select>
-                </div>
+              <CardTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                <Filter className="w-5 h-5" />
+                Filters
+              </CardTitle>
             </CardHeader>
             <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+                {/* Start Date Filter */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-slate-700">
+                    Start Date
+                  </label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                {/* End Date Filter */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-slate-700">
+                    End Date
+                  </label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                {/* Contract ID Filter */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-slate-700">
+                    Contract ID
+                  </label>
+                  <Select value={contractId} onValueChange={setContractId}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="All Contracts" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Contracts</SelectItem>
+                      {uniqueContractIds.map((id) => (
+                        <SelectItem
+                          key={`contract-${id}`}
+                          value={id.toString()}
+                        >
+                          Contract #{id}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Payment Status Filter */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-slate-700">
+                    Payment Status
+                  </label>
+                  <Select
+                    value={paymentStatus}
+                    onValueChange={setPaymentStatus}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="All Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="failed">Failed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Payment Method Filter */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-slate-700">
+                    Payment Method
+                  </label>
+                  <Select
+                    value={paymentMethod}
+                    onValueChange={setPaymentMethod}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="All Methods" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Methods</SelectItem>
+                      {uniquePaymentMethods.map((method, index) => (
+                        <SelectItem
+                          key={`payment-method-${index}-${method}`}
+                          value={method}
+                        >
+                          {method}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Reset Button */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-slate-700 opacity-0">
+                    Reset
+                  </label>
+                  <Button
+                    onClick={handleResetFilters}
+                    variant="outline"
+                    className="w-full border-slate-300 hover:bg-slate-100"
+                  >
+                    <XCircle className="w-4 h-4 mr-2" />
+                    Reset Filters
+                  </Button>
+                </div>
+              </div>
+
+              {/* Search */}
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Search Transactions
+                </label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Search by Transaction ID, Client Name, or Contract ID..."
+                    className="w-full pl-10 pr-4 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Transactions Table */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+        >
+          <Card className="bg-white border-slate-200 shadow-md">
+            <CardHeader>
+              <CardTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                <CreditCard className="w-5 h-5" />
+                Payment Transactions
+                <Badge className="ml-2 bg-blue-100 text-blue-800 border-blue-200">
+                  {filteredTransactions.length} records
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
               {loading ? (
-                <div className="text-center py-12 text-slate-500">Loading...</div>
+                <div className="text-center py-12">
+                  <Loader2 className="w-12 h-12 text-red-500 animate-spin mx-auto mb-4" />
+                  <p className="text-slate-600">Loading transactions...</p>
+                </div>
               ) : filteredTransactions.length === 0 ? (
                 <div className="text-center py-12">
                   <Receipt className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-slate-900 mb-2">No Transactions Found</h3>
-                  <p className="text-slate-600">No transactions in the selected period.</p>
+                  <h3 className="text-lg font-semibold text-slate-900 mb-2">
+                    No Transactions Found
+                  </h3>
+                  <p className="text-slate-600">
+                    Try adjusting your filters or check back later.
+                  </p>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  {filteredTransactions.map((t, index) => (
-                    <motion.div 
-                      key={t.id} 
-                      initial={{ opacity: 0, x: -20 }} 
-                      animate={{ opacity: 1, x: 0 }} 
-                      transition={{ delay: index * 0.05 }} 
-                      className="flex items-center justify-between p-4 rounded-xl bg-slate-50/50 hover:bg-slate-100/50"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div>
-                          <h4 className="font-semibold text-slate-900">{t.description}</h4>
-                          <div className="flex items-center gap-3 text-sm text-slate-600 mt-1">
-                            <div className="flex items-center gap-1">
-                              <User className="w-3 h-3" />
-                              {getHomeownerName(t.homeowner_id)}
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                      <tr>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                          Transaction ID
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                          Client Name
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                          Contract ID
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                          Date
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                          Amount
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                          Penalty
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                          Method
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-slate-200">
+                      {filteredTransactions.map((transaction, index) => (
+                        <motion.tr
+                          key={transaction.transaction_id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.03 }}
+                          className="hover:bg-slate-50 transition-colors"
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="text-sm font-medium text-slate-900">
+                              {transaction.transaction_id}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium text-slate-900">
+                                {transaction.property_contracts?.client_name ||
+                                  "N/A"}
+                              </span>
+                              {transaction.property_contracts?.client_phone && (
+                                <span className="text-xs text-slate-500">
+                                  {transaction.property_contracts.client_phone}
+                                </span>
+                              )}
                             </div>
-                            <div className="flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              {format(new Date(t.transaction_date), 'MMM d, yyyy')}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="text-sm text-slate-600">
+                              {transaction.contract_id || "N/A"}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center gap-2 text-sm text-slate-600">
+                              <Calendar className="w-4 h-4 text-slate-400" />
+                              {transaction.transaction_date
+                                ? format(
+                                    new Date(transaction.transaction_date),
+                                    "MMM dd, yyyy"
+                                  )
+                                : "N/A"}
                             </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className={`text-xl font-bold ${incomeTypes.includes(t.transaction_type) ? 'text-green-600' : 'text-red-600'}`}>
-                          {incomeTypes.includes(t.transaction_type) ? '+' : '-'}₱{t.amount.toLocaleString()}
-                        </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge className={`${getTypeColor(t.transaction_type)} border font-medium capitalize`}>
-                            {t.transaction_type}
-                          </Badge>
-                          {isNewItem(t.created_at) && (
-                            <Badge className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-0 shadow-md animate-pulse">
-                              <Sparkles className="w-3 h-3 mr-1" />
-                              New
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="text-sm font-semibold text-green-600">
+                              ₱
+                              {parseFloat(
+                                transaction.total_amount || 0
+                              ).toLocaleString()}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="text-sm font-semibold text-orange-600">
+                              ₱
+                              {parseFloat(
+                                transaction.penalty_paid || 0
+                              ).toLocaleString()}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <Badge className="bg-blue-50 text-blue-700 border-blue-200 capitalize">
+                              {transaction.payment_method || "N/A"}
                             </Badge>
-                          )}
-                        </div>
-                        
-                        {/* Action Buttons */}
-                        <div className="flex gap-2 mt-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-blue-600 border-blue-200 hover:bg-blue-50 h-8 px-2"
-                            onClick={() => handleEditTransaction(t)}
-                          >
-                            <Edit className="w-3 h-3 mr-1" />
-                            Edit
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-red-600 border-red-200 hover:bg-red-50 h-8 px-2"
-                            onClick={() => handleDeleteTransaction(t)}
-                          >
-                            <Trash2 className="w-3 h-3 mr-1" />
-                            Delete
-                          </Button>
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <Badge
+                              className={`${getStatusColor(
+                                transaction.payment_status
+                              )} capitalize flex items-center gap-1 w-fit`}
+                            >
+                              {getStatusIcon(transaction.payment_status)}
+                              {transaction.payment_status || "N/A"}
+                            </Badge>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() =>
+                                  handleGenerateReceipt(
+                                    transaction.transaction_id,
+                                    "print"
+                                  )
+                                }
+                                className="bg-purple-500 hover:bg-purple-600 text-white"
+                                title="Print Receipt"
+                              >
+                                <Printer className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() =>
+                                  handleGenerateReceipt(
+                                    transaction.transaction_id,
+                                    "download"
+                                  )
+                                }
+                                className="bg-green-500 hover:bg-green-600 text-white"
+                                title="Download Receipt"
+                              >
+                                <Download className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </motion.tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </CardContent>
           </Card>
         </motion.div>
-
-        {/* Create Transaction Modal */}
-        {isModalOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-            onClick={(e) => e.target === e.currentTarget && closeModal()}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden"
-            >
-              {/* Modal Header */}
-              <div className="bg-gradient-to-r from-red-500 to-red-600 px-8 py-6 text-white">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                      <DollarSign className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <h3 className="text-2xl font-bold">Add New Transaction</h3>
-                      <p className="text-red-100 text-sm mt-1">Record a financial transaction</p>
-                    </div>
-                  </div>
-                  <button
-                    className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-                    onClick={closeModal}
-                    disabled={formSubmitting}
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Modal Body */}
-              <div className="p-8 overflow-y-auto max-h-[calc(90vh-140px)]">
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="block text-sm font-semibold text-slate-700">
-                        Homeowner <span className="text-red-500">*</span>
-                      </label>
-                      <ReactSelect
-                        options={homeowners.map(homeowner => ({
-                          value: homeowner.id.toString(),
-                          label: homeowner.full_name +
-                            (homeowner.property_info_tbl ?
-                              ` - ${homeowner.property_info_tbl.property_detail_tbl?.property_name || 'N/A'} (Lot ${homeowner.property_info_tbl.lot_tbl?.lot_number || 'N/A'})`
-                              : ' - No Property')
-                        }))}
-                        value={formData.homeowner_id ? homeowners.find(h => h.id.toString() === formData.homeowner_id) ? {
-                          value: formData.homeowner_id,
-                          label: homeowners.find(h => h.id.toString() === formData.homeowner_id)?.full_name || ''
-                        } : null : null}
-                        onChange={handleHomeownerChange}
-                        placeholder="Select Homeowner"
-                        isClearable
-                        className="react-select-container"
-                        classNamePrefix="react-select"
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="block text-sm font-semibold text-slate-700">
-                        Property <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={
-                          formData.property_id && homeowners.find(h => h.id.toString() === formData.homeowner_id)?.property_info_tbl
-                            ? homeowners.find(h => h.id.toString() === formData.homeowner_id).property_info_tbl.property_title
-                            : ''
-                        }
-                        placeholder="Auto-filled from homeowner"
-                        readOnly
-                        className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl cursor-not-allowed"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="block text-sm font-semibold text-slate-700">
-                        Transaction Type <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <Receipt className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5 pointer-events-none" />
-                        <select
-                          name="transaction_type"
-                          value={formData.transaction_type}
-                          onChange={handleInputChange}
-                          className="w-full pl-11 pr-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all appearance-none cursor-pointer"
-                          required
-                        >
-                          <option value="">Select Type</option>
-                          <option value="payment">Payment</option>
-                          <option value="billing">Billing</option>
-                          <option value="fee">Fee</option>
-                          <option value="penalty">Penalty</option>
-                          <option value="refund">Refund</option>
-                          <option value="deposit">Deposit</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="block text-sm font-semibold text-slate-700">
-                        Amount <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-500 font-semibold">₱</span>
-                        <input
-                          type="number"
-                          name="amount"
-                          value={formData.amount}
-                          onChange={handleInputChange}
-                          step="0.01"
-                          min="0"
-                          placeholder="0.00"
-                          className="w-full pl-10 pr-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
-                          required
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-slate-700">
-                      Transaction Date <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5 pointer-events-none" />
-                      <input
-                        type="date"
-                        name="transaction_date"
-                        value={formData.transaction_date}
-                        onChange={handleInputChange}
-                        className="w-full pl-11 pr-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-slate-700">
-                      Description <span className="text-red-500">*</span>
-                    </label>
-                    <textarea
-                      name="description"
-                      value={formData.description}
-                      onChange={handleInputChange}
-                      placeholder="Enter transaction description..."
-                      rows="3"
-                      className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all resize-none"
-                      required
-                    />
-                  </div>
-
-                  {/* Modal Actions */}
-                  <div className="flex justify-end gap-3 pt-6 border-t border-slate-200">
-                    <button
-                      type="button"
-                      onClick={closeModal}
-                      className="px-6 py-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl font-semibold transition-colors"
-                      disabled={formSubmitting}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className={`px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl font-semibold transition-all duration-200 flex items-center gap-2 shadow-lg shadow-red-500/30 ${
-                        formSubmitting ? 'opacity-80 cursor-not-allowed' : ''
-                      }`}
-                      disabled={formSubmitting}
-                    >
-                      {formSubmitting ? (
-                        <>
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                          Adding...
-                        </>
-                      ) : (
-                        <>
-                          <DollarSign className="w-5 h-5" />
-                          Add Transaction
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-
-        {/* Edit Transaction Modal */}
-        {isEditModalOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) {
-                setIsEditModalOpen(false);
-                setEditingTransaction(null);
-                resetForm();
-              }
-            }}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden"
-            >
-              {/* Modal Header */}
-              <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-8 py-6 text-white">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                      <Edit className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <h3 className="text-2xl font-bold">Edit Transaction</h3>
-                      <p className="text-blue-100 text-sm mt-1">Update transaction information</p>
-                    </div>
-                  </div>
-                  <button
-                    className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-                    onClick={() => {
-                      setIsEditModalOpen(false);
-                      setEditingTransaction(null);
-                      resetForm();
-                    }}
-                    disabled={formSubmitting}
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Modal Body */}
-              <div className="p-8 overflow-y-auto max-h-[calc(90vh-140px)]">
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="block text-sm font-semibold text-slate-700">
-                        Homeowner <span className="text-red-500">*</span>
-                      </label>
-                      <ReactSelect
-                        options={homeowners.map(homeowner => ({
-                          value: homeowner.id.toString(),
-                          label: homeowner.full_name +
-                            (homeowner.property_info_tbl ?
-                              ` - ${homeowner.property_info_tbl.property_detail_tbl?.property_name || 'N/A'} (Lot ${homeowner.property_info_tbl.lot_tbl?.lot_number || 'N/A'})`
-                              : ' - No Property')
-                        }))}
-                        value={formData.homeowner_id ? homeowners.find(h => h.id.toString() === formData.homeowner_id) ? {
-                          value: formData.homeowner_id,
-                          label: homeowners.find(h => h.id.toString() === formData.homeowner_id)?.full_name || ''
-                        } : null : null}
-                        onChange={handleHomeownerChange}
-                        placeholder="Select Homeowner"
-                        isClearable
-                        className="react-select-container"
-                        classNamePrefix="react-select"
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="block text-sm font-semibold text-slate-700">
-                        Property <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={
-                          formData.property_id && homeowners.find(h => h.id.toString() === formData.homeowner_id)?.property_info_tbl
-                            ? homeowners.find(h => h.id.toString() === formData.homeowner_id).property_info_tbl.property_title
-                            : ''
-                        }
-                        placeholder="Auto-filled from homeowner"
-                        readOnly
-                        className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl cursor-not-allowed"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="block text-sm font-semibold text-slate-700">
-                        Transaction Type <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <Receipt className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5 pointer-events-none" />
-                        <select
-                          name="transaction_type"
-                          value={formData.transaction_type}
-                          onChange={handleInputChange}
-                          className="w-full pl-11 pr-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none cursor-pointer"
-                          required
-                        >
-                          <option value="">Select Type</option>
-                          <option value="payment">Payment</option>
-                          <option value="billing">Billing</option>
-                          <option value="fee">Fee</option>
-                          <option value="penalty">Penalty</option>
-                          <option value="refund">Refund</option>
-                          <option value="deposit">Deposit</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="block text-sm font-semibold text-slate-700">
-                        Amount <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-500 font-semibold">₱</span>
-                        <input
-                          type="number"
-                          name="amount"
-                          value={formData.amount}
-                          onChange={handleInputChange}
-                          step="0.01"
-                          min="0"
-                          placeholder="0.00"
-                          className="w-full pl-10 pr-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                          required
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-slate-700">
-                      Transaction Date <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5 pointer-events-none" />
-                      <input
-                        type="date"
-                        name="transaction_date"
-                        value={formData.transaction_date}
-                        onChange={handleInputChange}
-                        className="w-full pl-11 pr-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-slate-700">
-                      Description <span className="text-red-500">*</span>
-                    </label>
-                    <textarea
-                      name="description"
-                      value={formData.description}
-                      onChange={handleInputChange}
-                      placeholder="Enter transaction description..."
-                      rows="3"
-                      className="w-full px-4 py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
-                      required
-                    />
-                  </div>
-
-                  {/* Modal Actions */}
-                  <div className="flex justify-end gap-3 pt-6 border-t border-slate-200">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsEditModalOpen(false);
-                        setEditingTransaction(null);
-                        resetForm();
-                      }}
-                      className="px-6 py-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl font-semibold transition-colors"
-                      disabled={formSubmitting}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className={`px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl font-semibold transition-all duration-200 flex items-center gap-2 shadow-lg shadow-blue-500/30 ${
-                        formSubmitting ? 'opacity-80 cursor-not-allowed' : ''
-                      }`}
-                      disabled={formSubmitting}
-                    >
-                      {formSubmitting ? (
-                        <>
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                          Updating...
-                        </>
-                      ) : (
-                        <>
-                          <Edit className="w-5 h-5" />
-                          Update Transaction
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-
-        {/* Delete Confirmation Modal */}
-        {isDeleteModalOpen && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-            onClick={(e) => e.target === e.currentTarget && setIsDeleteModalOpen(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-md"
-            >
-              {/* Modal Header */}
-              <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-4 text-white rounded-t-2xl">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                      <AlertTriangle className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold">Delete Transaction</h3>
-                      <p className="text-red-100 text-sm mt-1">This action cannot be undone</p>
-                    </div>
-                  </div>
-                  <button 
-                    className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-                    onClick={() => {
-                      setIsDeleteModalOpen(false);
-                      setDeletingTransaction(null);
-                    }}
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Modal Body */}
-              <div className="p-6">
-                <div className="text-center mb-6">
-                  <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Trash2 className="w-8 h-8 text-red-500" />
-                  </div>
-                  <h4 className="text-lg font-semibold text-slate-900 mb-2">
-                    Are you sure you want to delete this transaction?
-                  </h4>
-                  {deletingTransaction && (
-                    <div className="bg-slate-50 rounded-lg p-4 mb-4 text-left">
-                      <div className="flex items-center justify-between mb-3">
-                        <h5 className="font-medium text-slate-900">
-                          {deletingTransaction.description}
-                        </h5>
-                        <Badge className={`${getTypeColor(deletingTransaction.transaction_type)} border capitalize`}>
-                          {deletingTransaction.transaction_type}
-                        </Badge>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-xs text-slate-500 mb-2">
-                        <div className="flex items-center gap-1">
-                          <User className="w-3 h-3" />
-                          <span>{getHomeownerName(deletingTransaction.homeowner_id)}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          <span>{format(new Date(deletingTransaction.transaction_date), 'MMM d, yyyy')}</span>
-                        </div>
-                      </div>
-                      <div className="flex justify-between items-center pt-2 border-t border-slate-200">
-                        <span className="text-sm font-medium">Amount:</span>
-                        <span className={`text-lg font-bold ${incomeTypes.includes(deletingTransaction.transaction_type) ? 'text-green-600' : 'text-red-600'}`}>
-                          {incomeTypes.includes(deletingTransaction.transaction_type) ? '+' : '-'}₱{deletingTransaction.amount.toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                  <p className="text-slate-600">
-                    This will permanently delete the transaction and all associated data. This action cannot be reversed.
-                  </p>
-                </div>
-
-                {/* Modal Actions */}
-                <div className="flex justify-end gap-3">
-                  <button
-                    type="button"
-                    className="px-6 py-3 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg font-medium transition-colors"
-                    onClick={() => {
-                      setIsDeleteModalOpen(false);
-                      setDeletingTransaction(null);
-                    }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className={`px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg font-medium transition-all duration-200 flex items-center gap-2 ${
-                      formSubmitting ? 'opacity-80 cursor-not-allowed' : ''
-                    }`}
-                    onClick={handleConfirmDelete}
-                    disabled={formSubmitting}
-                  >
-                    {formSubmitting ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Deleting...
-                      </>
-                    ) : (
-                      <>
-                        <Trash2 className="w-4 h-4" />
-                        Delete Transaction
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
       </div>
     </div>
   );

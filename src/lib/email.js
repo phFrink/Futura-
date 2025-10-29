@@ -3,13 +3,13 @@ import nodemailer from "nodemailer";
 // Create reusable transporter
 export const createEmailTransporter = () => {
   return nodemailer.createTransport({
-    service: "gmail", // You can use 'gmail', 'outlook', or custom SMTP
+    service: "gmail",
     host: "smtp.gmail.com",
     port: 465,
     secure: true,
     auth: {
-      user: process.env.EMAIL_USER, // Your email address
-      pass: process.env.EMAIL_PASSWORD, // Your email password or app password
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASSWORD,
     },
   });
 };

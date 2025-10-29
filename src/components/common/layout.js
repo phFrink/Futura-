@@ -20,6 +20,11 @@ import {
   FileBarChart,
   ChevronDown,
   ChevronRight,
+  FileSignature,
+  MessageCircleQuestion,
+  CalendarCheck,
+  UserCog,
+  HandCoins,
 } from "lucide-react";
 // import NotificationBell from "@/components/ui/NotificationBell";
 // import MockNotificationBell from "@/components/ui/MockNotificationBell";
@@ -57,7 +62,7 @@ const NavItem = ({ item, pathname, counts }) => {
             onClick={() => setIsOpen(!isOpen)}
             className={`group hover:bg-blue-50 transition-all duration-200 rounded-xl mb-1 w-full ${
               isActive
-                ? "bg-gradient-to-r from-red-400 to-red-500 text-white shadow-md hover:from-red-400 to-red-500 hover:to-blue-600"
+                ? "bg-gradient-to-r from-red-400  text-white shadow-md hover:from-red-400 to-red-500 hover:to-blue-600"
                 : "text-slate-700 hover:text-blue-700"
             }`}
           >
@@ -196,14 +201,36 @@ const navigationItems = [
     url: "/dashboard",
     icon: LayoutDashboard,
     countKey: null,
-    roles: ["admin", "customer service", "sales representative", "home owner"],
+    roles: [
+      "admin",
+      "customer service",
+      "sales representative",
+      "home owner",
+      "collection",
+    ],
   },
   {
-    title: "User Management",
+    title: "Settings",
     url: "/settings/users",
     icon: Users,
     countKey: null,
     roles: ["admin"],
+    children: [
+      {
+        title: "User",
+        url: "/settings/users",
+        icon: Users,
+        countKey: null,
+        roles: ["admin"],
+      },
+      {
+        title: "Role",
+        url: "/settings/roles",
+        icon: UserCog,
+        countKey: null,
+        roles: ["admin"],
+      },
+    ],
   },
   {
     title: "Property",
@@ -235,13 +262,13 @@ const navigationItems = [
       },
     ],
   },
-  {
-    title: "Homeowner",
-    url: "/homeowners",
-    icon: Users,
-    countKey: "homeowners",
-    roles: ["admin"],
-  },
+  // {
+  //   title: "Homeowner",
+  //   url: "/homeowners",
+  //   icon: Users,
+  //   countKey: "homeowners",
+  //   roles: ["admin"],
+  // },
   {
     title: "Mapping",
     url: "/property-map",
@@ -250,36 +277,73 @@ const navigationItems = [
     roles: ["admin", "sales representative", "home owner"],
   },
 
+  // {
+  //   title: "Billing",
+  //   url: "/billing",
+  //   icon: FileText,
+  //   countKey: null,
+  //   roles: ["admin"],
+  // },
+
   {
-    title: "Billing",
-    url: "/billing",
-    icon: FileText,
+    title: "Monthly amortization",
+    url: "/loans",
+    icon: HandCoins,
     countKey: null,
-    roles: ["admin", "sales representative"],
+    roles: ["admin", "collection"],
   },
   {
     title: "Transaction",
     url: "/transactions",
     icon: DollarSign,
     countKey: "transactions",
-    roles: ["admin", "sales representative"],
+    roles: ["admin", "collection"],
   },
-  {
-    title: "Inquiries",
-    url: "/inquiries",
-    icon: MessageSquare,
-    countKey: "inquiries",
-    roles: ["admin", "customer service"],
-  },
+  // {
+  //   title: "Inquiries",
+  //   url: "/inquiries",
+  //   icon: MessageSquare,
+  //   countKey: "inquiries",
+  //   roles: ["admin", "customer service"],
+  // },
   {
     title: "Inquiries",
     url: "/client-inquiries",
-    icon: MessageSquare,
+    icon: MessageCircleQuestion,
     countKey: "inquiries",
     roles: ["admin", "sales representative"],
   },
   {
-    title: "Requests",
+    title: "Reservation",
+    url: "/client-reservation",
+    icon: CalendarCheck,
+    countKey: "inquiries",
+    roles: ["admin", "sales representative"],
+  },
+
+  {
+    title: "Contract to Sell",
+    url: "/client-contract-to-sell",
+    icon: FileSignature,
+    countKey: "inquiries",
+    roles: ["admin", "sales representative"],
+  },
+  {
+    title: "Announcement",
+    url: "/homeowner-announcement",
+    icon: Megaphone,
+    countKey: "announcements",
+    roles: ["admin", "customer service"],
+  },
+  {
+    title: "Certified Home Owner",
+    url: "/certified-homeowner",
+    icon: FileSignature,
+    countKey: "certified",
+    roles: ["admin", "customer service"],
+  },
+  {
+    title: "Service Requests",
     url: "/service-requests",
     icon: Wrench,
     countKey: "serviceRequests",
@@ -287,26 +351,20 @@ const navigationItems = [
   },
 
   {
-    title: "Complaint",
+    title: "File Complaint",
     url: "/complaints",
     icon: AlertTriangle,
     countKey: "complaints",
-    roles: ["admin", "customer service", "sales representative"],
+    roles: ["admin", "customer service"],
   },
-  {
-    title: "Announcement",
-    url: "/announcements",
-    icon: Megaphone,
-    countKey: "announcements",
-    roles: ["admin", "customer service", "sales representative"],
-  },
-  {
-    title: "Appointments",
-    url: "/reservations",
-    icon: Calendar,
-    countKey: "reservations",
-    roles: ["admin", "sales representative", "customer service"],
-  },
+
+  // {
+  //   title: "Appointments",
+  //   url: "/reservations",
+  //   icon: Calendar,
+  //   countKey: "reservations",
+  //   roles: ["admin", "customer service"],
+  // },
 
   {
     title: "Report",
@@ -371,6 +429,7 @@ export default function MainLayout({ children, currentPageName }) {
     if (!role) return "User";
     const roleMap = {
       admin: "Administrator",
+      collection: "Collection",
       "customer service": "Customer Service",
       "sales representative": "Sales Representative",
       "home owner": "Home Owner",

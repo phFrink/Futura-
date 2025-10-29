@@ -61,3 +61,166 @@ export async function GET(request) {
     );
   }
 }
+
+export async function POST(request) {
+  try {
+    console.log("➕ API: Creating new role...");
+
+    // Check if Supabase admin client is available
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: "Server configuration error" },
+        { status: 500 }
+      );
+    }
+
+    const body = await request.json();
+    const { rolename } = body;
+
+    if (!rolename) {
+      return NextResponse.json(
+        { success: false, message: "Role name is required" },
+        { status: 400 }
+      );
+    }
+
+    // Insert new role
+    const { data, error } = await supabaseAdmin
+      .from("role")
+      .insert([{ rolename }])
+      .select();
+
+    if (error) {
+      console.error("❌ Supabase error:", error);
+      return NextResponse.json(
+        { success: false, message: error.message },
+        { status: 500 }
+      );
+    }
+
+    console.log("✅ Role created successfully:", data);
+
+    return NextResponse.json({
+      success: true,
+      data: data[0],
+      message: "Role created successfully",
+    });
+  } catch (error) {
+    console.error("❌ API Error:", error);
+    return NextResponse.json(
+      { success: false, message: "Failed to create role: " + error.message },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(request) {
+  try {
+    console.log("✏️ API: Updating role...");
+
+    // Check if Supabase admin client is available
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: "Server configuration error" },
+        { status: 500 }
+      );
+    }
+
+    const body = await request.json();
+    const { roleId, rolename } = body;
+
+    if (!roleId) {
+      return NextResponse.json(
+        { success: false, message: "Role ID is required" },
+        { status: 400 }
+      );
+    }
+
+    if (!rolename) {
+      return NextResponse.json(
+        { success: false, message: "Role name is required" },
+        { status: 400 }
+      );
+    }
+
+    // Update role
+    const { data, error } = await supabaseAdmin
+      .from("role")
+      .update({ rolename })
+      .eq("role_id", roleId)
+      .select();
+
+    if (error) {
+      console.error("❌ Supabase error:", error);
+      return NextResponse.json(
+        { success: false, message: error.message },
+        { status: 500 }
+      );
+    }
+
+    console.log("✅ Role updated successfully:", data);
+
+    return NextResponse.json({
+      success: true,
+      data: data[0],
+      message: "Role updated successfully",
+    });
+  } catch (error) {
+    console.error("❌ API Error:", error);
+    return NextResponse.json(
+      { success: false, message: "Failed to update role: " + error.message },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request) {
+  try {
+    console.log("🗑️ API: Deleting role...");
+
+    // Check if Supabase admin client is available
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: "Server configuration error" },
+        { status: 500 }
+      );
+    }
+
+    const { searchParams } = new URL(request.url);
+    const roleId = searchParams.get("roleId");
+
+    if (!roleId) {
+      return NextResponse.json(
+        { success: false, message: "Role ID is required" },
+        { status: 400 }
+      );
+    }
+
+    // Delete role
+    const { error } = await supabaseAdmin
+      .from("role")
+      .delete()
+      .eq("role_id", roleId);
+
+    if (error) {
+      console.error("❌ Supabase error:", error);
+      return NextResponse.json(
+        { success: false, message: error.message },
+        { status: 500 }
+      );
+    }
+
+    console.log("✅ Role deleted successfully");
+
+    return NextResponse.json({
+      success: true,
+      message: "Role deleted successfully",
+    });
+  } catch (error) {
+    console.error("❌ API Error:", error);
+    return NextResponse.json(
+      { success: false, message: "Failed to delete role: " + error.message },
+      { status: 500 }
+    );
+  }
+}

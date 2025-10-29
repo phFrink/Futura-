@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { validateInquiryRecaptcha } from "@/lib/recaptcha";
 
 // Function to create Supabase admin client safely
 function createSupabaseAdmin() {
@@ -20,6 +21,40 @@ function createSupabaseAdmin() {
 
 // Create Supabase admin client
 const supabaseAdmin = createSupabaseAdmin();
+
+// In-memory rate limiting (for basic protection)
+const rateLimitMap = new Map();
+
+// Check rate limit per email
+function checkRateLimit(email) {
+  const now = Date.now();
+  const windowMs = 60 * 60 * 1000; // 1 hour
+  const maxRequests = 5; // Max 5 inquiries per hour per email
+
+  const key = email.toLowerCase();
+  const requests = rateLimitMap.get(key) || [];
+
+  // Filter out old requests outside the time window
+  const recentRequests = requests.filter(timestamp => now - timestamp < windowMs);
+
+  if (recentRequests.length >= maxRequests) {
+    return {
+      allowed: false,
+      remaining: 0,
+      resetTime: Math.ceil((recentRequests[0] + windowMs - now) / 1000 / 60), // minutes
+    };
+  }
+
+  // Add current request timestamp
+  recentRequests.push(now);
+  rateLimitMap.set(key, recentRequests);
+
+  return {
+    allowed: true,
+    remaining: maxRequests - recentRequests.length,
+    resetTime: 0,
+  };
+}
 
 // POST endpoint to create inquiry
 export async function POST(request) {
@@ -50,6 +85,73 @@ export async function POST(request) {
           message: "Property, client details, and message are required",
         },
         { status: 400 }
+      );
+    }
+
+    // Verify reCAPTCHA token (if provided)
+    if (inquiryData.recaptcha_token) {
+      const recaptchaResult = await validateInquiryRecaptcha(
+        inquiryData.recaptcha_token,
+        'inquiry_submit',
+        0.5 // Minimum score threshold
+      );
+
+      if (!recaptchaResult.valid) {
+        console.log("❌ reCAPTCHA verification failed:", {
+          score: recaptchaResult.score,
+          message: recaptchaResult.message,
+        });
+
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Security verification failed",
+            message: recaptchaResult.message,
+            score: recaptchaResult.score,
+          },
+          { status: 403 }
+        );
+      }
+
+      console.log("✅ reCAPTCHA verified successfully:", {
+        score: recaptchaResult.score,
+      });
+    } else {
+      console.warn("⚠️ No reCAPTCHA token provided - proceeding without verification");
+    }
+
+    // Check rate limit
+    const rateLimit = checkRateLimit(inquiryData.client_email);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Rate limit exceeded",
+          message: `Too many inquiries. Please try again in ${rateLimit.resetTime} minutes.`,
+        },
+        { status: 429 }
+      );
+    }
+
+    console.log(`📊 Rate limit: ${rateLimit.remaining} requests remaining`);
+
+    // Check for duplicate inquiry (same email + property in last 24 hours)
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data: existingInquiries } = await supabaseAdmin
+      .from("client_inquiries")
+      .select("inquiry_id")
+      .eq("client_email", inquiryData.client_email.trim().toLowerCase())
+      .eq("property_id", inquiryData.property_id)
+      .gte("created_at", oneDayAgo);
+
+    if (existingInquiries && existingInquiries.length > 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Duplicate inquiry",
+          message: "You have already submitted an inquiry for this property recently. Our team will contact you soon.",
+        },
+        { status: 409 }
       );
     }
 

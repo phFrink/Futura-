@@ -1328,14 +1328,10 @@ export default function Users() {
                         {roles.map((role) => {
                           // Use 'rolename' as the primary column for role name
                           const roleName = role.rolename?.trim();
-                          const roleDescription = role.description?.trim();
-                          const displayText = roleDescription
-                            ? `${roleName} - ${roleDescription}`
-                            : roleName;
 
                           return (
                             <option key={role.role_id} value={roleName}>
-                              {displayText}
+                              {roleName}
                             </option>
                           );
                         })}
