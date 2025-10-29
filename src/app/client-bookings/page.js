@@ -16,7 +16,7 @@ import { toast } from 'react-toastify';
 
 export default function ClientBookingsPage() {
   const router = useRouter();
-  const { user, profile, isAuthenticated } = useClientAuth();
+  const { user, profile, isAuthenticated, loading: authLoading } = useClientAuth();
   const [loading, setLoading] = useState(true);
   const [reservations, setReservations] = useState([]);
   const [filteredReservations, setFilteredReservations] = useState([]);
@@ -25,16 +25,19 @@ export default function ClientBookingsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
 
   useEffect(() => {
+    // Don't check authentication while auth is still loading
+    if (authLoading) return;
+
     if (!isAuthenticated) {
       toast.error('Please login to view your reservations');
       router.push('/client-login');
       return;
     }
     loadReservations();
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, authLoading]);
 
   const loadReservations = async () => {
-    if (!user) return;
+    if (!user?.id) return;
 
     setLoading(true);
     try {
@@ -544,7 +547,8 @@ export default function ClientBookingsPage() {
     }, 250);
   };
 
-  if (loading) {
+  // Show loading screen while auth is loading or data is loading
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex items-center justify-center">
         <div className="text-center">

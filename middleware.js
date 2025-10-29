@@ -53,6 +53,8 @@ const publicRoutes = [
   "/client-home",
   "/client-login",
   "/client-signup",
+  "/client-bookings",
+  "/client-account",
 ];
 
 export async function middleware(req) {
