@@ -56,7 +56,6 @@ const publicRoutes = [
   "/client-bookings",
   "/client-account",
 ];
-
 export async function middleware(req) {
   const res = NextResponse.next();
   const supabase = createMiddlewareClient({ req, res });

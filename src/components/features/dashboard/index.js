@@ -21,6 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@supabase/supabase-js";
 import StatsCard from "@/components/ui/stat-card";
+import { toast } from "react-toastify";
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -85,7 +86,29 @@ export default function Dashboard() {
       )
       .subscribe();
 
-    subscriptions.push(contractsSubscription, transactionsSubscription);
+    // Subscribe to new user registrations
+    const registrationChannel = supabase
+      .channel("user-registrations")
+      .on("broadcast", { event: "new-registration" }, (payload) => {
+        console.log("New user registered:", payload);
+        const { full_name, email, registered_at } = payload.payload;
+
+        // Show toast notification
+        toast.success(
+          `🎉 New User Registered!\n${full_name} (${email})`,
+          {
+            position: "top-right",
+            autoClose: 5000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+          }
+        );
+      })
+      .subscribe();
+
+    subscriptions.push(contractsSubscription, transactionsSubscription, registrationChannel);
 
     // Cleanup subscriptions on unmount
     return () => {

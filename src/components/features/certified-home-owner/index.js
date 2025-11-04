@@ -28,11 +28,16 @@ import {
   ShieldCheck,
   Eye,
   Filter,
+  ArrowRightLeft,
+  RefreshCw,
+  User,
+  Undo2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-toastify";
 import { createClient } from "@supabase/supabase-js";
 import WalkInPaymentModal from "./WalkInPaymentModal";
+import TransferContractModal from "./TransferContractModal";
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -50,8 +55,13 @@ export default function CertifiedHomeOwner() {
   const [selectedContract, setSelectedContract] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [showRevertModal, setShowRevertModal] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [paymentContract, setPaymentContract] = useState(null);
+  const [transferContract, setTransferContract] = useState(null);
+  const [revertContract, setRevertContract] = useState(null);
+  const [revertLoading, setRevertLoading] = useState(false);
 
   useEffect(() => {
     loadContracts();
@@ -165,6 +175,60 @@ export default function CertifiedHomeOwner() {
     loadContracts();
     setShowPaymentModal(false);
     setShowDetailModal(false);
+  };
+
+  const handleTransferContract = (contract) => {
+    setTransferContract(contract);
+    setShowTransferModal(true);
+  };
+
+  const handleTransferSuccess = (transferData) => {
+    toast.success("Contract transferred successfully!");
+    loadContracts();
+    setShowTransferModal(false);
+  };
+
+  const handleRevertTransfer = (contract) => {
+    setRevertContract(contract);
+    setShowRevertModal(true);
+  };
+
+  const confirmRevertTransfer = async () => {
+    if (!revertContract || !revertContract.transfer_history) {
+      toast.error("No transfer history found for this contract");
+      return;
+    }
+
+    setRevertLoading(true);
+
+    try {
+      const response = await fetch("/api/contracts/revert-transfer", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contract_id: revertContract.contract_id,
+          transfer_id: revertContract.transfer_history.transfer_id,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast.success("Contract transfer reverted successfully!");
+        setShowRevertModal(false);
+        setShowDetailModal(false);
+        loadContracts();
+      } else {
+        toast.error(result.message || "Failed to revert transfer");
+      }
+    } catch (error) {
+      console.error("Error reverting transfer:", error);
+      toast.error("Error reverting transfer. Please try again.");
+    } finally {
+      setRevertLoading(false);
+    }
   };
 
   return (
@@ -284,12 +348,26 @@ export default function CertifiedHomeOwner() {
                             <Home className="w-5 h-5 text-red-600" />
                           </div>
                           <div>
-                            <p className="font-semibold text-gray-900">
-                              {contract.property_title}
-                            </p>
-                            <p className="text-sm text-gray-500">
+                            <div className="flex items-center gap-2">
+                              <p className="font-semibold text-gray-900">
+                                {contract.property_title}
+                              </p>
+                              {contract.transfer_history && (
+                                <Badge className="bg-blue-100 text-blue-800 text-xs flex items-center gap-1 px-2 py-0.5">
+                                  <RefreshCw className="w-3 h-3" />
+                                  Transferred
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-500 flex items-center gap-1">
+                              <User className="w-3 h-3" />
                               {contract.client_name}
                             </p>
+                            {contract.transfer_history && (
+                              <p className="text-xs text-blue-600 mt-0.5">
+                                From: {contract.transfer_history.original_client_name}
+                              </p>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -324,15 +402,26 @@ export default function CertifiedHomeOwner() {
                       </td>
 
                       {/* Action Column */}
-                      <td className="px-6 py-4 text-center">
-                        <Button
-                          size="sm"
-                          onClick={() => handleViewDetails(contract)}
-                          className="bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 shadow-sm"
-                        >
-                          <Eye className="w-4 h-4 mr-2" />
-                          View
-                        </Button>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2 justify-center">
+                          <Button
+                            size="sm"
+                            onClick={() => handleViewDetails(contract)}
+                            className="bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 shadow-sm"
+                          >
+                            <Eye className="w-4 h-4 mr-2" />
+                            View
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => handleTransferContract(contract)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+                            disabled={contract.contract_status === 'cancelled' || contract.contract_status === 'completed'}
+                          >
+                            <ArrowRightLeft className="w-4 h-4 mr-2" />
+                            Transfer
+                          </Button>
+                        </div>
                       </td>
                     </motion.tr>
                   ))}
@@ -383,6 +472,81 @@ export default function CertifiedHomeOwner() {
               </div>
 
               <div className="p-8">
+                {/* Transfer History Information */}
+                {selectedContract.transfer_history && (
+                  <Card className="mb-6 border-l-4 border-l-blue-500 bg-blue-50 shadow-md">
+                    <CardContent className="p-6">
+                      <div className="flex items-start gap-4">
+                        <div className="p-3 bg-blue-100 rounded-lg">
+                          <RefreshCw className="w-6 h-6 text-blue-600" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-3">
+                              <h3 className="text-lg font-bold text-blue-900">
+                                Contract Transferred
+                              </h3>
+                              <Badge className="bg-blue-200 text-blue-800">
+                                {formatDate(selectedContract.transfer_history.transferred_at)}
+                              </Badge>
+                            </div>
+                            <Button
+                              size="sm"
+                              onClick={() => handleRevertTransfer(selectedContract)}
+                              className="bg-amber-600 hover:bg-amber-700 text-white"
+                            >
+                              <Undo2 className="w-4 h-4 mr-2" />
+                              Revert Transfer
+                            </Button>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div>
+                              <span className="text-xs font-semibold text-blue-700 uppercase">
+                                Previous Owner
+                              </span>
+                              <p className="font-semibold text-blue-900 mt-1">
+                                {selectedContract.transfer_history.original_client_name}
+                              </p>
+                              <p className="text-sm text-blue-700">
+                                {selectedContract.transfer_history.original_client_email}
+                              </p>
+                              <p className="text-sm text-blue-700">
+                                {selectedContract.transfer_history.original_client_phone}
+                              </p>
+                            </div>
+                            <div>
+                              <span className="text-xs font-semibold text-blue-700 uppercase">
+                                Relationship
+                              </span>
+                              <p className="font-semibold text-blue-900 mt-1 capitalize">
+                                {selectedContract.transfer_history.relationship?.replace(/_/g, ' ') || 'N/A'}
+                              </p>
+                            </div>
+                            <div>
+                              <span className="text-xs font-semibold text-blue-700 uppercase">
+                                Transfer Reason
+                              </span>
+                              <p className="font-semibold text-blue-900 mt-1">
+                                {selectedContract.transfer_history.transfer_reason}
+                              </p>
+                            </div>
+                            {selectedContract.transfer_history.transfer_notes && (
+                              <div className="md:col-span-2 lg:col-span-3">
+                                <span className="text-xs font-semibold text-blue-700 uppercase">
+                                  Additional Notes
+                                </span>
+                                <p className="text-blue-900 mt-1 italic">
+                                  {selectedContract.transfer_history.transfer_notes}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* Client & Property Info Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                   {/* Client Information */}
@@ -685,6 +849,154 @@ export default function CertifiedHomeOwner() {
         contract={paymentContract}
         onPaymentSuccess={handlePaymentSuccess}
       />
+
+      {/* Transfer Contract Modal */}
+      <TransferContractModal
+        isOpen={showTransferModal}
+        onClose={() => setShowTransferModal(false)}
+        contract={transferContract}
+        onTransferSuccess={handleTransferSuccess}
+      />
+
+      {/* Revert Transfer Confirmation Modal */}
+      <AnimatePresence>
+        {showRevertModal && revertContract && (
+          <motion.div
+            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => !revertLoading && setShowRevertModal(false)}
+          >
+            <motion.div
+              className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl"
+              initial={{ scale: 0.9, y: 50 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 50 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="p-6 border-b bg-gradient-to-r from-amber-500 to-amber-600 rounded-t-2xl">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-white/20 rounded-lg">
+                    <Undo2 className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">
+                      Revert Contract Transfer
+                    </h2>
+                    <p className="text-amber-100 text-sm mt-1">
+                      This will restore the contract to the original owner
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6">
+                {/* Warning Card */}
+                <Card className="mb-6 border-l-4 border-l-amber-500 bg-amber-50">
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
+                      <div>
+                        <h4 className="font-semibold text-amber-900 mb-1">
+                          Important: This action will undo the transfer
+                        </h4>
+                        <p className="text-sm text-amber-800">
+                          The contract will be returned to the original owner and the transfer history record will be deleted. This action cannot be undone.
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Current Information */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <Card className="border-l-4 border-l-blue-500">
+                    <CardContent className="p-4">
+                      <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                        <User className="w-4 h-4 text-blue-600" />
+                        Current Owner (New)
+                      </h4>
+                      <p className="font-semibold text-gray-900">{revertContract.client_name}</p>
+                      <p className="text-sm text-gray-600">{revertContract.client_email}</p>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-l-4 border-l-green-500">
+                    <CardContent className="p-4">
+                      <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                        <Undo2 className="w-4 h-4 text-green-600" />
+                        Will Revert To (Original)
+                      </h4>
+                      <p className="font-semibold text-gray-900">
+                        {revertContract.transfer_history?.original_client_name}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {revertContract.transfer_history?.original_client_email}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Transfer Details */}
+                <Card className="mb-6 bg-gray-50">
+                  <CardContent className="p-4">
+                    <h4 className="font-semibold text-gray-900 mb-2">Transfer Details</h4>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <span className="text-gray-600">Contract:</span>
+                        <span className="ml-2 font-mono font-semibold">{revertContract.contract_number}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Property:</span>
+                        <span className="ml-2 font-semibold">{revertContract.property_title}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Transferred:</span>
+                        <span className="ml-2">{formatDate(revertContract.transfer_history?.transferred_at)}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Reason:</span>
+                        <span className="ml-2">{revertContract.transfer_history?.transfer_reason}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Action Buttons */}
+                <div className="flex justify-end gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowRevertModal(false)}
+                    disabled={revertLoading}
+                    className="px-6"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={confirmRevertTransfer}
+                    disabled={revertLoading}
+                    className="bg-amber-600 hover:bg-amber-700 text-white px-6"
+                  >
+                    {revertLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Reverting...
+                      </>
+                    ) : (
+                      <>
+                        <Undo2 className="w-4 h-4 mr-2" />
+                        Revert Transfer
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

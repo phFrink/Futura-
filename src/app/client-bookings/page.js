@@ -8,15 +8,16 @@ import {
   Calendar, Clock, MapPin, Home, ArrowLeft, Building2, CheckCircle,
   XCircle, AlertCircle, Loader2, MessageSquare, User, Mail, Phone,
   FileText, Download, Printer, Briefcase, DollarSign, TrendingUp, Eye,
-  Search, Filter
+  Search, Filter, RefreshCw, Users
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useClientAuth } from '@/contexts/ClientAuthContext';
 import { toast } from 'react-toastify';
+import RealNotificationBell from '@/components/ui/RealNotificationBell';
 
 export default function ClientBookingsPage() {
   const router = useRouter();
-  const { user, profile, isAuthenticated, loading: authLoading } = useClientAuth();
+  const { user, profile, isAuthenticated } = useClientAuth();
   const [loading, setLoading] = useState(true);
   const [reservations, setReservations] = useState([]);
   const [filteredReservations, setFilteredReservations] = useState([]);
@@ -25,19 +26,16 @@ export default function ClientBookingsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
 
   useEffect(() => {
-    // Don't check authentication while auth is still loading
-    if (authLoading) return;
-
     if (!isAuthenticated) {
       toast.error('Please login to view your reservations');
       router.push('/client-login');
       return;
     }
     loadReservations();
-  }, [isAuthenticated, user, authLoading]);
+  }, [isAuthenticated, user]);
 
   const loadReservations = async () => {
-    if (!user?.id) return;
+    if (!user) return;
 
     setLoading(true);
     try {
@@ -547,8 +545,7 @@ export default function ClientBookingsPage() {
     }, 250);
   };
 
-  // Show loading screen while auth is loading or data is loading
-  if (authLoading || loading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex items-center justify-center">
         <div className="text-center">
@@ -569,14 +566,18 @@ export default function ClientBookingsPage() {
               <Building2 className="h-8 w-8 text-red-600" />
               <span className="text-2xl font-bold text-slate-800">Futura Homes</span>
             </div>
-            <Button
-              onClick={() => router.push('/client-home')}
-              variant="outline"
-              className="border-slate-300 text-slate-600 hover:bg-slate-50"
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Home
-            </Button>
+            <div className="flex items-center gap-4">
+              {/* Notification Bell */}
+              <RealNotificationBell />
+              <Button
+                onClick={() => router.push('/client-home')}
+                variant="outline"
+                className="border-slate-300 text-slate-600 hover:bg-slate-50"
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Home
+              </Button>
+            </div>
           </div>
         </div>
       </nav>
@@ -739,9 +740,24 @@ export default function ClientBookingsPage() {
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
                               <Home className="w-4 h-4 text-red-600" />
-                              <span className="font-medium text-slate-900">
-                                {reservation.property_title || 'Property'}
-                              </span>
+                              <div className="flex flex-col">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-slate-900">
+                                    {reservation.property_title || 'Property'}
+                                  </span>
+                                  {reservation.transfer_history && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                                      <RefreshCw className="w-3 h-3" />
+                                      Transferred
+                                    </span>
+                                  )}
+                                </div>
+                                {reservation.transfer_history && (
+                                  <span className="text-xs text-slate-500 mt-0.5">
+                                    From: {reservation.transfer_history.original_client_name}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </td>
                           <td className="px-6 py-4">
@@ -790,6 +806,44 @@ export default function ClientBookingsPage() {
                                       {getStatusBadge(reservation.status)}
                                     </div>
                                   </div>
+
+                                  {/* Transfer Information */}
+                                  {reservation.transfer_history && (
+                                    <div className="mb-4 p-4 bg-blue-50 border-l-4 border-blue-500 rounded-lg">
+                                      <div className="flex items-start gap-3">
+                                        <RefreshCw className="w-5 h-5 text-blue-600 mt-0.5" />
+                                        <div className="flex-1">
+                                          <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                                            Contract Transferred
+                                            <span className="text-xs font-normal bg-blue-200 text-blue-800 px-2 py-0.5 rounded-full">
+                                              {formatDate(reservation.transfer_history.transferred_at)}
+                                            </span>
+                                          </h4>
+                                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                                            <div>
+                                              <span className="text-blue-700 font-medium">Previous Owner:</span>
+                                              <p className="text-blue-900 font-semibold">{reservation.transfer_history.original_client_name}</p>
+                                              <p className="text-blue-700 text-xs">{reservation.transfer_history.original_client_email}</p>
+                                            </div>
+                                            <div>
+                                              <span className="text-blue-700 font-medium">Relationship:</span>
+                                              <p className="text-blue-900 font-semibold capitalize">{reservation.transfer_history.relationship?.replace(/_/g, ' ') || 'N/A'}</p>
+                                            </div>
+                                            <div className="md:col-span-2">
+                                              <span className="text-blue-700 font-medium">Transfer Reason:</span>
+                                              <p className="text-blue-900">{reservation.transfer_history.transfer_reason}</p>
+                                            </div>
+                                            {reservation.transfer_history.transfer_notes && (
+                                              <div className="md:col-span-2">
+                                                <span className="text-blue-700 font-medium">Notes:</span>
+                                                <p className="text-blue-900 italic">{reservation.transfer_history.transfer_notes}</p>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
 
                                   {/* Reservation Details */}
                                   <div className="space-y-3 mb-4">
@@ -1034,8 +1088,21 @@ export default function ClientBookingsPage() {
                   <div key={reservation.reservation_id} className="p-4">
                     <div className="space-y-3">
                       <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-semibold text-slate-900">{reservation.property_title}</p>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-semibold text-slate-900">{reservation.property_title}</p>
+                            {reservation.transfer_history && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                                <RefreshCw className="w-3 h-3" />
+                                Transferred
+                              </span>
+                            )}
+                          </div>
+                          {reservation.transfer_history && (
+                            <p className="text-xs text-blue-600 mb-1">
+                              From: {reservation.transfer_history.original_client_name}
+                            </p>
+                          )}
                           <p className="text-xs text-slate-500">{formatDate(reservation.created_at)}</p>
                         </div>
                         {getStatusBadge(reservation.status)}

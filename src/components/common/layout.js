@@ -25,6 +25,7 @@ import {
   CalendarCheck,
   UserCog,
   HandCoins,
+  Bell,
 } from "lucide-react";
 // import NotificationBell from "@/components/ui/NotificationBell";
 // import MockNotificationBell from "@/components/ui/MockNotificationBell";
@@ -210,6 +211,18 @@ const navigationItems = [
     ],
   },
   {
+    title: "Notifications",
+    url: "/notifications",
+    icon: Bell,
+    countKey: null,
+    roles: [
+      "admin",
+      "customer service",
+      "sales representative",
+      "collection",
+    ],
+  },
+  {
     title: "Settings",
     url: "/settings/users",
     icon: Users,
@@ -217,7 +230,7 @@ const navigationItems = [
     roles: ["admin"],
     children: [
       {
-        title: "User",
+        title: "Users",
         url: "/settings/users",
         icon: Users,
         countKey: null,
@@ -366,13 +379,13 @@ const navigationItems = [
   //   roles: ["admin", "customer service"],
   // },
 
-  {
-    title: "Report",
-    url: "/reports",
-    icon: FileBarChart,
-    countKey: null,
-    roles: ["admin"],
-  },
+  // {
+  //   title: "Report",
+  //   url: "/reports",
+  //   icon: FileBarChart,
+  //   countKey: null,
+  //   roles: ["admin"],
+  // },
 ];
 
 export const GlobalRole = createGlobalState(null);

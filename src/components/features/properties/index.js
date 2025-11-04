@@ -388,6 +388,8 @@ export default function Properties() {
   const resetForm = () => {
     setFormData({
       property_title: "",
+      property_price: 1000000,
+      property_downprice: 20000,
       property_lot_id: "",
       property_details_id: "",
       property_availability: "vacant",
@@ -1600,7 +1602,7 @@ export default function Properties() {
                           step="500"
                         />
                         <span className="text-base font-semibold text-blue-600">
-                          ₱{formData.property_price.toLocaleString("en-PH")}
+                          ₱{(formData.property_price || 0).toLocaleString("en-PH")}
                         </span>
                       </div>
 
