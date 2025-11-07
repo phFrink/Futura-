@@ -28,18 +28,21 @@ const roleBasedRoutes = {
     "customer service",
     "sales representative",
     "home owner",
+    "collection"
   ],
   "/location": [
     "admin",
     "customer service",
     "sales representative",
     "home owner",
+    "collection"
   ],
   "/profile": [
     "admin",
     "customer service",
     "sales representative",
     "home owner",
+    "collection"
   ],
 };
 
@@ -55,6 +58,9 @@ const publicRoutes = [
   "/client-signup",
   "/client-bookings",
   "/client-account",
+  "/client-requests",
+  "/client-forgot-password",
+  "/client-reset-password",
 ];
 export async function middleware(req) {
   const res = NextResponse.next();

@@ -44,7 +44,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "react-toastify";
 import { createGlobalState } from "react-use";
 
@@ -401,6 +401,30 @@ export default function MainLayout({ children, currentPageName }) {
   const [userName, setUserName] = useState("");
   const [userInitials, setUserInitials] = useState("FM");
   const [profilePhoto, setProfilePhoto] = useState(null);
+  const mobileDropdownRef = useRef(null);
+  const desktopDropdownRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        (mobileDropdownRef.current &&
+          !mobileDropdownRef.current.contains(event.target)) &&
+        (desktopDropdownRef.current &&
+          !desktopDropdownRef.current.contains(event.target))
+      ) {
+        setShowLogout(false);
+      }
+    };
+
+    if (showLogout) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showLogout]);
 
   // Get user role and name on mount
   useEffect(() => {
@@ -465,24 +489,78 @@ export default function MainLayout({ children, currentPageName }) {
   const handleLogout = async () => {
     try {
       setShowLogout(false);
+      console.log("🔓 Starting logout process...");
 
-      // Sign out from Supabase with scope 'local' to clear session
-      await supabase.auth.signOut({ scope: "local" });
+      // Show loading toast
+      const loadingToast = toast.loading("Logging out...");
 
-      // Clear all localStorage and sessionStorage
+      // STEP 1: Clear all storage FIRST (before signOut)
+      if (typeof window !== "undefined") {
+        console.log("🗑️ Clearing storage...");
+
+        // Get all localStorage keys that contain 'supabase' or 'sb-'
+        const allKeys = Object.keys(localStorage);
+        const supabaseKeys = allKeys.filter(key =>
+          key.includes('supabase') ||
+          key.includes('sb-') ||
+          key.includes('auth')
+        );
+
+        console.log("Found Supabase keys:", supabaseKeys);
+
+        // Clear all storage
+        localStorage.clear();
+        sessionStorage.clear();
+
+        // Double-check specific keys are removed
+        supabaseKeys.forEach(key => {
+          localStorage.removeItem(key);
+          sessionStorage.removeItem(key);
+        });
+
+        // Clear cookies
+        document.cookie.split(";").forEach(function(c) {
+          document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+        });
+      }
+
+      // STEP 2: Sign out from Supabase
+      try {
+        const { error } = await supabase.auth.signOut({ scope: "global" });
+        if (error) {
+          console.error("SignOut error:", error);
+        } else {
+          console.log("✅ Supabase signOut completed");
+        }
+      } catch (signOutError) {
+        console.error("SignOut exception:", signOutError);
+      }
+
+      // STEP 3: Set a flag to prevent auto-redirect on login page
+      sessionStorage.setItem('just_logged_out', 'true');
+
+      // Dismiss loading toast
+      toast.dismiss(loadingToast);
+
+      console.log("➡️ Redirecting to login...");
+
+      // STEP 4: Force complete page reload to login
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 100);
+    } catch (error) {
+      console.error("Logout error:", error);
+
+      // Force clear and redirect anyway
       if (typeof window !== "undefined") {
         localStorage.clear();
         sessionStorage.clear();
+        sessionStorage.setItem('just_logged_out', 'true');
       }
 
-      // Show success message
-      toast.success("Logged out successfully");
-
-      // Force hard redirect to login page (clears all cache)
-      window.location.replace("/login");
-    } catch (error) {
-      console.error("Logout error:", error);
-      toast.error("Failed to logout");
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 100);
     }
   };
 
@@ -542,21 +620,40 @@ export default function MainLayout({ children, currentPageName }) {
               </div> */}
             </SidebarContent>
 
-            {/* <SidebarFooter className="border-t border-slate-200 p-4 bg-slate-50">
-              <div className="flex items-center gap-3 p-2">
-                <div className="w-10 h-10 bg-gradient-to-r from-red-400 to-red-500 rounded-full flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">{userInitials}</span>
+            <SidebarFooter className="border-t border-slate-200 p-4 bg-slate-50">
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 p-2">
+                  <div className="w-10 h-10 bg-gradient-to-r from-red-400 to-red-500 rounded-full flex items-center justify-center overflow-hidden">
+                    {profilePhoto ? (
+                      <img
+                        src={profilePhoto}
+                        alt={userName || "User"}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-white font-bold text-sm">
+                        {userInitials}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-slate-900 text-sm truncate">
+                      {userName || "User"}
+                    </p>
+                    <p className="text-xs text-slate-500 truncate">
+                      {formatRoleName(userRole)}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-slate-900 text-sm truncate">
-                    {userName || 'User'}
-                  </p>
-                  <p className="text-xs text-slate-500 truncate">
-                    {formatRoleName(userRole)}
-                  </p>
-                </div>
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                >
+                  <Power size={18} />
+                  <span>Logout</span>
+                </button>
               </div>
-            </SidebarFooter> */}
+            </SidebarFooter>
           </Sidebar>
 
           <main className="flex-1 flex flex-col">
@@ -588,8 +685,57 @@ export default function MainLayout({ children, currentPageName }) {
                   {/* Notification Bell */}
                   <RealNotificationBell />
 
+                  {/* Mobile User Menu - Visible on mobile only */}
+                  <div className="md:hidden relative" ref={mobileDropdownRef}>
+                    <button
+                      onClick={handleContainerClick}
+                      className="flex items-center justify-center w-9 h-9 rounded-full bg-gradient-to-r from-red-400 to-red-500 shadow-md hover:shadow-lg transition-all"
+                    >
+                      {profilePhoto ? (
+                        <img
+                          src={profilePhoto}
+                          alt={userName || "User"}
+                          className="w-full h-full rounded-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-white font-bold text-xs">
+                          {userInitials}
+                        </span>
+                      )}
+                    </button>
+
+                    {/* Mobile Dropdown Menu */}
+                    {showLogout && (
+                      <div className="absolute top-full right-0 mt-2 w-56 bg-white border border-slate-200 rounded-lg shadow-xl overflow-hidden z-50">
+                        <div className="px-4 py-3 border-b border-slate-200 bg-slate-50">
+                          <p className="text-sm font-semibold text-slate-900 truncate">
+                            {userName || "User"}
+                          </p>
+                          <p className="text-xs text-slate-600 truncate">
+                            {formatRoleName(userRole)}
+                          </p>
+                        </div>
+                        <Link
+                          href="/account"
+                          className="flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 transition-colors text-slate-700 hover:text-slate-900"
+                          onClick={() => setShowLogout(false)}
+                        >
+                          <Settings size={18} />
+                          <span className="font-medium text-sm">Account</span>
+                        </Link>
+                        <button
+                          onClick={handleLogout}
+                          className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-red-50 transition-colors text-red-600 hover:text-red-700 border-t border-slate-100"
+                        >
+                          <Power size={18} />
+                          <span className="font-medium text-sm">Logout</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
                   {/* User Avatar with Dropdown - Desktop only */}
-                  <div className="hidden md:block relative">
+                  <div className="hidden md:block relative" ref={desktopDropdownRef}>
                     <div
                       className="flex items-center gap-3 pl-3 border-l border-slate-200 cursor-pointer hover:bg-slate-50 rounded-lg p-2 transition-colors"
                       onClick={handleContainerClick}
