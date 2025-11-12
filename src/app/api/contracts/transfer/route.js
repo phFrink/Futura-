@@ -273,6 +273,8 @@ export async function POST(request) {
             new_owner_name: new_client_name,
             relationship: relationship,
             transfer_reason: transfer_reason,
+            action_url: "/certified-homeowner", // Admin URL
+            client_action_url: "/client-contract-to-sell", // Client URL
           },
           action_url: "/certified-homeowner",
         };
@@ -338,6 +340,8 @@ export async function POST(request) {
             previous_owner_name: original_client_info.client_name,
             relationship: relationship,
             transfer_reason: transfer_reason,
+            action_url: "/certified-homeowner", // Admin URL
+            client_action_url: "/client-contract-to-sell", // Client URL
           },
           action_url: "/certified-homeowner",
         };
@@ -398,6 +402,8 @@ export async function POST(request) {
               previous_owner_name: original_client_info.client_name,
               relationship: relationship,
               transfer_reason: transfer_reason,
+              action_url: "/certified-homeowner", // Admin URL
+              client_action_url: "/client-contract-to-sell", // Client URL
             },
             action_url: "/certified-homeowner",
           };

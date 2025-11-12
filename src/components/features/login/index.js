@@ -67,11 +67,47 @@ export default function LoginComponent() {
       if (error) {
         setError(error.message);
       } else {
-        router.push("/dashboard");
+        // Get user role from metadata
+        const userRole = data.user?.user_metadata?.role?.toLowerCase();
+
+        console.log("✅ Login successful:", {
+          email: data.user.email,
+          role: userRole,
+          metadata: data.user.user_metadata
+        });
+
+        // Check if user has a valid role for admin login (homeowners should use /client-login)
+        const allowedRoles = ["admin", "customer service", "sales representative", "collection"];
+        const normalizedAllowedRoles = allowedRoles.map(r => r.toLowerCase());
+
+        if (!userRole) {
+          setError("Your account does not have a role assigned. Please contact the administrator.");
+          await supabase.auth.signOut();
+          return;
+        }
+
+        // Redirect homeowners to client login
+        if (userRole === "home owner") {
+          setError("Homeowners should use the client login page. Redirecting...");
+          await supabase.auth.signOut();
+          setTimeout(() => {
+            router.push("/client-login");
+          }, 2000);
+          return;
+        }
+
+        if (!normalizedAllowedRoles.includes(userRole)) {
+          setError(`Access denied. This login is for staff/admin users only. Your role: ${userRole}`);
+          await supabase.auth.signOut();
+          return;
+        }
+
         localStorage.setItem("user", JSON.stringify(data.user));
+        router.push("/dashboard");
       }
     } catch (err) {
       setError("An unexpected error occurred");
+      console.error("Login error:", err);
     } finally {
       setLoading(false);
     }

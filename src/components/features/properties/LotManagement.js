@@ -35,6 +35,7 @@ export default function LotManagement() {
   const [formData, setFormData] = useState({
     lot_number: '',
     property_type_id: '',
+    property_block: '',
     is_occupied: false
   });
 
@@ -143,6 +144,7 @@ export default function LotManagement() {
     setFormData({
       lot_number: '',
       property_type_id: '',
+      property_block: '',
       is_occupied: false
     });
   };
@@ -159,6 +161,7 @@ export default function LotManagement() {
     setFormData({
       lot_number: lot.lot_number,
       property_type_id: lot.property_type_id || '',
+      property_block: lot.property_block || '',
       is_occupied: lot.is_occupied
     });
     setIsEditModalOpen(true);
@@ -185,7 +188,7 @@ export default function LotManagement() {
       // Check if lot number already exists (simplified check)
       const { data: existingLots, error: checkError } = await supabase
         .from('lot_tbl')
-        .select('lot_number, property_type_id')
+        .select('lot_number, property_type_id, property_block')
         .eq('lot_number', formData.lot_number.trim());
 
       if (checkError) {
@@ -219,6 +222,23 @@ export default function LotManagement() {
         }
       }
 
+      // Check for duplicate Block + Lot combination
+      if (formData.property_block) {
+        const { data: existingBlockLot, error: blockLotCheckError } = await supabase
+          .from('lot_tbl')
+          .select('lot_id, lot_number, property_block')
+          .eq('lot_number', formData.lot_number.trim())
+          .eq('property_block', formData.property_block);
+
+        if (blockLotCheckError) {
+          console.error('Error checking existing block-lot combination:', blockLotCheckError);
+        } else if (existingBlockLot && existingBlockLot.length > 0) {
+          toast.error(`Block ${formData.property_block} with Lot #${formData.lot_number} already exists!`);
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       // Proceed with insert
       const insertData = {
         lot_number: formData.lot_number.trim(),
@@ -228,6 +248,11 @@ export default function LotManagement() {
       // Only add property_type_id if the column exists (graceful degradation)
       if (formData.property_type_id) {
         insertData.property_type_id = formData.property_type_id;
+      }
+
+      // Add property_block if provided
+      if (formData.property_block) {
+        insertData.property_block = formData.property_block;
       }
 
       const { data, error } = await supabase
@@ -271,11 +296,30 @@ export default function LotManagement() {
     try {
       setIsSubmitting(true);
 
+      // Check for duplicate Block + Lot combination (excluding current lot)
+      if (formData.property_block) {
+        const { data: existingBlockLot, error: blockLotCheckError } = await supabase
+          .from('lot_tbl')
+          .select('lot_id, lot_number, property_block')
+          .eq('lot_number', formData.lot_number.trim())
+          .eq('property_block', formData.property_block)
+          .neq('lot_id', editingLot.lot_id);
+
+        if (blockLotCheckError) {
+          console.error('Error checking existing block-lot combination:', blockLotCheckError);
+        } else if (existingBlockLot && existingBlockLot.length > 0) {
+          toast.error(`Block ${formData.property_block} with Lot #${formData.lot_number} already exists!`);
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       const { error } = await supabase
         .from('lot_tbl')
         .update({
           lot_number: formData.lot_number.trim(),
           property_type_id: formData.property_type_id || null,
+          property_block: formData.property_block || null,
           is_occupied: formData.is_occupied,
           updated_at: new Date().toISOString()
         })
@@ -615,6 +659,12 @@ export default function LotManagement() {
                             <span className="w-1 h-1 bg-slate-400 rounded-full"></span>
                             {getRelativeTime(lot.created_at)}
                           </p>
+                          {lot.property_block && (
+                            <p className="text-xs text-slate-700 font-semibold flex items-center gap-1 bg-blue-50 px-2 py-1 rounded-md">
+                              <span className="text-blue-600">■</span>
+                              Block {lot.property_block}
+                            </p>
+                          )}
                         </div>
                       </CardHeader>
                       <CardContent className="relative pt-0">
@@ -735,6 +785,34 @@ export default function LotManagement() {
                   ))}
                 </select>
                 <p className="text-xs text-gray-500">Select the type of property for this lot</p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">
+                  Block
+                </label>
+                <select
+                  name="property_block"
+                  value={formData.property_block}
+                  onChange={handleInputChange}
+                  className="w-full h-12 px-4 border-2 border-gray-200 focus:border-red-500 rounded-xl transition-colors bg-white"
+                >
+                  <option value="">Select Block (Optional)</option>
+                  {Array.from({ length: 30 }, (_, i) => {
+                    const blockNumber = i + 1;
+                    const isDisabled = [25, 16, 30].includes(blockNumber);
+                    return (
+                      <option
+                        key={blockNumber}
+                        value={blockNumber}
+                        disabled={isDisabled}
+                      >
+                        Block {blockNumber}{isDisabled ? ' (Unavailable)' : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+                <p className="text-xs text-gray-500">Select the block number for this lot</p>
               </div>
 
               <div className="bg-gray-50 rounded-xl p-4 border-2 border-gray-200">
@@ -896,6 +974,34 @@ export default function LotManagement() {
                   ))}
                 </select>
                 <p className="text-xs text-gray-500">Select the type of property for this lot</p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">
+                  Block
+                </label>
+                <select
+                  name="property_block"
+                  value={formData.property_block}
+                  onChange={handleInputChange}
+                  className="w-full h-12 px-4 border-2 border-gray-200 focus:border-red-500 rounded-xl transition-colors bg-white"
+                >
+                  <option value="">Select Block (Optional)</option>
+                  {Array.from({ length: 30 }, (_, i) => {
+                    const blockNumber = i + 1;
+                    const isDisabled = [25, 16, 30].includes(blockNumber);
+                    return (
+                      <option
+                        key={blockNumber}
+                        value={blockNumber}
+                        disabled={isDisabled}
+                      >
+                        Block {blockNumber}{isDisabled ? ' (Unavailable)' : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+                <p className="text-xs text-gray-500">Select the block number for this lot</p>
               </div>
 
               <div className="bg-gray-50 rounded-xl p-4 border-2 border-gray-200">

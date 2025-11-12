@@ -192,7 +192,9 @@ export async function POST(request) {
             contract_number: currentContract.contract_number,
             property_title: currentContract.property_title,
             original_owner_name: transferRecord.original_client_name,
-            revert_reason: "Transfer reverted by administrator"
+            revert_reason: "Transfer reverted by administrator",
+            action_url: "/certified-homeowner", // Admin URL
+            client_action_url: "/client-contract-to-sell", // Client URL
           },
           action_url: "/certified-homeowner",
         };
@@ -243,7 +245,9 @@ export async function POST(request) {
             contract_number: currentContract.contract_number,
             property_title: currentContract.property_title,
             previous_transfer_recipient: transferRecord.new_client_name,
-            revert_reason: "Transfer reverted by administrator"
+            revert_reason: "Transfer reverted by administrator",
+            action_url: "/certified-homeowner", // Admin URL
+            client_action_url: "/client-contract-to-sell", // Client URL
           },
           action_url: "/certified-homeowner",
         };

@@ -87,6 +87,7 @@ export default function Properties() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [blockFilter, setBlockFilter] = useState("all");
   const [viewMode, setViewMode] = useState("grid");
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -101,6 +102,7 @@ export default function Properties() {
   // Dropdown data
   const [propertyTypes, setPropertyTypes] = useState([]);
   const [lotNumbers, setLotNumbers] = useState([]);
+  const [blocks, setBlocks] = useState([]);
 
   // Common amenities list
   const commonAmenities = [
@@ -141,6 +143,7 @@ export default function Properties() {
     property_title: "",
     property_price: 1000000,
     property_downprice: 20000,
+    property_block: "",
     property_lot_id: "",
     property_details_id: "",
     property_availability: "vacant",
@@ -152,11 +155,12 @@ export default function Properties() {
     loadProperties();
     loadPropertyTypes();
     loadLotNumbers();
+    loadBlocks();
   }, []);
 
   useEffect(() => {
     filterProperties();
-  }, [properties, searchTerm, statusFilter, typeFilter]);
+  }, [properties, searchTerm, statusFilter, typeFilter, blockFilter]);
 
   // Load all properties from Supabase
   const loadProperties = async () => {
@@ -176,7 +180,8 @@ export default function Properties() {
           ),
           lot_tbl!property_lot_id(
             lot_id,
-            lot_number
+            lot_number,
+            property_block
           )
         `
         )
@@ -187,9 +192,33 @@ export default function Properties() {
         return;
       }
 
-      console.log("Properties loaded:", propertiesData);
+      // Get all contracts to check which properties have contracts
+      const { data: contractsData, error: contractsError } = await supabase
+        .from("property_contracts")
+        .select("property_id");
 
-      setProperties(propertiesData || []);
+      if (contractsError) {
+        console.error("Error loading contracts:", contractsError);
+      }
+
+      // Create a Set of property IDs that have contracts
+      const propertiesWithContracts = new Set(
+        contractsData?.map(c => c.property_id) || []
+      );
+
+      // Map properties with contract status
+      const propertiesWithContractStatus = propertiesData.map(property => ({
+        ...property,
+        hasContract: propertiesWithContracts.has(property.property_id),
+        // Override availability if has contract
+        displayAvailability: propertiesWithContracts.has(property.property_id)
+          ? "occupied"
+          : property.property_availability
+      }));
+
+      console.log("Properties loaded:", propertiesWithContractStatus);
+
+      setProperties(propertiesWithContractStatus || []);
     } catch (error) {
       console.error("Error loading properties:", error);
     } finally {
@@ -274,6 +303,28 @@ export default function Properties() {
     }
   };
 
+  // Load unique blocks from lot_tbl
+  const loadBlocks = async () => {
+    try {
+      const { data: lots, error } = await supabase
+        .from("lot_tbl")
+        .select("property_block")
+        .not("property_block", "is", null)
+        .order("property_block", { ascending: true });
+
+      if (error) {
+        console.error("Error loading blocks:", error);
+        return;
+      }
+
+      // Get unique blocks
+      const uniqueBlocks = [...new Set(lots.map((lot) => lot.property_block))];
+      setBlocks(uniqueBlocks);
+    } catch (error) {
+      console.error("Error loading blocks:", error);
+    }
+  };
+
   // Get available lot numbers based on selected property detail
   const getAvailableLots = (selectedPropertyDetailId, currentLotId = null) => {
     console.log("🔍 Filtering lots:", {
@@ -337,6 +388,12 @@ export default function Properties() {
     if (typeFilter !== "all") {
       filtered = filtered.filter(
         (property) => property.property_details_id === typeFilter
+      );
+    }
+
+    if (blockFilter !== "all") {
+      filtered = filtered.filter(
+        (property) => property.lot_tbl?.property_block?.toString() === blockFilter.toString()
       );
     }
 
@@ -425,6 +482,9 @@ export default function Properties() {
   const resetForm = () => {
     setFormData({
       property_title: "",
+      property_price: 1000000,
+      property_downprice: 20000,
+      property_block: "",
       property_lot_id: "",
       property_details_id: "",
       property_availability: "vacant",
@@ -509,12 +569,13 @@ export default function Properties() {
     setEditingProperty(property);
     setFormData({
       property_title: property.property_title || "",
-      property_lot_id: property.property_lot_id || "",
       property_price:
         Number(property.property_price) > 0
           ? Number(property.property_price)
           : 1000000,
       property_downprice: Number(property.property_downprice),
+      property_block: property.property_block || "",
+      property_lot_id: property.property_lot_id || "",
       property_details_id: property.property_details_id || "",
       property_availability: property.property_availability || "vacant",
       amenities: Array.isArray(property.amenities) ? property.amenities : [],
@@ -600,6 +661,7 @@ export default function Properties() {
       // Validate required fields
       if (
         !formData.property_title.trim() ||
+        !formData.property_block ||
         !formData.property_lot_id ||
         !formData.property_details_id
       ) {
@@ -660,6 +722,7 @@ export default function Properties() {
       // Prepare data for insert/update
       const propertyData = {
         property_title: formData.property_title.trim(),
+        property_block: formData.property_block || null,
         property_lot_id: formData.property_lot_id || null,
         property_price: formData.property_price,
         property_downprice: formData.property_downprice,
@@ -1075,7 +1138,7 @@ export default function Properties() {
                   <p className="text-3xl font-bold text-emerald-600">
                     {
                       properties.filter(
-                        (p) => p.property_availability === "occupied"
+                        (p) => (p.displayAvailability || p.property_availability) === "occupied"
                       ).length
                     }
                   </p>
@@ -1100,7 +1163,7 @@ export default function Properties() {
                   <p className="text-3xl font-bold text-rose-600">
                     {
                       properties.filter(
-                        (p) => p.property_availability === "vacant"
+                        (p) => (p.displayAvailability || p.property_availability) === "vacant" && !p.hasContract
                       ).length
                     }
                   </p>
@@ -1179,6 +1242,20 @@ export default function Properties() {
                   {propertyTypes.map((type) => (
                     <SelectItem key={type.detail_id} value={type.detail_id}>
                       {type.property_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={blockFilter} onValueChange={setBlockFilter}>
+                <SelectTrigger className="w-48 bg-white border-2 border-slate-200 hover:border-slate-300 py-6 rounded-xl shadow-sm transition-all duration-200">
+                  <SelectValue placeholder="All Blocks" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Blocks</SelectItem>
+                  {blocks.map((block) => (
+                    <SelectItem key={block} value={block.toString()}>
+                      Block {block}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1265,6 +1342,7 @@ export default function Properties() {
                   setSearchTerm("");
                   setStatusFilter("all");
                   setTypeFilter("all");
+                  setBlockFilter("all");
                 }}
                 className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg"
               >
@@ -1306,10 +1384,10 @@ export default function Properties() {
                         <div className="absolute top-3 right-3 flex gap-2 pointer-events-none">
                           <Badge
                             className={`${getStatusColor(
-                              property.property_availability
+                              property.displayAvailability || property.property_availability
                             )} border-0 font-semibold capitalize shadow-lg backdrop-blur-sm`}
                           >
-                            {property.property_availability?.replace(
+                            {(property.displayAvailability || property.property_availability)?.replace(
                               "_",
                               " "
                             ) || "N/A"}
@@ -1318,6 +1396,11 @@ export default function Properties() {
                             <Badge className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-0 shadow-lg animate-pulse">
                               <Sparkles className="w-3 h-3 mr-1" />
                               New
+                            </Badge>
+                          )}
+                          {property.hasContract && (
+                            <Badge className="bg-gradient-to-r from-purple-500 to-purple-600 text-white border-0 shadow-lg">
+                              📄 Contract
                             </Badge>
                           )}
                         </div>
@@ -1329,6 +1412,7 @@ export default function Properties() {
                           </h3>
                           <p className="text-white/90 text-sm flex items-center gap-1">
                             <MapPin className="w-3 h-3" />
+                            {property.lot_tbl?.property_block && `Block ${property.lot_tbl.property_block} - `}
                             Lot {property.lot_tbl?.lot_number || "N/A"}
                           </p>
                         </div>
@@ -1345,10 +1429,10 @@ export default function Properties() {
                         <div className="absolute top-3 right-3 flex gap-2">
                           <Badge
                             className={`${getStatusColor(
-                              property.property_availability
+                              property.displayAvailability || property.property_availability
                             )} border-0 font-semibold capitalize shadow-lg`}
                           >
-                            {property.property_availability?.replace(
+                            {(property.displayAvailability || property.property_availability)?.replace(
                               "_",
                               " "
                             ) || "N/A"}
@@ -1357,6 +1441,11 @@ export default function Properties() {
                             <Badge className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-0 shadow-lg animate-pulse">
                               <Sparkles className="w-3 h-3 mr-1" />
                               New
+                            </Badge>
+                          )}
+                          {property.hasContract && (
+                            <Badge className="bg-gradient-to-r from-purple-500 to-purple-600 text-white border-0 shadow-lg">
+                              📄 Contract
                             </Badge>
                           )}
                         </div>
@@ -1372,6 +1461,7 @@ export default function Properties() {
                           </CardTitle>
                           <p className="text-sm text-slate-600 flex items-center gap-1">
                             <MapPin className="w-3 h-3" />
+                            {property.lot_tbl?.property_block && `Block ${property.lot_tbl.property_block} - `}
                             Lot {property.lot_tbl?.lot_number || "N/A"}
                           </p>
                         </div>
@@ -1749,6 +1839,42 @@ export default function Properties() {
                             </label>
                           )}
                         </div>
+                      </div>
+
+                      {/* Block Selection */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-700">
+                          Block
+                        </label>
+                        <ReactSelect
+                          options={blocks.map((block) => ({
+                            value: block,
+                            label: `Block ${block}`,
+                          }))}
+                          value={
+                            formData.property_block
+                              ? {
+                                  value: formData.property_block,
+                                  label: `Block ${formData.property_block}`,
+                                }
+                              : null
+                          }
+                          onChange={(option) => {
+                            handleSelectChange(
+                              "property_block",
+                              option?.value || ""
+                            );
+                          }}
+                          styles={customSelectStyles}
+                          menuPortalTarget={
+                            typeof document !== "undefined"
+                              ? document.body
+                              : null
+                          }
+                          placeholder="Select Block"
+                          isClearable
+                          required
+                        />
                       </div>
 
                       {/* Property Details and Lot Number */}
@@ -2298,6 +2424,42 @@ export default function Properties() {
                             </label>
                           )}
                         </div>
+                      </div>
+
+                      {/* Block Selection */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-700">
+                          Block
+                        </label>
+                        <ReactSelect
+                          options={blocks.map((block) => ({
+                            value: block,
+                            label: `Block ${block}`,
+                          }))}
+                          value={
+                            formData.property_block
+                              ? {
+                                  value: formData.property_block,
+                                  label: `Block ${formData.property_block}`,
+                                }
+                              : null
+                          }
+                          onChange={(option) => {
+                            handleSelectChange(
+                              "property_block",
+                              option?.value || ""
+                            );
+                          }}
+                          styles={customSelectStyles}
+                          menuPortalTarget={
+                            typeof document !== "undefined"
+                              ? document.body
+                              : null
+                          }
+                          placeholder="Select Block"
+                          isClearable
+                          required
+                        />
                       </div>
 
                       {/* Property Details and Lot Number */}

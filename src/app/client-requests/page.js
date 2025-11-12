@@ -29,7 +29,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useClientAuth } from "@/contexts/ClientAuthContext";
 import { toast } from "react-toastify";
-import RealNotificationBell from "@/components/ui/RealNotificationBell";
+import ClientNotificationBell from "@/components/ui/ClientNotificationBell";
 
 export default function ClientServiceRequestsPage() {
   const router = useRouter();
@@ -322,7 +322,7 @@ export default function ClientServiceRequestsPage() {
               </span>
             </div>
             <div className="flex items-center gap-4">
-              <RealNotificationBell />
+              <ClientNotificationBell />
               <Button
                 onClick={() => router.push("/client-home")}
                 variant="outline"

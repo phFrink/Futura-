@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { createNotification, NotificationTemplates, getUserIdsByRole } from "@/lib/notification-helper";
 
 // Create Supabase admin client
 const supabaseAdmin = createClient(
@@ -182,6 +183,29 @@ export async function POST(request) {
 
     console.log("✅ Service request created:", data.id);
 
+    // Send notification to admins
+    try {
+      const adminIds = await getUserIdsByRole(supabaseAdmin, "admin");
+      const customerServiceIds = await getUserIdsByRole(supabaseAdmin, "customer service");
+      const allRecipients = [...adminIds, ...customerServiceIds];
+
+      if (allRecipients.length > 0) {
+        const notificationData = NotificationTemplates.SERVICE_REQUEST_CREATED({
+          clientName: homeownerData?.client_name || "Unknown",
+          title: title,
+          requestType: request_type,
+        });
+
+        await createNotification(supabaseAdmin, {
+          ...notificationData,
+          recipientIds: allRecipients,
+        });
+      }
+    } catch (notifError) {
+      console.error("⚠️ Failed to send notification:", notifError);
+      // Don't fail the request if notification fails
+    }
+
     return NextResponse.json({
       success: true,
       data,
@@ -189,6 +213,94 @@ export async function POST(request) {
     });
   } catch (error) {
     console.error("❌ Service request creation error:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: error.message || "Internal server error",
+      },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * PATCH /api/service-requests
+ * Update service request status and send notifications
+ */
+export async function PATCH(request) {
+  try {
+    const body = await request.json();
+    const { id, status, user_id } = body;
+
+    if (!id || !status) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Request ID and status are required",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Update the request
+    const { data, error } = await supabaseAdmin
+      .from("request_tbl")
+      .update({ status, updated_date: new Date().toISOString() })
+      .eq("id", id)
+      .select(`
+        *,
+        property_contracts!contract_id(contract_id, client_name, user_id)
+      `)
+      .single();
+
+    if (error) throw error;
+
+    console.log("✅ Service request updated:", data.id);
+
+    // Send notification to homeowner based on status change
+    try {
+      const userId = data.property_contracts?.user_id || user_id;
+
+      if (userId) {
+        let notificationTemplate = null;
+
+        if (status === "approved" || status === "in_progress") {
+          notificationTemplate = NotificationTemplates.SERVICE_REQUEST_APPROVED({
+            title: data.title,
+          });
+        } else if (status === "completed") {
+          notificationTemplate = NotificationTemplates.SERVICE_REQUEST_COMPLETED({
+            title: data.title,
+          });
+        } else if (status === "declined" || status === "cancelled") {
+          notificationTemplate = NotificationTemplates.SERVICE_REQUEST_DECLINED({
+            title: data.title,
+          });
+        } else if (status === "pending") {
+          notificationTemplate = NotificationTemplates.SERVICE_REQUEST_REVERTED({
+            title: data.title,
+          });
+        }
+
+        if (notificationTemplate) {
+          await createNotification(supabaseAdmin, {
+            ...notificationTemplate,
+            recipientId: userId,
+          });
+        }
+      }
+    } catch (notifError) {
+      console.error("⚠️ Failed to send notification:", notifError);
+      // Don't fail the request if notification fails
+    }
+
+    return NextResponse.json({
+      success: true,
+      data,
+      message: "Service request updated successfully",
+    });
+  } catch (error) {
+    console.error("❌ Service request update error:", error);
     return NextResponse.json(
       {
         success: false,

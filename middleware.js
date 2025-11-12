@@ -22,27 +22,24 @@ const roleBasedRoutes = {
   "/events": ["admin", "customer service", "sales representative"],
   "/payments": ["admin", "customer service", "sales representative"],
 
-  // All authenticated users can access
+  // All authenticated staff/admin users can access (homeowners use client portal)
   "/dashboard": [
     "admin",
     "customer service",
     "sales representative",
-    "home owner",
-    "collection"
+    "collection",
   ],
   "/location": [
     "admin",
     "customer service",
     "sales representative",
-    "home owner",
-    "collection"
+    "collection",
   ],
   "/profile": [
     "admin",
     "customer service",
     "sales representative",
-    "home owner",
-    "collection"
+    "collection",
   ],
 };
 
@@ -61,6 +58,7 @@ const publicRoutes = [
   "/client-requests",
   "/client-forgot-password",
   "/client-reset-password",
+  "/client-complaints",
 ];
 export async function middleware(req) {
   const res = NextResponse.next();
@@ -69,8 +67,10 @@ export async function middleware(req) {
   // Get the pathname
   const pathname = req.nextUrl.pathname;
 
-  // Allow public routes
-  if (publicRoutes.includes(pathname)) {
+  console.log("🔍 Middleware checking path:", pathname, "Is public?", publicRoutes.includes(pathname));
+
+  // Allow public routes (including all client-* routes)
+  if (publicRoutes.includes(pathname) || pathname.startsWith('/client-')) {
     return res;
   }
 
@@ -101,6 +101,8 @@ export async function middleware(req) {
     pathname,
     userRole,
     userId: session.user.id,
+    email: session.user.email,
+    fullMetadata: session.user.user_metadata,
   });
 
   // Check role-based access

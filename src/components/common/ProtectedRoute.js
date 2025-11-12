@@ -38,13 +38,30 @@ export default function ProtectedRoute({ children, requiredRoles = [] }) {
 
         // Get user role
         const userRole = session.user?.user_metadata?.role?.toLowerCase();
-        console.log("🔐 Protected route check:", { userRole, requiredRoles });
+        console.log("🔐 Protected route check:", {
+          userRole,
+          requiredRoles,
+          pathname,
+          rawRole: session.user?.user_metadata?.role,
+          fullMetadata: session.user?.user_metadata
+        });
 
         // Check if user has required role
         if (requiredRoles.length > 0) {
           const normalizedRoles = requiredRoles.map((r) => r.toLowerCase());
+          console.log("🔍 Role check details:", {
+            userRole,
+            normalizedRoles,
+            includes: normalizedRoles.includes(userRole),
+            hasUserRole: !!userRole
+          });
+
           if (!userRole || !normalizedRoles.includes(userRole)) {
-            console.log("❌ Access denied - insufficient permissions");
+            console.log("❌ Access denied - insufficient permissions", {
+              reason: !userRole ? "No role found" : "Role not in allowed list",
+              userRole,
+              requiredRoles: normalizedRoles
+            });
             router.replace("/dashboard");
             return;
           }

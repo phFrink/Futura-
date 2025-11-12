@@ -15,21 +15,6 @@ const supabase = createClient(
   }
 );
 
-// Initialize client auth Supabase client
-const clientAuthSupabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-      storageKey: 'futura-client-auth',
-      storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-    },
-  }
-);
-
 const RealNotificationContext = createContext();
 
 export const useRealNotifications = () => {
@@ -56,20 +41,10 @@ export const RealNotificationProvider = ({ children }) => {
     try {
       console.log("🔍 Loading notifications from API...");
 
-      // Try to get user from admin auth first
-      let { data: { user } } = await supabase.auth.getUser();
-      let userId = user?.id;
-      let userRole = user?.user_metadata?.role?.toLowerCase();
-
-      // If no admin user, check client auth
-      if (!userId) {
-        console.log("🔍 No admin user, checking client auth...");
-        const clientAuthResult = await clientAuthSupabase.auth.getUser();
-        user = clientAuthResult.data?.user;
-        userId = user?.id;
-        userRole = 'client'; // Client users don't have role metadata, mark as 'client'
-        console.log("👤 Found client user:", userId);
-      }
+      // Get current user ID and role
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id;
+      const userRole = user?.user_metadata?.role?.toLowerCase();
 
       console.log("👤 Current User Info:");
       console.log("  - User ID:", userId);
@@ -78,29 +53,12 @@ export const RealNotificationProvider = ({ children }) => {
       console.log("  - Full user_metadata:", user?.user_metadata);
       console.log("  - Full user object:", user);
 
-      // Build query params differently for clients vs admin/staff
+      // Build query params
       const params = new URLSearchParams();
+      if (userId) params.append("userId", userId);
+      if (userRole) params.append("role", userRole);
 
-      if (userRole === 'client') {
-        // CLIENTS: Only show notifications specifically for them (recipient_id only)
-        // Do NOT include role-based or "all" notifications
-        if (userId) params.append("userId", userId);
-        params.append("clientOnly", "true"); // Flag to filter only by recipient_id
-
-        console.log("👤 CLIENT MODE - Fetching notifications with params:", params.toString());
-        console.log("🎯 Will show ONLY notifications where:");
-        console.log("   - recipient_id = " + userId + " (notifications for THIS specific client)");
-      } else {
-        // ADMIN/STAFF: Show role-based and "all" notifications
-        if (userId) params.append("userId", userId);
-        if (userRole) params.append("role", userRole);
-
-        console.log("👨‍💼 ADMIN/STAFF MODE - Fetching notifications with params:", params.toString());
-        console.log("🎯 Will show notifications where:");
-        console.log("   - recipient_id = " + userId + " (specific to this user)");
-        console.log("   - OR recipient_role = " + userRole + " (role-based)");
-        console.log("   - OR recipient_role = all (everyone)");
-      }
+      console.log("📤 Fetching notifications with params:", params.toString());
       const response = await fetch(`/api/notifications?${params.toString()}`);
 
       if (!response.ok) {
@@ -242,28 +200,13 @@ export const RealNotificationProvider = ({ children }) => {
     // Get current user and set up subscription
     const setupRealtimeSubscription = async () => {
       try {
-        // Get current user info - check both admin and client auth
-        let { data: { user } } = await supabase.auth.getUser();
-        let userInfo = null;
-
+        // Get current user info
+        const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          userInfo = {
+          const userInfo = {
             id: user.id,
             role: user.user_metadata?.role?.toLowerCase(),
           };
-        } else {
-          // Try client auth
-          const clientAuthResult = await clientAuthSupabase.auth.getUser();
-          user = clientAuthResult.data?.user;
-          if (user) {
-            userInfo = {
-              id: user.id,
-              role: 'client',
-            };
-          }
-        }
-
-        if (userInfo) {
           setCurrentUser(userInfo);
           console.log("👤 Current user set:", userInfo);
         }
@@ -289,20 +232,9 @@ export const RealNotificationProvider = ({ children }) => {
             (payload) => {
               console.log("🆕 New notification received via realtime:", payload);
 
-              // For CLIENT users: ONLY show if data.user_id matches exactly
-              if (userInfo?.role === 'client') {
-                const notificationUserId = payload.new.data?.user_id;
-                if (!notificationUserId || notificationUserId !== userInfo.id) {
-                  console.log("⏭️ CLIENT MODE: Skipping notification - data.user_id doesn't match");
-                  console.log("   Expected:", userInfo.id);
-                  console.log("   Got:", notificationUserId);
-                  return;
-                }
-                console.log("✅ CLIENT MODE: Notification is for this specific client");
-              }
-              // For ADMIN/STAFF users: Use standard filtering
-              else if (!isNotificationForCurrentUser(payload.new, userInfo)) {
-                console.log("⏭️ ADMIN/STAFF MODE: Skipping notification - not for current user");
+              // Check if notification is for current user BEFORE adding to state
+              if (!isNotificationForCurrentUser(payload.new, userInfo)) {
+                console.log("⏭️ Skipping notification - not for current user");
                 return;
               }
 

@@ -112,22 +112,29 @@ export default function ServiceRequests() {
 
       if (propertiesError) throw propertiesError;
 
-      // Load homeowners who have contracts only
-      const homeownersResponse = await fetch("/api/homeowners/with-contracts");
-      const homeownersResult = await homeownersResponse.json();
+      // Load contracts (which link homeowners to properties) for the dropdown
+      const { data: contractsData, error: contractsError } = await supabase
+        .from("property_contracts")
+        .select(
+          `
+          contract_id,
+          client_name,
+          client_email,
+          property_id,
+          property_title,
+          contract_status
+        `
+        )
+        .in("contract_status", ["active", "pending", "completed"])
+        .order("client_name");
 
-      const homeownersData = homeownersResult.success
-        ? homeownersResult.data
-        : [];
+      if (contractsError) throw contractsError;
 
-      console.log(
-        "✅ Loaded homeowners with contracts:",
-        homeownersData.length
-      );
+      console.log("✅ Loaded contracts:", contractsData?.length || 0);
 
       setRequests(requestsData || []);
       setProperties(propertiesData || []);
-      setHomeowners(homeownersData || []);
+      setHomeowners(contractsData || []); // Using contracts as "homeowners" for the dropdown
     } catch (error) {
       console.error("Error loading data:", error);
     } finally {
@@ -277,7 +284,7 @@ export default function ServiceRequests() {
       request_type: request.request_type,
       priority: request.priority,
       status: request.status,
-      homeowner_id: request.homeowner_id?.toString() || "",
+      homeowner_id: request.contract_id?.toString() || "", // Map contract_id to homeowner_id
       property_id: request.property_id?.toString() || "",
       scheduled_date: request.scheduled_date
         ? request.scheduled_date.split("T")[0]
@@ -343,18 +350,18 @@ export default function ServiceRequests() {
         approved: {
           title: "Service Request Approved",
           message: `Your service request "${request.title}" has been approved.`,
-          icon: "✅"
+          icon: "✅",
         },
         declined: {
           title: "Service Request Declined",
           message: `Your service request "${request.title}" has been declined.`,
-          icon: "❌"
+          icon: "❌",
         },
         reverted: {
           title: "Service Request Reverted",
           message: `Your service request "${request.title}" has been reverted to pending status.`,
-          icon: "🔄"
-        }
+          icon: "🔄",
+        },
       };
 
       const statusInfo = statusMessages[newStatus] || statusMessages.approved;
@@ -380,8 +387,14 @@ export default function ServiceRequests() {
       };
 
       console.log("Sending notification to user:", userId);
-      console.log("🔍 NOTIFICATION PAYLOAD:", JSON.stringify(notificationData, null, 2));
-      console.log("🔍 Does payload have recipient_id?", 'recipient_id' in notificationData);
+      console.log(
+        "🔍 NOTIFICATION PAYLOAD:",
+        JSON.stringify(notificationData, null, 2)
+      );
+      console.log(
+        "🔍 Does payload have recipient_id?",
+        "recipient_id" in notificationData
+      );
 
       const response = await fetch("/api/notifications", {
         method: "POST",
@@ -406,11 +419,22 @@ export default function ServiceRequests() {
   const handleApprove = async (requestId) => {
     setApprovingId(requestId);
     try {
-      const request = requests.find(r => r.id === requestId);
-      await updateRequest(requestId, { status: "approved" });
+      // Call API to update status and trigger notification
+      const response = await fetch('/api/service-requests', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: requestId,
+          status: 'approved',
+        }),
+      });
 
-      // Send notification to the user who submitted the request
-      await sendNotificationToUser(request, "approved");
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to approve request');
+      }
 
       toast.success("Service request approved!");
       // Reload data to ensure fresh state
@@ -426,11 +450,22 @@ export default function ServiceRequests() {
   const handleDecline = async (requestId) => {
     setDecliningId(requestId);
     try {
-      const request = requests.find(r => r.id === requestId);
-      await updateRequest(requestId, { status: "declined" });
+      // Call API to update status and trigger notification
+      const response = await fetch('/api/service-requests', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: requestId,
+          status: 'declined',
+        }),
+      });
 
-      // Send notification to the user who submitted the request
-      await sendNotificationToUser(request, "declined");
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to decline request');
+      }
 
       toast.success("Service request declined!");
       // Reload data to ensure fresh state
@@ -446,11 +481,22 @@ export default function ServiceRequests() {
   const handleRevert = async (requestId) => {
     setRevertingId(requestId);
     try {
-      const request = requests.find(r => r.id === requestId);
-      await updateRequest(requestId, { status: "pending" });
+      // Call API to update status and trigger notification
+      const response = await fetch('/api/service-requests', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: requestId,
+          status: 'pending',
+        }),
+      });
 
-      // Send notification to the user who submitted the request
-      await sendNotificationToUser(request, "reverted");
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to revert request');
+      }
 
       toast.success("Service request reverted to pending!");
       // Reload data to ensure fresh state
@@ -465,7 +511,7 @@ export default function ServiceRequests() {
 
   const updateRequest = async (requestId, updateData) => {
     try {
-      console.log('Updating request:', requestId, 'with data:', updateData);
+      console.log("Updating request:", requestId, "with data:", updateData);
 
       const { data, error } = await supabase
         .from("request_tbl")
@@ -485,7 +531,7 @@ export default function ServiceRequests() {
         throw new Error("No data returned from update");
       }
 
-      console.log('Update successful:', data);
+      console.log("Update successful:", data);
 
       // Update local state optimistically
       setRequests((prev) =>
@@ -503,7 +549,7 @@ export default function ServiceRequests() {
 
   const deleteRequest = async (requestId, requestTitle) => {
     try {
-      console.log('Deleting request:', requestId, requestTitle);
+      console.log("Deleting request:", requestId, requestTitle);
 
       const { error } = await supabase
         .from("request_tbl")
@@ -515,7 +561,7 @@ export default function ServiceRequests() {
         throw new Error(error.message || "Failed to delete request");
       }
 
-      console.log('Delete successful, removing from state');
+      console.log("Delete successful, removing from state");
 
       // Remove from local state
       setRequests((prev) => prev.filter((request) => request.id !== requestId));
@@ -532,8 +578,28 @@ export default function ServiceRequests() {
     setSubmitting(true);
 
     try {
+      // Validate required fields
+      if (!formData.title || !formData.description || !formData.request_type) {
+        toast.error("Please fill in all required fields");
+        setSubmitting(false);
+        return;
+      }
+
+      if (!formData.homeowner_id) {
+        toast.error("Please select a homeowner");
+        setSubmitting(false);
+        return;
+      }
+
+      // Map formData fields to database fields
       const submitData = {
-        ...formData,
+        title: formData.title,
+        description: formData.description,
+        request_type: formData.request_type,
+        priority: formData.priority,
+        status: formData.status,
+        contract_id: formData.homeowner_id, // Map homeowner_id to contract_id
+        property_id: formData.property_id,
         scheduled_date: formData.scheduled_date || null,
       };
 
@@ -562,9 +628,12 @@ export default function ServiceRequests() {
       }
 
       resetForm();
+      await loadData(); // Reload data to ensure fresh state
     } catch (error) {
       console.error("Error creating service request:", error);
-      toast.error("Error saving service request");
+      toast.error(
+        "Error saving service request: " + (error.message || "Unknown error")
+      );
     } finally {
       setSubmitting(false);
     }
@@ -817,7 +886,8 @@ export default function ServiceRequests() {
                                 </Button>
                               </>
                             )}
-                            {(request.status === "approved" || request.status === "declined") && (
+                            {(request.status === "approved" ||
+                              request.status === "declined") && (
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -839,6 +909,14 @@ export default function ServiceRequests() {
                               onClick={() => handleViewRequest(request)}
                             >
                               <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-purple-700 border-purple-300 hover:bg-purple-50"
+                              onClick={() => handleEditRequest(request)}
+                            >
+                              <Edit className="w-4 h-4" />
                             </Button>
                             <Button
                               size="sm"
@@ -896,10 +974,18 @@ export default function ServiceRequests() {
             <div className="p-8 space-y-6">
               {/* Status and Priority */}
               <div className="flex items-center gap-3 mb-4">
-                <Badge className={`${getStatusProps(viewingRequest.status).color} border font-semibold text-sm px-3 py-1`}>
+                <Badge
+                  className={`${
+                    getStatusProps(viewingRequest.status).color
+                  } border font-semibold text-sm px-3 py-1`}
+                >
                   {viewingRequest.status.replace("_", " ")}
                 </Badge>
-                <Badge className={`${getPriorityColor(viewingRequest.priority)} border font-semibold text-sm px-3 py-1`}>
+                <Badge
+                  className={`${getPriorityColor(
+                    viewingRequest.priority
+                  )} border font-semibold text-sm px-3 py-1`}
+                >
                   {viewingRequest.priority} priority
                 </Badge>
                 {isNewItem(viewingRequest.created_at) && (
@@ -913,12 +999,16 @@ export default function ServiceRequests() {
               {/* Title */}
               <div>
                 <h3 className="text-sm font-bold text-slate-700 mb-2">Title</h3>
-                <p className="text-lg font-semibold text-slate-900">{viewingRequest.title}</p>
+                <p className="text-lg font-semibold text-slate-900">
+                  {viewingRequest.title}
+                </p>
               </div>
 
               {/* Description */}
               <div>
-                <h3 className="text-sm font-bold text-slate-700 mb-2">Description</h3>
+                <h3 className="text-sm font-bold text-slate-700 mb-2">
+                  Description
+                </h3>
                 <p className="text-slate-700 leading-relaxed bg-slate-50 p-4 rounded-lg">
                   {viewingRequest.description}
                 </p>
@@ -931,7 +1021,9 @@ export default function ServiceRequests() {
                     <FileText className="w-4 h-4 text-red-600" />
                     Request Type
                   </h3>
-                  <p className="text-slate-900 capitalize">{viewingRequest.request_type.replace("_", " ")}</p>
+                  <p className="text-slate-900 capitalize">
+                    {viewingRequest.request_type.replace("_", " ")}
+                  </p>
                 </div>
 
                 <div>
@@ -960,7 +1052,10 @@ export default function ServiceRequests() {
                     Created Date
                   </h3>
                   <p className="text-slate-900">
-                    {format(new Date(viewingRequest.created_date), "MMM d, yyyy")}
+                    {format(
+                      new Date(viewingRequest.created_date),
+                      "MMM d, yyyy"
+                    )}
                   </p>
                 </div>
 
@@ -971,7 +1066,10 @@ export default function ServiceRequests() {
                       Scheduled Date
                     </h3>
                     <p className="text-slate-900">
-                      {format(new Date(viewingRequest.scheduled_date), "MMM d, yyyy")}
+                      {format(
+                        new Date(viewingRequest.scheduled_date),
+                        "MMM d, yyyy"
+                      )}
                     </p>
                   </div>
                 )}
@@ -989,6 +1087,301 @@ export default function ServiceRequests() {
                 Close
               </Button>
             </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Create/Edit Request Modal */}
+      {(isModalOpen || isEditModalOpen) && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+          >
+            <div className="sticky top-0 bg-gradient-to-r from-red-500 to-red-600 px-8 py-6 rounded-t-2xl z-10">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-white">
+                    {editingRequest
+                      ? "Edit Service Request"
+                      : "New Service Request"}
+                  </h2>
+                  <p className="text-red-100 mt-1">
+                    {editingRequest
+                      ? "Update request details"
+                      : "Submit a new request"}
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    setIsModalOpen(false);
+                    setIsEditModalOpen(false);
+                    setEditingRequest(null);
+                    resetForm();
+                  }}
+                  className="rounded-full hover:bg-white/20 text-white"
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmit} className="p-8 space-y-6">
+              {/* Title */}
+              <div className="space-y-2">
+                <Label
+                  htmlFor="title"
+                  className="text-sm font-bold text-slate-700"
+                >
+                  Title <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="title"
+                  placeholder="Enter request title"
+                  value={formData.title}
+                  onChange={(e) => handleInputChange("title", e.target.value)}
+                  required
+                  className="border-slate-200 rounded-xl h-11"
+                />
+              </div>
+
+              {/* Description */}
+              <div className="space-y-2">
+                <Label
+                  htmlFor="description"
+                  className="text-sm font-bold text-slate-700"
+                >
+                  Description <span className="text-red-500">*</span>
+                </Label>
+                <Textarea
+                  id="description"
+                  placeholder="Describe the request in detail"
+                  value={formData.description}
+                  onChange={(e) =>
+                    handleInputChange("description", e.target.value)
+                  }
+                  required
+                  rows={4}
+                  className="border-slate-200 rounded-xl resize-none"
+                />
+              </div>
+
+              {/* Request Type */}
+              <div>
+                <Label htmlFor="request_type">Request Type *</Label>
+                <select
+                  id="request_type"
+                  value={formData.request_type}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      request_type: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                  required
+                >
+                  <option value="plumbing">🔧 Plumbing</option>
+                  <option value="general_maintenance">
+                    🔨 General Maintenance
+                  </option>
+                  <option value="cleaning">🧹 Cleaning</option>
+                  <option value="appliance">🏠 Appliance</option>
+                  <option value="electrical">⚡ Electrical</option>
+                  <option value="security">🔒 Security</option>
+                  <option value="landscaping">🌳 Landscaping</option>
+                  <option value="hvac">❄️ HVAC</option>
+                  <option value="other">📋 Other</option>
+                </select>
+              </div>
+
+              {/* Homeowner */}
+              <div className="space-y-2">
+                <Label className="text-sm font-bold text-slate-700">
+                  Homeowner <span className="text-red-500">*</span>
+                </Label>
+                <ReactSelect
+                  options={homeowners.map((h) => ({
+                    value: h.contract_id,
+                    label: `${h.client_name} - ${
+                      h.property_title || "No property"
+                    }`,
+                  }))}
+                  value={
+                    formData.homeowner_id
+                      ? {
+                          value: formData.homeowner_id,
+                          label: homeowners.find(
+                            (h) =>
+                              h.contract_id?.toString() ===
+                              formData.homeowner_id.toString()
+                          )
+                            ? `${
+                                homeowners.find(
+                                  (h) =>
+                                    h.contract_id?.toString() ===
+                                    formData.homeowner_id.toString()
+                                ).client_name
+                              } - ${
+                                homeowners.find(
+                                  (h) =>
+                                    h.contract_id?.toString() ===
+                                    formData.homeowner_id.toString()
+                                ).property_title || "No property"
+                              }`
+                            : "Unknown Homeowner",
+                        }
+                      : null
+                  }
+                  onChange={(selected) => {
+                    if (selected) {
+                      const selectedHomeowner = homeowners.find(
+                        (h) => h.contract_id === selected.value
+                      );
+                      handleInputChange("homeowner_id", selected.value);
+                      if (selectedHomeowner?.property_id) {
+                        handleInputChange(
+                          "property_id",
+                          selectedHomeowner.property_id
+                        );
+                      }
+                    } else {
+                      handleInputChange("homeowner_id", "");
+                      handleInputChange("property_id", "");
+                    }
+                  }}
+                  isClearable
+                  placeholder="Select homeowner"
+                  className="react-select-container"
+                  classNamePrefix="react-select"
+                />
+              </div>
+
+              {/* Priority and Status in a grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="priority"
+                    className="text-sm font-bold text-slate-700"
+                  >
+                    Priority
+                  </Label>
+                  <Select
+                    value={formData.priority}
+                    onValueChange={(value) =>
+                      handleInputChange("priority", value)
+                    }
+                  >
+                    <SelectTrigger className="border-slate-200 rounded-xl h-11">
+                      <SelectValue placeholder="Select priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="urgent">Urgent</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {editingRequest && (
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="status"
+                      className="text-sm font-bold text-slate-700"
+                    >
+                      Status
+                    </Label>
+                    <Select
+                      value={formData.status}
+                      onValueChange={(value) =>
+                        handleInputChange("status", value)
+                      }
+                    >
+                      <SelectTrigger className="border-slate-200 rounded-xl h-11">
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="approved">Approved</SelectItem>
+                        <SelectItem value="declined">Declined</SelectItem>
+                        <SelectItem value="in_progress">In Progress</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                        <SelectItem value="on_hold">On Hold</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+
+              {/* Scheduled Date */}
+              <div className="space-y-2">
+                <Label
+                  htmlFor="scheduled_date"
+                  className="text-sm font-bold text-slate-700"
+                >
+                  Scheduled Date (Optional)
+                </Label>
+                <Input
+                  id="scheduled_date"
+                  type="date"
+                  value={formData.scheduled_date}
+                  onChange={(e) =>
+                    handleInputChange("scheduled_date", e.target.value)
+                  }
+                  className="border-slate-200 rounded-xl h-11"
+                />
+              </div>
+
+              {/* Form Actions */}
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setIsModalOpen(false);
+                    setIsEditModalOpen(false);
+                    setEditingRequest(null);
+                    resetForm();
+                  }}
+                  disabled={submitting}
+                  className="px-6 rounded-xl"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={submitting}
+                  className="px-6 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      {editingRequest ? "Updating..." : "Creating..."}
+                    </>
+                  ) : (
+                    <>
+                      {editingRequest ? (
+                        <>
+                          <Edit className="w-4 h-4 mr-2" />
+                          Update Request
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="w-4 h-4 mr-2" />
+                          Create Request
+                        </>
+                      )}
+                    </>
+                  )}
+                </Button>
+              </div>
+            </form>
           </motion.div>
         </div>
       )}
@@ -1054,7 +1447,8 @@ export default function ServiceRequests() {
                   </div>
                 </div>
                 <p className="text-slate-600">
-                  This will permanently delete the service request. This action cannot be reversed.
+                  This will permanently delete the service request. This action
+                  cannot be reversed.
                 </p>
               </div>
 
