@@ -696,12 +696,20 @@ export default function Transactions() {
                             </div>
                           </div>
 
-                          {/* Payment Method */}
-                          <div>
-                            <p className="text-xs text-slate-500 mb-1">Payment Method</p>
-                            <Badge className="bg-blue-50 text-blue-700 border-blue-200 capitalize">
-                              {transaction.payment_method || "N/A"}
-                            </Badge>
+                          {/* Payment Method and Processed By */}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <p className="text-xs text-slate-500 mb-1">Payment Method</p>
+                              <Badge className="bg-blue-50 text-blue-700 border-blue-200 capitalize">
+                                {transaction.payment_method || "N/A"}
+                              </Badge>
+                            </div>
+                            <div>
+                              <p className="text-xs text-slate-500 mb-1">Processed By</p>
+                              <p className="text-sm text-slate-700 font-medium">
+                                {transaction.processed_by_name || "—"}
+                              </p>
+                            </div>
                           </div>
 
                           {/* Actions */}
@@ -757,6 +765,9 @@ export default function Transactions() {
                         </th>
                         <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
                           Method
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                          Processed By
                         </th>
                         <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
                           Status
@@ -829,6 +840,11 @@ export default function Transactions() {
                             <Badge className="bg-blue-50 text-blue-700 border-blue-200 capitalize">
                               {transaction.payment_method || "N/A"}
                             </Badge>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="text-sm text-slate-700">
+                              {transaction.processed_by_name || "—"}
+                            </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <Badge

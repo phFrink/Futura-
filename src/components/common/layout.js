@@ -26,6 +26,8 @@ import {
   UserCog,
   HandCoins,
   Bell,
+  Armchair,
+  Package,
 } from "lucide-react";
 // import NotificationBell from "@/components/ui/NotificationBell";
 // import MockNotificationBell from "@/components/ui/MockNotificationBell";
@@ -218,7 +220,7 @@ const navigationItems = [
     roles: ["admin", "customer service", "sales representative", "collection"],
   },
   {
-    title: "User Management",
+    title: "Settings",
     url: "/settings/users",
     icon: Users,
     countKey: null,
@@ -349,6 +351,29 @@ const navigationItems = [
     icon: FileSignature,
     countKey: "certified",
     roles: ["admin", "customer service"],
+  },
+  {
+    title: "Amenities",
+    url: "/amenties",
+    icon: Armchair,
+    countKey: null,
+    roles: ["admin", "customer service"],
+    children: [
+      {
+        title: "Manage Amenities",
+        url: "/manage-amenities",
+        icon: Package,
+        countKey: null,
+        roles: ["admin", "customer service"],
+      },
+      {
+        title: "Borrow Requests",
+        url: "/amenties",
+        icon: Armchair,
+        countKey: null,
+        roles: ["admin", "customer service"],
+      },
+    ],
   },
   {
     title: "Service Requests",

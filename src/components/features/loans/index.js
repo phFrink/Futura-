@@ -239,7 +239,7 @@ export default function Loans() {
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
           <DollarSign className="w-8 h-8 text-green-600" />
-          Monthly Amortization / Loans
+          Billing
         </h1>
         <p className="text-gray-600">
           Track and manage property payment schedules and installments
@@ -674,6 +674,9 @@ export default function Loans() {
                               <th className="text-center px-4 py-3 text-xs font-semibold text-gray-600 uppercase">
                                 Status
                               </th>
+                              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase">
+                                Processed By
+                              </th>
                               <th className="text-center px-4 py-3 text-xs font-semibold text-gray-600 uppercase">
                                 Action
                               </th>
@@ -767,6 +770,11 @@ export default function Loans() {
                                         </>
                                       )}
                                     </Badge>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <span className="text-sm text-gray-700">
+                                      {schedule.processed_by_name || "—"}
+                                    </span>
                                   </td>
                                   <td className="px-4 py-3 text-center">
                                     {schedule.payment_status === "paid" ? (

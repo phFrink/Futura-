@@ -32,14 +32,14 @@ import {
   AlertCircle,
   Wrench,
   MessageSquare,
-  Loader2,
+  Armchair,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-toastify";
 import { useClientAuth } from "@/contexts/ClientAuthContext";
 import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
-// import RealNotificationBell from "@/components/ui/RealNotificationBell";
+import RealNotificationBell from "@/components/ui/RealNotificationBell";
 
 // Initialize Supabase client with proper persistence
 const supabase = createClient(
@@ -117,7 +117,6 @@ export default function ClientLandingPage() {
   const [otpVerified, setOtpVerified] = useState(false);
   const [otpTimer, setOtpTimer] = useState(0);
   const [sendingOtp, setSendingOtp] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetchProperties();
@@ -441,11 +440,6 @@ export default function ClientLandingPage() {
       return;
     }
 
-    // Prevent multiple submissions
-    if (isSubmitting) return;
-
-    setIsSubmitting(true);
-
     try {
       // Calculate total monthly income
       const totalMonthlyIncome =
@@ -554,8 +548,6 @@ export default function ClientLandingPage() {
     } catch (error) {
       console.error("Error submitting reservation:", error);
       toast.error(error.message || "Failed to submit reservation request");
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -692,6 +684,14 @@ export default function ClientLandingPage() {
                         <span>My Requests</span>
                       </Link>
                       <Link
+                        href="/client-amenities"
+                        className="flex items-center px-4 py-2 text-slate-700 hover:bg-slate-50 transition-colors"
+                        onClick={() => setShowProfileMenu(false)}
+                      >
+                        <Armchair className="mr-3 h-4 w-4" />
+                        <span>My Amenities</span>
+                      </Link>
+                      <Link
                         href="/client-complaints"
                         className="flex items-center px-4 py-2 text-slate-700 hover:bg-slate-50 transition-colors"
                         onClick={() => setShowProfileMenu(false)}
@@ -722,7 +722,8 @@ export default function ClientLandingPage() {
               )}
             </div>
             <div className="md:hidden flex items-center gap-3">
-              {/* {isAuthenticated && <RealNotificationBell />} */}
+              {/* Mobile Notification Bell */}
+              {isAuthenticated && <RealNotificationBell />}
               <button>
                 <Menu className="h-6 w-6 text-slate-600" />
               </button>
@@ -1784,17 +1785,9 @@ export default function ClientLandingPage() {
                     </Button>
                     <Button
                       type="submit"
-                      disabled={isSubmitting}
-                      className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex-1 bg-red-600 hover:bg-red-700"
                     >
-                      {isSubmitting ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Submitting...
-                        </>
-                      ) : (
-                        "Submit Reservation"
-                      )}
+                      Submit Reservation
                     </Button>
                   </div>
 

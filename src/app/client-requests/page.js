@@ -322,7 +322,7 @@ export default function ClientServiceRequestsPage() {
               </span>
             </div>
             <div className="flex items-center gap-4">
-              <ClientNotificationBell />
+              {/* <ClientNotificationBell /> */}
               <Button
                 onClick={() => router.push("/client-home")}
                 variant="outline"

@@ -21,7 +21,7 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  Wrench,
+  Armchair,
   Building2,
   User,
   Calendar,
@@ -36,22 +36,22 @@ import {
   Ban,
   Eye,
   RotateCcw,
+  Package,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { isNewItem, getRelativeTime } from "@/lib/utils";
 import { format } from "date-fns";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
-import { formattedDate } from "@/lib/utils";
 import { toast } from "react-toastify";
 
-export default function ServiceRequests() {
-  const [requests, setRequests] = useState([]);
-  const [properties, setProperties] = useState([]);
+export default function Amenities() {
+  const [borrowRequests, setBorrowRequests] = useState([]);
+  const [amenitiesList, setAmenitiesList] = useState([]);
   const [homeowners, setHomeowners] = useState([]);
   const [filteredRequests, setFilteredRequests] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [priorityFilter, setPriorityFilter] = useState("all");
+  const [amenityFilter, setAmenityFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -63,20 +63,20 @@ export default function ServiceRequests() {
   const [viewingRequest, setViewingRequest] = useState(null);
   const [approvingId, setApprovingId] = useState(null);
   const [decliningId, setDecliningId] = useState(null);
-  const [revertingId, setRevertingId] = useState(null);
+  const [returningId, setReturningId] = useState(null);
 
   const supabase = createClientComponentClient();
 
   // Form state
   const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    request_type: "",
-    priority: "medium",
-    status: "pending",
+    amenity_id: "",
     homeowner_id: "",
-    property_id: "",
-    scheduled_date: "",
+    borrow_date: "",
+    return_date: "",
+    quantity: 1,
+    purpose: "",
+    status: "pending",
+    notes: "",
   });
 
   useEffect(() => {
@@ -85,34 +85,41 @@ export default function ServiceRequests() {
 
   useEffect(() => {
     filterRequests();
-  }, [requests, searchTerm, statusFilter, priorityFilter]);
+  }, [borrowRequests, searchTerm, statusFilter, amenityFilter]);
 
   const loadData = async () => {
     try {
       setLoading(true);
 
-      // Load service requests with related data
+      // Load amenity borrow requests
       const { data: requestsData, error: requestsError } = await supabase
-        .from("request_tbl")
+        .from("amenity_borrow_requests")
         .select(
           `*,
-          property_contracts:contract_id(contract_id,client_name),
-          property_info_tbl:property_id(property_id, property_title)
+          amenities:amenity_id(amenity_id, name, category, total_quantity, available_quantity),
+          property_contracts:contract_id(contract_id, client_name, client_email)
         `
         )
-        .order("created_date", { ascending: false });
+        .order("created_at", { ascending: false });
 
       if (requestsError) throw requestsError;
 
-      // Load properties for form dropdown
-      const { data: propertiesData, error: propertiesError } = await supabase
-        .from("property_tbl")
-        .select("id, name")
+      // Load amenities for dropdown (load ALL first to debug)
+      const { data: amenitiesData, error: amenitiesError } = await supabase
+        .from("amenities")
+        .select("*")
         .order("name");
 
-      if (propertiesError) throw propertiesError;
+      if (amenitiesError) {
+        console.error("❌ Error loading amenities:", amenitiesError);
+        toast.error("Failed to load amenities: " + amenitiesError.message);
+      } else {
+        console.log("✅ Admin - Loaded amenities:", amenitiesData);
+        console.log("📊 Admin - Amenities count:", amenitiesData?.length || 0);
+        console.log("🔍 Admin - First amenity:", amenitiesData?.[0]);
+      }
 
-      // Load contracts (which link homeowners to properties) for the dropdown
+      // Load contracts for homeowner dropdown
       const { data: contractsData, error: contractsError } = await supabase
         .from("property_contracts")
         .select(
@@ -122,7 +129,8 @@ export default function ServiceRequests() {
           client_email,
           property_id,
           property_title,
-          contract_status
+          contract_status,
+          user_id
         `
         )
         .in("contract_status", ["active", "pending", "completed"])
@@ -130,36 +138,30 @@ export default function ServiceRequests() {
 
       if (contractsError) throw contractsError;
 
-      console.log("✅ Loaded contracts:", contractsData?.length || 0);
-
-      setRequests(requestsData || []);
-      setProperties(propertiesData || []);
-      setHomeowners(contractsData || []); // Using contracts as "homeowners" for the dropdown
+      setBorrowRequests(requestsData || []);
+      setAmenitiesList(amenitiesData || []);
+      setHomeowners(contractsData || []);
     } catch (error) {
       console.error("Error loading data:", error);
+      toast.error("Failed to load amenities data");
     } finally {
       setLoading(false);
     }
   };
 
   const filterRequests = () => {
-    let filtered = requests;
+    let filtered = borrowRequests;
 
     if (searchTerm) {
       filtered = filtered.filter(
         (request) =>
-          request.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          request.description
+          request.amenities?.name
             .toLowerCase()
             .includes(searchTerm.toLowerCase()) ||
-          (request.homeowner?.full_name &&
-            request.homeowner.full_name
-              .toLowerCase()
-              .includes(searchTerm.toLowerCase())) ||
-          (request.property?.property_title &&
-            request.property.property_id
-              .toLowerCase()
-              .includes(searchTerm.toLowerCase()))
+          request.property_contracts?.client_name
+            ?.toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          request.purpose?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -167,23 +169,13 @@ export default function ServiceRequests() {
       filtered = filtered.filter((request) => request.status === statusFilter);
     }
 
-    if (priorityFilter !== "all") {
+    if (amenityFilter !== "all") {
       filtered = filtered.filter(
-        (request) => request.priority === priorityFilter
+        (request) => request.amenity_id === amenityFilter
       );
     }
 
     setFilteredRequests(filtered);
-  };
-
-  const getPropertyName = (propertyId) => {
-    const property = properties.find((p) => p.id === propertyId);
-    return property ? property.name : "N/A";
-  };
-
-  const getHomeownerName = (homeownerId) => {
-    const homeowner = homeowners.find((h) => h.id === homeownerId);
-    return homeowner ? homeowner.full_name : "N/A";
   };
 
   const getStatusProps = (status) => {
@@ -203,46 +195,21 @@ export default function ServiceRequests() {
           color: "bg-red-100 text-red-800 border-red-200",
           icon: XCircle,
         };
-      case "in_progress":
+      case "borrowed":
         return {
           color: "bg-blue-100 text-blue-800 border-blue-200",
-          icon: AlertCircle,
+          icon: Package,
         };
-      case "completed":
+      case "returned":
         return {
           color: "bg-green-100 text-green-800 border-green-200",
           icon: CheckCircle,
         };
-      case "cancelled":
-        return {
-          color: "bg-gray-100 text-gray-800 border-gray-200",
-          icon: XCircle,
-        };
-      case "on_hold":
-        return {
-          color: "bg-orange-100 text-orange-800 border-orange-200",
-          icon: Clock,
-        };
       default:
         return {
           color: "bg-gray-100 text-gray-800 border-gray-200",
           icon: Clock,
         };
-    }
-  };
-
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case "urgent":
-        return "bg-red-100 text-red-800 border-red-200";
-      case "high":
-        return "bg-orange-100 text-orange-800 border-orange-200";
-      case "medium":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200";
-      case "low":
-        return "bg-green-100 text-green-800 border-green-200";
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
 
@@ -250,45 +217,30 @@ export default function ServiceRequests() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleHomeownerChange = (selectedOption) => {
-    if (!selectedOption) {
-      setFormData((prev) => ({ ...prev, homeowner_id: "", property_id: "" }));
-      return;
-    }
-
-    setFormData((prev) => ({
-      ...prev,
-      homeowner_id: selectedOption.value,
-      property_id: "",
-    }));
-  };
-
   const resetForm = () => {
     setFormData({
-      title: "",
-      description: "",
-      request_type: "",
-      priority: "medium",
-      status: "pending",
+      amenity_id: "",
       homeowner_id: "",
-      property_id: "",
-      scheduled_date: "",
+      borrow_date: "",
+      return_date: "",
+      quantity: 1,
+      purpose: "",
+      status: "pending",
+      notes: "",
     });
   };
 
   const handleEditRequest = (request) => {
     setEditingRequest(request);
     setFormData({
-      title: request.title,
-      description: request.description,
-      request_type: request.request_type,
-      priority: request.priority,
-      status: request.status,
-      homeowner_id: request.contract_id?.toString() || "", // Map contract_id to homeowner_id
-      property_id: request.property_id?.toString() || "",
-      scheduled_date: request.scheduled_date
-        ? request.scheduled_date.split("T")[0]
-        : "",
+      amenity_id: request.amenity_id?.toString() || "",
+      homeowner_id: request.contract_id?.toString() || "",
+      borrow_date: request.borrow_date ? request.borrow_date.split("T")[0] : "",
+      return_date: request.return_date ? request.return_date.split("T")[0] : "",
+      quantity: request.quantity || 1,
+      purpose: request.purpose || "",
+      status: request.status || "pending",
+      notes: request.notes || "",
     });
     setIsEditModalOpen(true);
   };
@@ -303,14 +255,19 @@ export default function ServiceRequests() {
 
     setSubmitting(true);
     try {
-      await deleteRequest(deletingRequest.id, deletingRequest.title);
-      toast.success("Service request deleted successfully!");
+      const { error } = await supabase
+        .from("amenity_borrow_requests")
+        .delete()
+        .eq("id", deletingRequest.id);
+
+      if (error) throw error;
+
+      toast.success("Borrow request deleted successfully!");
       setIsDeleteModalOpen(false);
       setDeletingRequest(null);
-      // Reload data to ensure fresh state
       await loadData();
     } catch (error) {
-      console.error("Error deleting service request:", error);
+      console.error("Error deleting request:", error);
       toast.error("Failed to delete: " + (error.message || "Unknown error"));
     } finally {
       setSubmitting(false);
@@ -322,122 +279,26 @@ export default function ServiceRequests() {
     setIsViewModalOpen(true);
   };
 
-  const sendNotificationToUser = async (request, newStatus) => {
-    try {
-      // Get user_id from the service request through contract
-      if (!request.contract_id) {
-        console.warn("No contract_id found for request:", request.id);
-        return;
-      }
-
-      // Fetch the contract to get user_id
-      const { data: contractData, error: contractError } = await supabase
-        .from("property_contracts")
-        .select("user_id")
-        .eq("contract_id", request.contract_id)
-        .single();
-
-      if (contractError || !contractData?.user_id) {
-        console.warn("Could not find user_id for request:", request.id);
-        return;
-      }
-
-      const userId = contractData.user_id;
-
-      // Create notification
-      // For clients, we store user_id in data field (not recipient_id) because recipient_id expects integer
-      const statusMessages = {
-        approved: {
-          title: "Service Request Approved",
-          message: `Your service request "${request.title}" has been approved.`,
-          icon: "✅",
-        },
-        declined: {
-          title: "Service Request Declined",
-          message: `Your service request "${request.title}" has been declined.`,
-          icon: "❌",
-        },
-        reverted: {
-          title: "Service Request Reverted",
-          message: `Your service request "${request.title}" has been reverted to pending status.`,
-          icon: "🔄",
-        },
-      };
-
-      const statusInfo = statusMessages[newStatus] || statusMessages.approved;
-
-      const notificationData = {
-        title: statusInfo.title,
-        message: statusInfo.message,
-        icon: statusInfo.icon,
-        priority: "high",
-        recipient_role: "client", // Mark as client notification
-        notification_type: "service_request_update",
-        source_table: "request_tbl",
-        source_table_display_name: "Service Requests",
-        source_record_id: request.id,
-        action_url: "/client-requests",
-        data: {
-          user_id: userId, // Store client user_id here for filtering
-          request_id: request.id,
-          request_title: request.title,
-          request_type: request.request_type,
-          status: newStatus,
-        },
-      };
-
-      console.log("Sending notification to user:", userId);
-      console.log(
-        "🔍 NOTIFICATION PAYLOAD:",
-        JSON.stringify(notificationData, null, 2)
-      );
-      console.log(
-        "🔍 Does payload have recipient_id?",
-        "recipient_id" in notificationData
-      );
-
-      const response = await fetch("/api/notifications", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(notificationData),
-      });
-
-      const result = await response.json();
-
-      if (!result.success) {
-        console.error("Failed to create notification:", result.error);
-      } else {
-        console.log("Notification sent successfully:", result);
-      }
-    } catch (error) {
-      console.error("Error sending notification:", error);
-    }
-  };
-
   const handleApprove = async (requestId) => {
     setApprovingId(requestId);
     try {
-      // Call API to update status and trigger notification
-      const response = await fetch('/api/service-requests', {
-        method: 'PATCH',
+      const response = await fetch("/api/amenities/borrow", {
+        method: "PATCH",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           id: requestId,
-          status: 'approved',
+          status: "approved",
         }),
       });
 
       const result = await response.json();
       if (!result.success) {
-        throw new Error(result.error || 'Failed to approve request');
+        throw new Error(result.error || "Failed to approve request");
       }
 
-      toast.success("Service request approved!");
-      // Reload data to ensure fresh state
+      toast.success("Borrow request approved!");
       await loadData();
     } catch (error) {
       console.error("Error approving request:", error);
@@ -450,25 +311,23 @@ export default function ServiceRequests() {
   const handleDecline = async (requestId) => {
     setDecliningId(requestId);
     try {
-      // Call API to update status and trigger notification
-      const response = await fetch('/api/service-requests', {
-        method: 'PATCH',
+      const response = await fetch("/api/amenities/borrow", {
+        method: "PATCH",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           id: requestId,
-          status: 'declined',
+          status: "declined",
         }),
       });
 
       const result = await response.json();
       if (!result.success) {
-        throw new Error(result.error || 'Failed to decline request');
+        throw new Error(result.error || "Failed to decline request");
       }
 
-      toast.success("Service request declined!");
-      // Reload data to ensure fresh state
+      toast.success("Borrow request declined!");
       await loadData();
     } catch (error) {
       console.error("Error declining request:", error);
@@ -478,98 +337,32 @@ export default function ServiceRequests() {
     }
   };
 
-  const handleRevert = async (requestId) => {
-    setRevertingId(requestId);
+  const handleReturn = async (requestId) => {
+    setReturningId(requestId);
     try {
-      // Call API to update status and trigger notification
-      const response = await fetch('/api/service-requests', {
-        method: 'PATCH',
+      const response = await fetch("/api/amenities/borrow", {
+        method: "PATCH",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           id: requestId,
-          status: 'pending',
+          status: "returned",
         }),
       });
 
       const result = await response.json();
       if (!result.success) {
-        throw new Error(result.error || 'Failed to revert request');
+        throw new Error(result.error || "Failed to mark as returned");
       }
 
-      toast.success("Service request reverted to pending!");
-      // Reload data to ensure fresh state
+      toast.success("Amenity marked as returned!");
       await loadData();
     } catch (error) {
-      console.error("Error reverting request:", error);
-      toast.error("Failed to revert request");
+      console.error("Error marking as returned:", error);
+      toast.error("Failed to mark as returned");
     } finally {
-      setRevertingId(null);
-    }
-  };
-
-  const updateRequest = async (requestId, updateData) => {
-    try {
-      console.log("Updating request:", requestId, "with data:", updateData);
-
-      const { data, error } = await supabase
-        .from("request_tbl")
-        .update({
-          ...updateData,
-        })
-        .eq("id", requestId)
-        .select()
-        .single();
-
-      if (error) {
-        console.error("Supabase error:", error);
-        throw new Error(error.message || "Failed to update request");
-      }
-
-      if (!data) {
-        throw new Error("No data returned from update");
-      }
-
-      console.log("Update successful:", data);
-
-      // Update local state optimistically
-      setRequests((prev) =>
-        prev.map((request) =>
-          request.id === requestId ? { ...request, ...data } : request
-        )
-      );
-
-      return data;
-    } catch (error) {
-      console.error("Error updating service request:", error);
-      throw error;
-    }
-  };
-
-  const deleteRequest = async (requestId, requestTitle) => {
-    try {
-      console.log("Deleting request:", requestId, requestTitle);
-
-      const { error } = await supabase
-        .from("request_tbl")
-        .delete()
-        .eq("id", requestId);
-
-      if (error) {
-        console.error("Supabase delete error:", error);
-        throw new Error(error.message || "Failed to delete request");
-      }
-
-      console.log("Delete successful, removing from state");
-
-      // Remove from local state
-      setRequests((prev) => prev.filter((request) => request.id !== requestId));
-
-      return true;
-    } catch (error) {
-      console.error("Error deleting service request:", error);
-      throw error;
+      setReturningId(null);
     }
   };
 
@@ -579,81 +372,78 @@ export default function ServiceRequests() {
 
     try {
       // Validate required fields
-      if (!formData.title || !formData.description || !formData.request_type) {
+      if (
+        !formData.amenity_id ||
+        !formData.homeowner_id ||
+        !formData.borrow_date
+      ) {
         toast.error("Please fill in all required fields");
         setSubmitting(false);
         return;
       }
 
-      if (!formData.homeowner_id) {
-        toast.error("Please select a homeowner");
+      // Fetch user_id from the selected contract
+      const { data: contractData, error: contractError } = await supabase
+        .from("property_contracts")
+        .select("user_id")
+        .eq("contract_id", formData.homeowner_id)
+        .single();
+
+      if (contractError) {
+        console.error("Error fetching contract:", contractError);
+        toast.error("Failed to fetch homeowner information");
         setSubmitting(false);
         return;
       }
 
-      // Map formData fields to database fields
+      if (!contractData?.user_id) {
+        toast.error("Selected homeowner has no associated user account");
+        setSubmitting(false);
+        return;
+      }
+
       const submitData = {
-        title: formData.title,
-        description: formData.description,
-        request_type: formData.request_type,
-        priority: formData.priority,
+        amenity_id: formData.amenity_id,
+        contract_id: formData.homeowner_id,
+        user_id: contractData.user_id,
+        borrow_date: formData.borrow_date,
+        return_date: formData.return_date || null,
+        quantity: parseInt(formData.quantity),
+        purpose: formData.purpose,
         status: formData.status,
-        contract_id: formData.homeowner_id, // Map homeowner_id to contract_id
-        property_id: formData.property_id,
-        scheduled_date: formData.scheduled_date || null,
+        notes: formData.notes || null,
       };
 
       if (editingRequest) {
-        const data = await updateRequest(editingRequest.id, submitData);
-        toast.success("Service request updated successfully!");
-        setIsEditModalOpen(false);
-        setEditingRequest(null);
-      } else {
-        // Fetch user_id from the selected contract
-        const { data: contractData, error: contractError } = await supabase
-          .from("property_contracts")
-          .select("user_id")
-          .eq("contract_id", formData.homeowner_id)
-          .single();
-
-        if (contractError) {
-          console.error("Error fetching contract:", contractError);
-          toast.error("Failed to fetch homeowner information");
-          setSubmitting(false);
-          return;
-        }
-
-        if (!contractData?.user_id) {
-          toast.error("Selected homeowner has no associated user account");
-          setSubmitting(false);
-          return;
-        }
-
-        submitData.created_date = new Date().toISOString();
-        submitData.user_id = contractData.user_id;
-
-        const { data, error } = await supabase
-          .from("request_tbl")
-          .insert([submitData]).select(`
-            *,
-          property_contracts:contract_id(contract_id,client_name),
-          property_info_tbl:property_id(property_id, property_title)
-          `);
+        const { error } = await supabase
+          .from("amenity_borrow_requests")
+          .update(submitData)
+          .eq("id", editingRequest.id);
 
         if (error) throw error;
 
-        setRequests((prev) => [data[0], ...prev]);
-        setIsModalOpen(false);
+        toast.success("Borrow request updated successfully!");
+        setIsEditModalOpen(false);
+        setEditingRequest(null);
+      } else {
+        submitData.created_at = new Date().toISOString();
 
-        toast.success("Service request created successfully!");
+        const { error } = await supabase
+          .from("amenity_borrow_requests")
+          .insert([submitData]);
+
+        if (error) throw error;
+
+        setIsModalOpen(false);
+        toast.success("Borrow request created successfully!");
       }
 
       resetForm();
-      await loadData(); // Reload data to ensure fresh state
+      await loadData();
     } catch (error) {
-      console.error("Error creating service request:", error);
+      console.error("Error saving borrow request:", error);
       toast.error(
-        "Error saving service request: " + (error.message || "Unknown error")
+        "Error saving request: " + (error.message || "Unknown error")
       );
     } finally {
       setSubmitting(false);
@@ -676,24 +466,24 @@ export default function ServiceRequests() {
         >
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg shadow-red-500/30">
-                <Wrench className="w-7 h-7 text-white" />
+              <div className="p-3 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg shadow-purple-500/30">
+                <Armchair className="w-7 h-7 text-white" />
               </div>
               <div>
                 <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent mb-1">
-                  Service Requests
+                  Amenity Borrowing
                 </h1>
                 <p className="text-sm text-slate-600 flex items-center gap-2">
                   <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                  Track and manage homeowner requests
+                  Manage amenity borrow requests
                 </p>
               </div>
             </div>
             <Button
               onClick={openModal}
-              className="bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg shadow-red-500/30 hover:shadow-xl hover:shadow-red-500/40 hover:from-red-600 hover:to-red-700 transition-all duration-300 rounded-xl px-6"
+              className="bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-lg shadow-purple-500/30 hover:shadow-xl hover:shadow-purple-500/40 hover:from-purple-600 hover:to-purple-700 transition-all duration-300 rounded-xl px-6"
             >
-              <Plus className="w-5 h-5 mr-2" /> New Request
+              <Plus className="w-5 h-5 mr-2" /> New Borrow Request
             </Button>
           </div>
         </motion.div>
@@ -709,10 +499,10 @@ export default function ServiceRequests() {
             <div className="relative flex-1 w-full md:max-w-md">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
               <Input
-                placeholder="Search by title, description, homeowner..."
+                placeholder="Search by amenity, homeowner, purpose..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-12 h-11 border-slate-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+                className="pl-12 h-11 border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all"
               />
             </div>
             <div className="flex gap-3 w-full md:w-auto">
@@ -725,22 +515,24 @@ export default function ServiceRequests() {
                   <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="approved">Approved</SelectItem>
                   <SelectItem value="declined">Declined</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                  <SelectItem value="on_hold">On Hold</SelectItem>
+                  <SelectItem value="borrowed">Borrowed</SelectItem>
+                  <SelectItem value="returned">Returned</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+              <Select value={amenityFilter} onValueChange={setAmenityFilter}>
                 <SelectTrigger className="w-full md:w-44 h-11 rounded-xl border-slate-200">
-                  <SelectValue placeholder="All Priority" />
+                  <SelectValue placeholder="All Amenities" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Priority</SelectItem>
-                  <SelectItem value="urgent">Urgent</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="all">All Amenities</SelectItem>
+                  {amenitiesList.map((amenity) => (
+                    <SelectItem
+                      key={amenity.amenity_id}
+                      value={amenity.amenity_id}
+                    >
+                      {amenity.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -768,10 +560,10 @@ export default function ServiceRequests() {
           ) : filteredRequests.length === 0 ? (
             <div className="text-center py-16">
               <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Wrench className="w-12 h-12 text-slate-400" />
+                <Armchair className="w-12 h-12 text-slate-400" />
               </div>
               <h3 className="text-xl font-semibold text-slate-900 mb-2">
-                No Service Requests
+                No Borrow Requests
               </h3>
               <p className="text-slate-600">
                 All caught up! No requests match your filters.
@@ -783,25 +575,22 @@ export default function ServiceRequests() {
                 <thead className="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
                   <tr>
                     <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
-                      Title
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
-                      Type
+                      Amenity
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
                       Homeowner
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
-                      Property
+                      Quantity
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
-                      Priority
+                      Borrow Date
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      Return Date
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
                       Status
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
-                      Date
                     </th>
                     <th className="px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">
                       Actions
@@ -821,11 +610,11 @@ export default function ServiceRequests() {
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
                             <div>
-                              <div className="font-semibold text-slate-900 max-w-xs truncate">
-                                {request.title}
+                              <div className="font-semibold text-slate-900">
+                                {request.amenities?.name || "N/A"}
                               </div>
-                              <div className="text-sm text-slate-500 max-w-xs truncate">
-                                {request.description}
+                              <div className="text-sm text-slate-500 capitalize">
+                                {request.amenities?.category || "N/A"}
                               </div>
                             </div>
                             {isNewItem(request.created_at) && (
@@ -837,43 +626,40 @@ export default function ServiceRequests() {
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <span className="text-sm text-slate-700 capitalize">
-                            {request.request_type.replace("_", " ")}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
                           <span className="text-sm text-slate-700">
-                            {request?.property_contracts?.client_name ?? "N/A"}
+                            {request.property_contracts?.client_name || "N/A"}
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          <span className="text-sm text-slate-700">
-                            {request?.property_info_tbl?.property_title ??
-                              "N/A"}
+                          <span className="text-sm font-semibold text-slate-900">
+                            {request.quantity}
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          <Badge
-                            className={`${getPriorityColor(
-                              request.priority
-                            )} border capitalize font-semibold`}
-                          >
-                            {request.priority}
-                          </Badge>
+                          <span className="text-sm text-slate-600">
+                            {request.borrow_date
+                              ? format(
+                                  new Date(request.borrow_date),
+                                  "MMM d, yyyy"
+                                )
+                              : "N/A"}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-sm text-slate-600">
+                            {request.return_date
+                              ? format(
+                                  new Date(request.return_date),
+                                  "MMM d, yyyy"
+                                )
+                              : "—"}
+                          </span>
                         </td>
                         <td className="px-6 py-4">
                           <Badge className={`${color} border font-semibold`}>
                             <StatusIcon className="w-3 h-3 mr-1" />
-                            {request.status.replace("_", " ")}
+                            {request.status}
                           </Badge>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-sm text-slate-600">
-                            {format(
-                              new Date(request.created_date),
-                              "MMM d, yyyy"
-                            )}
-                          </span>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center justify-end gap-2">
@@ -907,16 +693,15 @@ export default function ServiceRequests() {
                                 </Button>
                               </>
                             )}
-                            {(request.status === "approved" ||
-                              request.status === "declined") && (
+                            {request.status === "approved" && (
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="text-orange-700 border-orange-300 hover:bg-orange-50 hover:border-orange-400"
-                                onClick={() => handleRevert(request.id)}
-                                disabled={revertingId === request.id}
+                                className="text-blue-700 border-blue-300 hover:bg-blue-50 hover:border-blue-400"
+                                onClick={() => handleReturn(request.id)}
+                                disabled={returningId === request.id}
                               >
-                                {revertingId === request.id ? (
+                                {returningId === request.id ? (
                                   <Loader2 className="w-4 h-4 animate-spin" />
                                 ) : (
                                   <RotateCcw className="w-4 h-4" />
@@ -968,13 +753,13 @@ export default function ServiceRequests() {
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto"
           >
-            <div className="sticky top-0 bg-gradient-to-r from-red-500 to-red-600 px-8 py-6 rounded-t-2xl z-10">
+            <div className="sticky top-0 bg-gradient-to-r from-purple-500 to-purple-600 px-8 py-6 rounded-t-2xl z-10">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-2xl font-bold text-white">
-                    Service Request Details
+                    Borrow Request Details
                   </h2>
-                  <p className="text-red-100 mt-1">
+                  <p className="text-purple-100 mt-1">
                     View complete request information
                   </p>
                 </div>
@@ -993,21 +778,14 @@ export default function ServiceRequests() {
             </div>
 
             <div className="p-8 space-y-6">
-              {/* Status and Priority */}
+              {/* Status */}
               <div className="flex items-center gap-3 mb-4">
                 <Badge
                   className={`${
                     getStatusProps(viewingRequest.status).color
                   } border font-semibold text-sm px-3 py-1`}
                 >
-                  {viewingRequest.status.replace("_", " ")}
-                </Badge>
-                <Badge
-                  className={`${getPriorityColor(
-                    viewingRequest.priority
-                  )} border font-semibold text-sm px-3 py-1`}
-                >
-                  {viewingRequest.priority} priority
+                  {viewingRequest.status}
                 </Badge>
                 {isNewItem(viewingRequest.created_at) && (
                   <Badge className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-0 shadow-md">
@@ -1017,80 +795,86 @@ export default function ServiceRequests() {
                 )}
               </div>
 
-              {/* Title */}
-              <div>
-                <h3 className="text-sm font-bold text-slate-700 mb-2">Title</h3>
-                <p className="text-lg font-semibold text-slate-900">
-                  {viewingRequest.title}
-                </p>
-              </div>
-
-              {/* Description */}
-              <div>
-                <h3 className="text-sm font-bold text-slate-700 mb-2">
-                  Description
-                </h3>
-                <p className="text-slate-700 leading-relaxed bg-slate-50 p-4 rounded-lg">
-                  {viewingRequest.description}
-                </p>
-              </div>
-
               {/* Details Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-6 rounded-xl">
                 <div>
                   <h3 className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-red-600" />
-                    Request Type
+                    <Armchair className="w-4 h-4 text-purple-600" />
+                    Amenity
                   </h3>
-                  <p className="text-slate-900 capitalize">
-                    {viewingRequest.request_type.replace("_", " ")}
+                  <p className="text-slate-900">
+                    {viewingRequest.amenities?.name || "N/A"}
+                  </p>
+                  <p className="text-sm text-slate-500 capitalize">
+                    {viewingRequest.amenities?.category || ""}
                   </p>
                 </div>
 
                 <div>
                   <h3 className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
-                    <User className="w-4 h-4 text-purple-600" />
+                    <User className="w-4 h-4 text-blue-600" />
                     Homeowner
                   </h3>
                   <p className="text-slate-900">
-                    {viewingRequest?.property_contracts?.client_name ?? "N/A"}
+                    {viewingRequest.property_contracts?.client_name || "N/A"}
                   </p>
                 </div>
 
                 <div>
                   <h3 className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
-                    <Building2 className="w-4 h-4 text-blue-600" />
-                    Property
+                    <Package className="w-4 h-4 text-orange-600" />
+                    Quantity
                   </h3>
-                  <p className="text-slate-900">
-                    {viewingRequest?.property_info_tbl?.property_title ?? "N/A"}
-                  </p>
+                  <p className="text-slate-900">{viewingRequest.quantity}</p>
                 </div>
 
                 <div>
                   <h3 className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-orange-600" />
-                    Created Date
+                    <Calendar className="w-4 h-4 text-green-600" />
+                    Borrow Date
                   </h3>
                   <p className="text-slate-900">
-                    {format(
-                      new Date(viewingRequest.created_date),
-                      "MMM d, yyyy"
-                    )}
+                    {viewingRequest.borrow_date
+                      ? format(
+                          new Date(viewingRequest.borrow_date),
+                          "MMM d, yyyy"
+                        )
+                      : "N/A"}
                   </p>
                 </div>
 
-                {viewingRequest.scheduled_date && (
-                  <div className="md:col-span-2">
+                {viewingRequest.return_date && (
+                  <div>
                     <h3 className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-green-600" />
-                      Scheduled Date
+                      <Calendar className="w-4 h-4 text-red-600" />
+                      Expected Return Date
                     </h3>
                     <p className="text-slate-900">
                       {format(
-                        new Date(viewingRequest.scheduled_date),
+                        new Date(viewingRequest.return_date),
                         "MMM d, yyyy"
                       )}
+                    </p>
+                  </div>
+                )}
+
+                <div className="md:col-span-2">
+                  <h3 className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-purple-600" />
+                    Purpose
+                  </h3>
+                  <p className="text-slate-900 bg-white p-4 rounded-lg">
+                    {viewingRequest.purpose || "No purpose specified"}
+                  </p>
+                </div>
+
+                {viewingRequest.notes && (
+                  <div className="md:col-span-2">
+                    <h3 className="text-sm font-bold text-slate-700 mb-2">
+                      Notes
+                    </h3>
+                    <p className="text-slate-900 bg-white p-4 rounded-lg">
+                      {viewingRequest.notes}
                     </p>
                   </div>
                 )}
@@ -1103,7 +887,7 @@ export default function ServiceRequests() {
                   setIsViewModalOpen(false);
                   setViewingRequest(null);
                 }}
-                className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white h-11 rounded-xl hover:from-red-600 hover:to-red-700"
+                className="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white h-11 rounded-xl hover:from-purple-600 hover:to-purple-700"
               >
                 Close
               </Button>
@@ -1121,18 +905,18 @@ export default function ServiceRequests() {
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
           >
-            <div className="sticky top-0 bg-gradient-to-r from-red-500 to-red-600 px-8 py-6 rounded-t-2xl z-10">
+            <div className="sticky top-0 bg-gradient-to-r from-purple-500 to-purple-600 px-8 py-6 rounded-t-2xl z-10">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-2xl font-bold text-white">
                     {editingRequest
-                      ? "Edit Service Request"
-                      : "New Service Request"}
+                      ? "Edit Borrow Request"
+                      : "New Borrow Request"}
                   </h2>
-                  <p className="text-red-100 mt-1">
+                  <p className="text-purple-100 mt-1">
                     {editingRequest
                       ? "Update request details"
-                      : "Submit a new request"}
+                      : "Create a new amenity borrow request"}
                   </p>
                 </div>
                 <Button
@@ -1152,75 +936,41 @@ export default function ServiceRequests() {
             </div>
 
             <form onSubmit={handleSubmit} className="p-8 space-y-6">
-              {/* Title */}
+              {/* Amenity */}
               <div className="space-y-2">
                 <Label
-                  htmlFor="title"
+                  htmlFor="amenity_id"
                   className="text-sm font-bold text-slate-700"
                 >
-                  Title <span className="text-red-500">*</span>
+                  Amenity <span className="text-red-500">*</span>
                 </Label>
-                <Input
-                  id="title"
-                  placeholder="Enter request title"
-                  value={formData.title}
-                  onChange={(e) => handleInputChange("title", e.target.value)}
-                  required
-                  className="border-slate-200 rounded-xl h-11"
-                />
-              </div>
-
-              {/* Description */}
-              <div className="space-y-2">
-                <Label
-                  htmlFor="description"
-                  className="text-sm font-bold text-slate-700"
-                >
-                  Description <span className="text-red-500">*</span>
-                </Label>
-                <Textarea
-                  id="description"
-                  placeholder="Describe the request in detail"
-                  value={formData.description}
-                  onChange={(e) =>
-                    handleInputChange("description", e.target.value)
+                <Select
+                  value={formData.amenity_id}
+                  onValueChange={(value) =>
+                    handleInputChange("amenity_id", value)
                   }
-                  required
-                  rows={4}
-                  className="border-slate-200 rounded-xl resize-none"
-                />
-              </div>
-
-              {/* Request Type */}
-              <div className="space-y-2">
-                <Label htmlFor="request_type" className="text-sm font-bold text-slate-700">
-                  Request Type <span className="text-red-500">*</span>
-                </Label>
-                <select
-                  id="request_type"
-                  value={formData.request_type}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      request_type: e.target.value,
-                    })
-                  }
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl h-11 focus:outline-none focus:ring-2 focus:ring-red-500"
-                  required
                 >
-                  <option value="">Select request type...</option>
-                  <option value="plumbing">🔧 Plumbing</option>
-                  <option value="general_maintenance">
-                    🔨 General Maintenance
-                  </option>
-                  <option value="cleaning">🧹 Cleaning</option>
-                  <option value="appliance">🏠 Appliance</option>
-                  <option value="electrical">⚡ Electrical</option>
-                  <option value="security">🔒 Security</option>
-                  <option value="landscaping">🌳 Landscaping</option>
-                  <option value="hvac">❄️ HVAC</option>
-                  <option value="other">📋 Other</option>
-                </select>
+                  <SelectTrigger className="border-slate-200 rounded-xl h-11">
+                    <SelectValue placeholder="Select amenity" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {amenitiesList.length === 0 ? (
+                      <SelectItem value="no-amenities" disabled>
+                        No amenities available - Please add amenities first
+                      </SelectItem>
+                    ) : (
+                      amenitiesList.map((amenity) => (
+                        <SelectItem
+                          key={amenity.amenity_id}
+                          value={amenity.amenity_id}
+                        >
+                          {amenity.name} ({amenity.available_quantity}{" "}
+                          available)
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Homeowner */}
@@ -1262,21 +1012,10 @@ export default function ServiceRequests() {
                       : null
                   }
                   onChange={(selected) => {
-                    if (selected) {
-                      const selectedHomeowner = homeowners.find(
-                        (h) => h.contract_id === selected.value
-                      );
-                      handleInputChange("homeowner_id", selected.value);
-                      if (selectedHomeowner?.property_id) {
-                        handleInputChange(
-                          "property_id",
-                          selectedHomeowner.property_id
-                        );
-                      }
-                    } else {
-                      handleInputChange("homeowner_id", "");
-                      handleInputChange("property_id", "");
-                    }
+                    handleInputChange(
+                      "homeowner_id",
+                      selected ? selected.value : ""
+                    );
                   }}
                   isClearable
                   placeholder="Select homeowner"
@@ -1285,82 +1024,132 @@ export default function ServiceRequests() {
                 />
               </div>
 
-              {/* Priority and Status in a grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="priority"
-                    className="text-sm font-bold text-slate-700"
-                  >
-                    Priority
-                  </Label>
-                  <Select
-                    value={formData.priority}
-                    onValueChange={(value) =>
-                      handleInputChange("priority", value)
-                    }
-                  >
-                    <SelectTrigger className="border-slate-200 rounded-xl h-11">
-                      <SelectValue placeholder="Select priority" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Low</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                      <SelectItem value="urgent">Urgent</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {editingRequest && (
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="status"
-                      className="text-sm font-bold text-slate-700"
-                    >
-                      Status
-                    </Label>
-                    <Select
-                      value={formData.status}
-                      onValueChange={(value) =>
-                        handleInputChange("status", value)
-                      }
-                    >
-                      <SelectTrigger className="border-slate-200 rounded-xl h-11">
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="approved">Approved</SelectItem>
-                        <SelectItem value="declined">Declined</SelectItem>
-                        <SelectItem value="in_progress">In Progress</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
-                        <SelectItem value="cancelled">Cancelled</SelectItem>
-                        <SelectItem value="on_hold">On Hold</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </div>
-
-              {/* Scheduled Date */}
+              {/* Quantity */}
               <div className="space-y-2">
                 <Label
-                  htmlFor="scheduled_date"
+                  htmlFor="quantity"
                   className="text-sm font-bold text-slate-700"
                 >
-                  Scheduled Date (Optional)
+                  Quantity <span className="text-red-500">*</span>
                 </Label>
                 <Input
-                  id="scheduled_date"
-                  type="date"
-                  value={formData.scheduled_date}
+                  id="quantity"
+                  type="number"
+                  min="1"
+                  placeholder="Enter quantity"
+                  value={formData.quantity}
                   onChange={(e) =>
-                    handleInputChange("scheduled_date", e.target.value)
+                    handleInputChange("quantity", e.target.value)
                   }
+                  required
                   className="border-slate-200 rounded-xl h-11"
                 />
               </div>
+
+              {/* Dates */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="borrow_date"
+                    className="text-sm font-bold text-slate-700"
+                  >
+                    Borrow Date <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="borrow_date"
+                    type="date"
+                    value={formData.borrow_date}
+                    onChange={(e) =>
+                      handleInputChange("borrow_date", e.target.value)
+                    }
+                    required
+                    className="border-slate-200 rounded-xl h-11"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="return_date"
+                    className="text-sm font-bold text-slate-700"
+                  >
+                    Expected Return Date
+                  </Label>
+                  <Input
+                    id="return_date"
+                    type="date"
+                    value={formData.return_date}
+                    onChange={(e) =>
+                      handleInputChange("return_date", e.target.value)
+                    }
+                    className="border-slate-200 rounded-xl h-11"
+                  />
+                </div>
+              </div>
+
+              {/* Purpose */}
+              <div className="space-y-2">
+                <Label
+                  htmlFor="purpose"
+                  className="text-sm font-bold text-slate-700"
+                >
+                  Purpose
+                </Label>
+                <Textarea
+                  id="purpose"
+                  placeholder="What will the amenity be used for?"
+                  value={formData.purpose}
+                  onChange={(e) => handleInputChange("purpose", e.target.value)}
+                  rows={3}
+                  className="border-slate-200 rounded-xl resize-none"
+                />
+              </div>
+
+              {/* Notes */}
+              <div className="space-y-2">
+                <Label
+                  htmlFor="notes"
+                  className="text-sm font-bold text-slate-700"
+                >
+                  Additional Notes
+                </Label>
+                <Textarea
+                  id="notes"
+                  placeholder="Any additional information"
+                  value={formData.notes}
+                  onChange={(e) => handleInputChange("notes", e.target.value)}
+                  rows={2}
+                  className="border-slate-200 rounded-xl resize-none"
+                />
+              </div>
+
+              {/* Status (only for edit) */}
+              {editingRequest && (
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="status"
+                    className="text-sm font-bold text-slate-700"
+                  >
+                    Status
+                  </Label>
+                  <Select
+                    value={formData.status}
+                    onValueChange={(value) =>
+                      handleInputChange("status", value)
+                    }
+                  >
+                    <SelectTrigger className="border-slate-200 rounded-xl h-11">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="declined">Declined</SelectItem>
+                      <SelectItem value="borrowed">Borrowed</SelectItem>
+                      <SelectItem value="returned">Returned</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               {/* Form Actions */}
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
@@ -1381,7 +1170,7 @@ export default function ServiceRequests() {
                 <Button
                   type="submit"
                   disabled={submitting}
-                  className="px-6 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl"
+                  className="px-6 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-xl"
                 >
                   {submitting ? (
                     <>
@@ -1427,7 +1216,7 @@ export default function ServiceRequests() {
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-white">
-                      Delete Service Request
+                      Delete Borrow Request
                     </h3>
                     <p className="text-red-100 text-sm mt-1">
                       This action cannot be undone
@@ -1456,22 +1245,19 @@ export default function ServiceRequests() {
                 </h4>
                 <div className="bg-slate-50 rounded-lg p-4 mb-4 text-left">
                   <h5 className="font-medium text-slate-900 mb-1">
-                    {deletingRequest.title}
+                    {deletingRequest.amenities?.name || "Unknown Amenity"}
                   </h5>
                   <p className="text-sm text-slate-600 mb-2">
-                    {deletingRequest.description}
+                    Borrower:{" "}
+                    {deletingRequest.property_contracts?.client_name || "N/A"}
                   </p>
                   <div className="flex items-center justify-between text-xs text-slate-500">
-                    <span className="capitalize">
-                      {deletingRequest.request_type.replace("_", " ")}
-                    </span>
-                    <span className="capitalize">
-                      {deletingRequest.priority} priority
-                    </span>
+                    <span>Quantity: {deletingRequest.quantity}</span>
+                    <span className="capitalize">{deletingRequest.status}</span>
                   </div>
                 </div>
                 <p className="text-slate-600">
-                  This will permanently delete the service request. This action
+                  This will permanently delete the borrow request. This action
                   cannot be reversed.
                 </p>
               </div>

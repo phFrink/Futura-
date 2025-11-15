@@ -32,6 +32,10 @@ import {
   RefreshCw,
   User,
   Undo2,
+  MessageSquare,
+  Wrench,
+  AlertTriangle,
+  HelpCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-toastify";
@@ -62,6 +66,12 @@ export default function CertifiedHomeOwner() {
   const [transferContract, setTransferContract] = useState(null);
   const [revertContract, setRevertContract] = useState(null);
   const [revertLoading, setRevertLoading] = useState(false);
+
+  // Related data states
+  const [relatedInquiries, setRelatedInquiries] = useState([]);
+  const [relatedServiceRequests, setRelatedServiceRequests] = useState([]);
+  const [relatedComplaints, setRelatedComplaints] = useState([]);
+  const [loadingRelatedData, setLoadingRelatedData] = useState(false);
 
   useEffect(() => {
     loadContracts();
@@ -139,6 +149,10 @@ export default function CertifiedHomeOwner() {
       completed: { color: "bg-blue-100 text-blue-800 border-blue-200", label: "Completed", icon: CheckCircle },
       cancelled: { color: "bg-red-100 text-red-800 border-red-200", label: "Cancelled", icon: XCircle },
       pending: { color: "bg-yellow-100 text-yellow-800 border-yellow-200", label: "Pending", icon: Clock },
+      in_progress: { color: "bg-blue-100 text-blue-800 border-blue-200", label: "In Progress", icon: Clock },
+      resolved: { color: "bg-green-100 text-green-800 border-green-200", label: "Resolved", icon: CheckCircle },
+      approved: { color: "bg-green-100 text-green-800 border-green-200", label: "Approved", icon: CheckCircle },
+      declined: { color: "bg-red-100 text-red-800 border-red-200", label: "Declined", icon: XCircle },
     };
 
     const config = statusConfig[status] || {
@@ -157,9 +171,105 @@ export default function CertifiedHomeOwner() {
     );
   };
 
+  const getSeverityBadge = (severity) => {
+    const severityConfig = {
+      low: { color: "bg-blue-100 text-blue-800 border-blue-200", label: "Low" },
+      medium: { color: "bg-yellow-100 text-yellow-800 border-yellow-200", label: "Medium" },
+      high: { color: "bg-orange-100 text-orange-800 border-orange-200", label: "High" },
+      critical: { color: "bg-red-100 text-red-800 border-red-200", label: "Critical" },
+    };
+
+    const config = severityConfig[severity] || {
+      color: "bg-gray-100 text-gray-800 border-gray-200",
+      label: severity,
+    };
+
+    return (
+      <Badge className={`${config.color} border w-fit`}>
+        {config.label}
+      </Badge>
+    );
+  };
+
+  const getPriorityBadge = (priority) => {
+    const priorityConfig = {
+      low: { color: "bg-blue-100 text-blue-800 border-blue-200", label: "Low" },
+      medium: { color: "bg-yellow-100 text-yellow-800 border-yellow-200", label: "Medium" },
+      high: { color: "bg-orange-100 text-orange-800 border-orange-200", label: "High" },
+      urgent: { color: "bg-red-100 text-red-800 border-red-200", label: "Urgent" },
+    };
+
+    const config = priorityConfig[priority] || {
+      color: "bg-gray-100 text-gray-800 border-gray-200",
+      label: priority,
+    };
+
+    return (
+      <Badge className={`${config.color} border w-fit`}>
+        {config.label}
+      </Badge>
+    );
+  };
+
+  const loadRelatedData = async (contract) => {
+    setLoadingRelatedData(true);
+    try {
+      // Load inquiries for this homeowner
+      const { data: inquiriesData, error: inquiriesError } = await supabase
+        .from("inquiry_tbl")
+        .select("*")
+        .eq("email", contract.client_email)
+        .order("created_date", { ascending: false });
+
+      if (inquiriesError) {
+        console.error("Error loading inquiries:", inquiriesError);
+      }
+
+      // Load service requests for this contract
+      const { data: serviceRequestsData, error: serviceRequestsError } = await supabase
+        .from("request_tbl")
+        .select(`
+          *,
+          property_contracts:contract_id(contract_id, client_name),
+          property_info_tbl:property_id(property_id, property_title)
+        `)
+        .eq("contract_id", contract.contract_id)
+        .order("created_date", { ascending: false });
+
+      if (serviceRequestsError) {
+        console.error("Error loading service requests:", serviceRequestsError);
+      }
+
+      // Load complaints for this contract
+      const { data: complaintsData, error: complaintsError } = await supabase
+        .from("complaint_tbl")
+        .select(`
+          *,
+          property_contracts!contract_id(contract_id, client_name),
+          property_info_tbl!property_id(property_id, property_title)
+        `)
+        .eq("contract_id", contract.contract_id)
+        .order("created_date", { ascending: false });
+
+      if (complaintsError) {
+        console.error("Error loading complaints:", complaintsError);
+      }
+
+      setRelatedInquiries(inquiriesData || []);
+      setRelatedServiceRequests(serviceRequestsData || []);
+      setRelatedComplaints(complaintsData || []);
+    } catch (error) {
+      console.error("Error loading related data:", error);
+      toast.error("Failed to load related data");
+    } finally {
+      setLoadingRelatedData(false);
+    }
+  };
+
   const handleViewDetails = (contract) => {
     setSelectedContract(contract);
     setShowDetailModal(true);
+    loadRelatedData(contract);
   };
 
   const handleWalkInPayment = (schedule, contract) => {
@@ -236,10 +346,10 @@ export default function CertifiedHomeOwner() {
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          Certified Homeowners
+          Certified Property Reservations
         </h1>
         <p className="text-gray-600">
-          View and manage your certified homeowners
+          View and manage your property reservations
         </p>
       </div>
 
@@ -733,7 +843,7 @@ export default function CertifiedHomeOwner() {
                 {/* Payment Schedule */}
                 {selectedContract.payment_schedules &&
                   selectedContract.payment_schedules.length > 0 && (
-                    <Card className="shadow-md">
+                    <Card className="mb-8 shadow-md">
                       <CardContent className="p-6">
                         <div className="flex items-start justify-between mb-6">
                           <div className="flex items-center gap-3">
@@ -835,6 +945,212 @@ export default function CertifiedHomeOwner() {
                       </CardContent>
                     </Card>
                   )}
+
+                {/* Related Activity Section */}
+                <div className="grid grid-cols-1 gap-6">
+                  {/* Inquiries Section */}
+                  <Card className="border-l-4 border-l-purple-500 shadow-md">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-purple-100 rounded-lg">
+                            <HelpCircle className="w-5 h-5 text-purple-600" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-bold text-gray-900">
+                              Inquiries
+                            </h3>
+                            <p className="text-xs text-gray-600">
+                              All inquiries from this homeowner
+                            </p>
+                          </div>
+                        </div>
+                        <Badge className="bg-purple-100 text-purple-800">
+                          {relatedInquiries.length}
+                        </Badge>
+                      </div>
+
+                      {loadingRelatedData ? (
+                        <div className="flex justify-center py-8">
+                          <Loader2 className="w-6 h-6 animate-spin text-purple-600" />
+                        </div>
+                      ) : relatedInquiries.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                          <HelpCircle className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                          <p>No inquiries found</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {relatedInquiries.map((inquiry) => (
+                            <div
+                              key={inquiry.id}
+                              className="p-4 bg-purple-50 rounded-lg border border-purple-100"
+                            >
+                              <div className="flex items-start justify-between mb-2">
+                                <div className="flex-1">
+                                  <p className="font-semibold text-gray-900">
+                                    {inquiry.subject}
+                                  </p>
+                                  <p className="text-sm text-gray-600 mt-1">
+                                    {inquiry.message}
+                                  </p>
+                                </div>
+                                {getStatusBadge(inquiry.status)}
+                              </div>
+                              <div className="flex items-center gap-4 text-xs text-gray-500 mt-2">
+                                <span className="flex items-center gap-1">
+                                  <Calendar className="w-3 h-3" />
+                                  {formatDate(inquiry.created_date)}
+                                </span>
+                                {inquiry.category && (
+                                  <Badge className="bg-purple-200 text-purple-900 text-xs">
+                                    {inquiry.category}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Service Requests Section */}
+                  <Card className="border-l-4 border-l-blue-500 shadow-md">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-blue-100 rounded-lg">
+                            <Wrench className="w-5 h-5 text-blue-600" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-bold text-gray-900">
+                              Service Requests
+                            </h3>
+                            <p className="text-xs text-gray-600">
+                              Maintenance and service requests
+                            </p>
+                          </div>
+                        </div>
+                        <Badge className="bg-blue-100 text-blue-800">
+                          {relatedServiceRequests.length}
+                        </Badge>
+                      </div>
+
+                      {loadingRelatedData ? (
+                        <div className="flex justify-center py-8">
+                          <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                        </div>
+                      ) : relatedServiceRequests.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                          <Wrench className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                          <p>No service requests found</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {relatedServiceRequests.map((request) => (
+                            <div
+                              key={request.id}
+                              className="p-4 bg-blue-50 rounded-lg border border-blue-100"
+                            >
+                              <div className="flex items-start justify-between mb-2">
+                                <div className="flex-1">
+                                  <p className="font-semibold text-gray-900">
+                                    {request.title}
+                                  </p>
+                                  <p className="text-sm text-gray-600 mt-1">
+                                    {request.description}
+                                  </p>
+                                </div>
+                                {getStatusBadge(request.status)}
+                              </div>
+                              <div className="flex items-center gap-4 text-xs text-gray-500 mt-2 flex-wrap">
+                                <span className="flex items-center gap-1">
+                                  <Calendar className="w-3 h-3" />
+                                  {formatDate(request.created_date)}
+                                </span>
+                                {request.request_type && (
+                                  <Badge className="bg-blue-200 text-blue-900 text-xs capitalize">
+                                    {request.request_type.replace(/_/g, ' ')}
+                                  </Badge>
+                                )}
+                                {request.priority && getPriorityBadge(request.priority)}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Complaints Section */}
+                  <Card className="border-l-4 border-l-red-500 shadow-md">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-red-100 rounded-lg">
+                            <AlertTriangle className="w-5 h-5 text-red-600" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-bold text-gray-900">
+                              Complaints
+                            </h3>
+                            <p className="text-xs text-gray-600">
+                              Logged complaints and issues
+                            </p>
+                          </div>
+                        </div>
+                        <Badge className="bg-red-100 text-red-800">
+                          {relatedComplaints.length}
+                        </Badge>
+                      </div>
+
+                      {loadingRelatedData ? (
+                        <div className="flex justify-center py-8">
+                          <Loader2 className="w-6 h-6 animate-spin text-red-600" />
+                        </div>
+                      ) : relatedComplaints.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                          <AlertTriangle className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                          <p>No complaints found</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {relatedComplaints.map((complaint) => (
+                            <div
+                              key={complaint.complaint_id}
+                              className="p-4 bg-red-50 rounded-lg border border-red-100"
+                            >
+                              <div className="flex items-start justify-between mb-2">
+                                <div className="flex-1">
+                                  <p className="font-semibold text-gray-900">
+                                    {complaint.subject}
+                                  </p>
+                                  <p className="text-sm text-gray-600 mt-1">
+                                    {complaint.description}
+                                  </p>
+                                </div>
+                                {getStatusBadge(complaint.status)}
+                              </div>
+                              <div className="flex items-center gap-4 text-xs text-gray-500 mt-2 flex-wrap">
+                                <span className="flex items-center gap-1">
+                                  <Calendar className="w-3 h-3" />
+                                  {formatDate(complaint.created_date)}
+                                </span>
+                                {complaint.complaint_type && (
+                                  <Badge className="bg-red-200 text-red-900 text-xs capitalize">
+                                    {complaint.complaint_type.replace(/_/g, ' ')}
+                                  </Badge>
+                                )}
+                                {complaint.severity && getSeverityBadge(complaint.severity)}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
               </div>
             </motion.div>
           </motion.div>

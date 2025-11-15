@@ -103,6 +103,29 @@ export async function GET(request) {
           );
         }
 
+        // Fetch transactions for each schedule to get processed_by information
+        if (schedules && schedules.length > 0) {
+          const schedulesWithProcessedBy = await Promise.all(
+            schedules.map(async (schedule) => {
+              const { data: transaction } = await supabaseAdmin
+                .from("contract_payment_transactions")
+                .select("processed_by, processed_by_name")
+                .eq("schedule_id", schedule.schedule_id)
+                .order("transaction_date", { ascending: false })
+                .limit(1)
+                .single();
+
+              return {
+                ...schedule,
+                processed_by: transaction?.processed_by || null,
+                processed_by_name: transaction?.processed_by_name || null,
+              };
+            })
+          );
+
+          schedules.splice(0, schedules.length, ...schedulesWithProcessedBy);
+        }
+
         // Fetch transfer history (most recent transfer)
         const { data: transfers } = await supabaseAdmin
           .from("contract_transfer_history")
