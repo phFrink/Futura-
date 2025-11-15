@@ -7,7 +7,7 @@ import ProtectedRoute from "@/components/common/ProtectedRoute";
 const LoansPage = () => {
   return (
     <ProtectedRoute requiredRoles={["admin", "collection"]}>
-      <MainLayout currentPageName="Monthly Amortization">
+      <MainLayout currentPageName="Billing">
         <Loans />
       </MainLayout>
     </ProtectedRoute>

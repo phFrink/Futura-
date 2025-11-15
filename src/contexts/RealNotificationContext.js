@@ -74,6 +74,7 @@ export const RealNotificationProvider = ({ children }) => {
 
       const data = result.notifications;
 
+      console.log("✅ Loaded notifications from API:", data);
       console.log("✅ Loaded notifications from API:", data?.length || 0);
 
       // Debug: Show what notifications were returned and for which roles

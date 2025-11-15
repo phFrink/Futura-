@@ -16,11 +16,13 @@ import {
   Clock,
   AlertCircle,
   Info,
-  CheckCircle
+  CheckCircle,
+  X
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { formatDistanceToNow } from 'date-fns';
 import { createClient } from '@supabase/supabase-js';
+import { toast } from 'react-toastify';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -34,6 +36,8 @@ export default function NotificationsPage() {
   const [filter, setFilter] = useState('all'); // all, unread, read
   const [priorityFilter, setPriorityFilter] = useState('all'); // all, urgent, high, normal, low
   const [userRole, setUserRole] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [notificationToDelete, setNotificationToDelete] = useState(null);
 
   useEffect(() => {
     loadUserRole();
@@ -126,18 +130,37 @@ export default function NotificationsPage() {
     await loadNotifications();
   };
 
-  const deleteNotification = async (id) => {
+  const deleteNotification = (notification) => {
+    setNotificationToDelete(notification);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!notificationToDelete) return;
+
     try {
-      const response = await fetch(`/api/notifications?id=${id}`, {
+      const response = await fetch(`/api/notifications?id=${notificationToDelete.id}`, {
         method: 'DELETE'
       });
 
       if (response.ok) {
-        setNotifications(prev => prev.filter(n => n.id !== id));
+        setNotifications(prev => prev.filter(n => n.id !== notificationToDelete.id));
+        setShowDeleteModal(false);
+        setNotificationToDelete(null);
+        toast.success('Notification deleted successfully!');
+      } else {
+        const result = await response.json();
+        toast.error(result.message || 'Failed to delete notification');
       }
     } catch (error) {
       console.error('Error deleting notification:', error);
+      toast.error('Failed to delete notification. Please try again.');
     }
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteModal(false);
+    setNotificationToDelete(null);
   };
 
   const clearAllNotifications = async () => {
@@ -152,13 +175,14 @@ export default function NotificationsPage() {
 
       if (response.ok) {
         setNotifications([]);
-        alert('All notifications cleared successfully!');
+        toast.success('All notifications cleared successfully!');
       } else {
-        alert('Failed to clear notifications');
+        const result = await response.json();
+        toast.error(result.message || 'Failed to clear notifications');
       }
     } catch (error) {
       console.error('Error clearing all notifications:', error);
-      alert('Error clearing notifications');
+      toast.error('Error clearing notifications. Please try again.');
     }
   };
 
@@ -403,7 +427,7 @@ export default function NotificationsPage() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => deleteNotification(notification.id)}
+                              onClick={() => deleteNotification(notification)}
                               className="h-6 px-2 text-xs text-red-600 hover:text-red-700"
                             >
                               <Trash2 className="w-3 h-3" />
@@ -451,6 +475,86 @@ export default function NotificationsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {showDeleteModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            onClick={cancelDelete}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-lg shadow-xl max-w-md w-full p-6"
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                    <Trash2 className="w-6 h-6 text-red-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-900">
+                      Delete Notification
+                    </h3>
+                    <p className="text-sm text-slate-500">
+                      This action cannot be undone
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={cancelDelete}
+                  className="text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="mb-6">
+                <p className="text-slate-600 mb-3">
+                  Are you sure you want to delete this notification?
+                </p>
+                {notificationToDelete && (
+                  <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
+                    <p className="text-sm font-medium text-slate-900 mb-1">
+                      {notificationToDelete.title}
+                    </p>
+                    <p className="text-xs text-slate-600 line-clamp-2">
+                      {notificationToDelete.message}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Actions */}
+              <div className="flex gap-3 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={cancelDelete}
+                  className="px-4"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={confirmDelete}
+                  className="px-4 bg-red-600 hover:bg-red-700"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </MainLayout>
   );
 }

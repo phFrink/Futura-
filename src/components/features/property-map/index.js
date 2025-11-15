@@ -174,7 +174,7 @@ export default function PropertyMap() {
       case "for_sale":
         return "#3b82f6"; // blue - for sale
       case "vacant":
-        return "#22c55e"; // green - vacant/available
+        return "#a855f7"; // purple - vacant (property_availability = vacant)
       case "reserved":
         return "#eab308"; // yellow - reserved
       case "occupied":
@@ -252,7 +252,7 @@ export default function PropertyMap() {
           console.log(`🔍 Block 6 Lot 10 Debug:`, {
             status,
             color,
-            expectedColor: "#22c55e (green for available)"
+            expectedColor: status === "vacant" ? "#a855f7 (purple for vacant)" : "#22c55e (green for available)"
           });
         }
 
@@ -410,10 +410,10 @@ export default function PropertyMap() {
                   }).length : 0}
                 </span>
               </div>
-              <div className="flex items-center gap-2 bg-green-50 px-4 py-2 rounded-lg border border-green-200">
-                <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                <span className="text-green-700 font-medium">Vacant</span>
-                <span className="ml-1 px-2 py-0.5 bg-green-100 text-green-800 rounded-full text-xs font-bold min-w-[28px] text-center">
+              <div className="flex items-center gap-2 bg-purple-50 px-4 py-2 rounded-lg border border-purple-200">
+                <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+                <span className="text-purple-700 font-medium">Vacant</span>
+                <span className="ml-1 px-2 py-0.5 bg-purple-100 text-purple-800 rounded-full text-xs font-bold min-w-[28px] text-center">
                   {Array.isArray(lots) ? lots.filter(l => {
                     // Vacant if: no property OR (property exists but no contract AND availability is vacant)
                     if (!l?.property) return true;
@@ -642,7 +642,7 @@ export default function PropertyMap() {
                                 return "bg-blue-100 text-blue-800 border-blue-200";
                               }
                               if (availability === "vacant") {
-                                return "bg-green-100 text-green-800 border-green-200";
+                                return "bg-purple-100 text-purple-800 border-purple-200";
                               }
                               if (availability === "reserved" || availability === "reserve") {
                                 return "bg-yellow-100 text-yellow-800 border-yellow-200";

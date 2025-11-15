@@ -108,7 +108,7 @@ const RealNotificationBell = () => {
     }
 
     // Get the action URL from notification data
-    const actionUrl = notification.data?.action_url || notification.action_url;
+    const actionUrl = notification.action_url ?? notification.data?.action_url;
 
     if (actionUrl) {
       setIsOpen(false); // Close the dropdown

@@ -3,7 +3,7 @@ import ContractToSell from "@/components/features/contract-to-sell";
 
 const ContractToSellPage = () => {
   return (
-    <MainLayout currentPageName="Contracts to Sell">
+    <MainLayout currentPageName="Contracts">
       <ContractToSell />
     </MainLayout>
   );

@@ -216,7 +216,7 @@ export const NotificationTemplates = {
     recipientRole: "sales representative", // This can be overridden when calling
     sourceTable: "property_reservations",
     sourceTableDisplayName: "Property Reservation",
-    actionUrl: "/property-reservation", // Admin URL
+    actionUrl: "/client-reservation", // Admin URL
     clientActionUrl: "/client-reservation", // Client URL
     data: reservationData,
   }),
@@ -236,7 +236,7 @@ export const NotificationTemplates = {
     recipientRole: "sales representative", // This can be overridden when calling
     sourceTable: "property_reservations",
     sourceTableDisplayName: "Property Reservation",
-    actionUrl: "/property-reservation", // Admin URL
+    actionUrl: "/client-reservation", // Admin URL
     clientActionUrl: "/client-reservation", // Client URL
     data: reservationData,
   }),
@@ -250,7 +250,7 @@ export const NotificationTemplates = {
     recipientRole: "sales representative", // This can be overridden when calling
     sourceTable: "property_reservations",
     sourceTableDisplayName: "Property Reservation",
-    actionUrl: "/property-reservation", // Admin URL
+    actionUrl: "/client-reservation", // Admin URL
     clientActionUrl: "/client-reservation", // Client URL
     data: reservationData,
   }),

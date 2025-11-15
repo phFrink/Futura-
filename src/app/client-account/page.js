@@ -12,6 +12,21 @@ import {
 import { motion } from "framer-motion";
 import { useClientAuth } from '@/contexts/ClientAuthContext';
 import { toast } from 'react-toastify';
+import { createClient } from '@supabase/supabase-js';
+
+// Create Supabase client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      storageKey: 'futura-client-auth',
+      storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+    },
+  }
+);
 
 export default function ClientAccountPage() {
   const router = useRouter();
@@ -42,11 +57,12 @@ export default function ClientAccountPage() {
       return;
     }
 
-    // Only load user data if authenticated
-    if (isAuthenticated) {
+    // Only load user data if authenticated and not currently editing
+    // (to prevent form reset while user is editing)
+    if (isAuthenticated && !isEditing) {
       loadUserData();
     }
-  }, [isAuthenticated, user, profile, authLoading]);
+  }, [isAuthenticated, user, profile, authLoading, isEditing]);
 
   const loadUserData = () => {
     if (!user || !profile) {
@@ -164,10 +180,30 @@ export default function ClientAccountPage() {
 
       if (result.success) {
         toast.success("Profile updated successfully!");
-        setIsEditing(false);
-        setSelectedPhotoFile(null);
-        // Reload to show updated data
-        setTimeout(() => window.location.reload(), 500);
+
+        // Refresh the Supabase session to get updated user data
+        const { data: sessionData, error: sessionError } = await supabase.auth.refreshSession();
+
+        if (sessionError) {
+          console.error("Error refreshing session:", sessionError);
+          // If refresh fails, reload the page as fallback
+          setTimeout(() => window.location.reload(), 500);
+        } else if (sessionData?.session?.user) {
+          // Update form data with refreshed user metadata
+          const updatedUser = sessionData.session.user;
+          const updatedMetadata = updatedUser.user_metadata;
+
+          setFormData({
+            first_name: updatedMetadata?.first_name || '',
+            last_name: updatedMetadata?.last_name || '',
+            phone: updatedMetadata?.phone || '',
+            address: updatedMetadata?.address || '',
+            profile_photo: updatedMetadata?.profile_photo || '',
+          });
+          setPhotoPreview(updatedMetadata?.profile_photo || null);
+          setIsEditing(false);
+          setSelectedPhotoFile(null);
+        }
       } else {
         toast.error(result.message || "Failed to update profile");
       }
@@ -312,7 +348,7 @@ export default function ClientAccountPage() {
                   </p>
                   <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-red-50 to-red-100 border border-red-200 rounded-lg">
                     <User className="w-4 h-4 text-red-600" />
-                    <span className="font-medium text-red-900">Client</span>
+                    <span className="font-medium text-red-900">Homeowner</span>
                   </div>
                 </div>
               </div>

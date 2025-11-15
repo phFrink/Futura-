@@ -32,13 +32,14 @@ import {
   AlertCircle,
   Wrench,
   MessageSquare,
+  Loader2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-toastify";
 import { useClientAuth } from "@/contexts/ClientAuthContext";
 import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
-import RealNotificationBell from "@/components/ui/RealNotificationBell";
+// import RealNotificationBell from "@/components/ui/RealNotificationBell";
 
 // Initialize Supabase client with proper persistence
 const supabase = createClient(
@@ -116,6 +117,7 @@ export default function ClientLandingPage() {
   const [otpVerified, setOtpVerified] = useState(false);
   const [otpTimer, setOtpTimer] = useState(0);
   const [sendingOtp, setSendingOtp] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetchProperties();
@@ -439,6 +441,11 @@ export default function ClientLandingPage() {
       return;
     }
 
+    // Prevent multiple submissions
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+
     try {
       // Calculate total monthly income
       const totalMonthlyIncome =
@@ -547,6 +554,8 @@ export default function ClientLandingPage() {
     } catch (error) {
       console.error("Error submitting reservation:", error);
       toast.error(error.message || "Failed to submit reservation request");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -628,12 +637,11 @@ export default function ClientLandingPage() {
               >
                 Contact
               </a>
-              {isAuthenticated && (
+              {/* {isAuthenticated && (
                 <>
-                  {/* Notification Bell */}
                   <RealNotificationBell />
                 </>
-              )}
+              )} */}
               {isAuthenticated ? (
                 <div className="relative">
                   <button
@@ -714,8 +722,7 @@ export default function ClientLandingPage() {
               )}
             </div>
             <div className="md:hidden flex items-center gap-3">
-              {/* Mobile Notification Bell */}
-              {isAuthenticated && <RealNotificationBell />}
+              {/* {isAuthenticated && <RealNotificationBell />} */}
               <button>
                 <Menu className="h-6 w-6 text-slate-600" />
               </button>
@@ -1777,9 +1784,17 @@ export default function ClientLandingPage() {
                     </Button>
                     <Button
                       type="submit"
-                      className="flex-1 bg-red-600 hover:bg-red-700"
+                      disabled={isSubmitting}
+                      className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Submit Reservation
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        "Submit Reservation"
+                      )}
                     </Button>
                   </div>
 

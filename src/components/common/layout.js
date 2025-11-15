@@ -218,7 +218,7 @@ const navigationItems = [
     roles: ["admin", "customer service", "sales representative", "collection"],
   },
   {
-    title: "Settings",
+    title: "User Management",
     url: "/settings/users",
     icon: Users,
     countKey: null,
@@ -294,7 +294,7 @@ const navigationItems = [
   // },
 
   {
-    title: "Monthly amortization",
+    title: "Billing",
     url: "/loans",
     icon: HandCoins,
     countKey: null,
@@ -330,7 +330,7 @@ const navigationItems = [
   },
 
   {
-    title: "Contract to Sell",
+    title: "Contract",
     url: "/client-contract-to-sell",
     icon: FileSignature,
     countKey: "inquiries",
@@ -344,7 +344,7 @@ const navigationItems = [
     roles: ["admin", "customer service"],
   },
   {
-    title: "Certified Home Owner",
+    title: "Homeowner",
     url: "/certified-homeowner",
     icon: FileSignature,
     countKey: "certified",

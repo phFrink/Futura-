@@ -25,10 +25,17 @@ const supabaseAdmin = createSupabaseAdmin();
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { reservation_id, payment_plan_months } = body;
+    const {
+      reservation_id,
+      payment_plan_months,
+      payment_frequency = 'monthly', // NEW: monthly, weekly, daily (default: monthly)
+      allow_partial_payments = false // NEW: allow flexible payments (default: false)
+    } = body;
 
     console.log("📝 API: Creating contract for reservation:", reservation_id);
     console.log("📅 Payment plan months:", payment_plan_months);
+    console.log("🔄 Payment frequency:", payment_frequency);
+    console.log("💰 Allow partial payments:", allow_partial_payments);
 
     // Check if Supabase admin client is available
     if (!supabaseAdmin) {
@@ -50,13 +57,25 @@ export async function POST(request) {
       );
     }
 
-    // Validate payment plan months (1-24)
+    // Validate payment plan months (1-60)
     if (payment_plan_months < 1 || payment_plan_months > 60) {
       return NextResponse.json(
         {
           success: false,
           error: "Invalid payment plan",
           message: "Payment plan must be between 1 and 60 months",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Validate payment frequency
+    if (!['monthly', 'weekly', 'daily'].includes(payment_frequency)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Invalid payment frequency",
+          message: "Payment frequency must be monthly, weekly, or daily",
         },
         { status: 400 }
       );
@@ -111,14 +130,39 @@ export async function POST(request) {
     const reservationFeePaid = reservation.reservation_fee || 0;
     const downpaymentTotal = propertyPrice * 0.10;
     const remainingDownpayment = downpaymentTotal - reservationFeePaid;
-    const monthlyInstallment = remainingDownpayment / payment_plan_months;
     const bankFinancingAmount = propertyPrice * 0.90;
+
+    // Calculate installment amount and payment count based on frequency
+    let installmentAmount;
+    let paymentCount;
+
+    switch(payment_frequency) {
+      case 'weekly':
+        paymentCount = Math.ceil(payment_plan_months * 4.33); // ~4.33 weeks per month
+        installmentAmount = remainingDownpayment / paymentCount;
+        break;
+      case 'daily':
+        paymentCount = Math.ceil(payment_plan_months * 30); // ~30 days per month
+        installmentAmount = remainingDownpayment / paymentCount;
+        break;
+      case 'monthly':
+      default:
+        paymentCount = payment_plan_months;
+        installmentAmount = remainingDownpayment / payment_plan_months;
+        break;
+    }
+
+    const monthlyInstallment = remainingDownpayment / payment_plan_months; // Keep for backward compatibility
 
     console.log("💰 Calculations:", {
       propertyPrice,
       downpaymentTotal,
       reservationFeePaid,
       remainingDownpayment,
+      payment_frequency,
+      payment_plan_months,
+      paymentCount,
+      installmentAmount,
       monthlyInstallment,
       bankFinancingAmount,
     });
@@ -158,6 +202,10 @@ export async function POST(request) {
         remaining_downpayment: remainingDownpayment,
         payment_plan_months: payment_plan_months,
         monthly_installment: monthlyInstallment,
+        payment_frequency: payment_frequency, // NEW
+        payment_frequency_count: paymentCount, // NEW
+        allow_partial_payments: allow_partial_payments, // NEW
+        installment_amount: installmentAmount, // NEW
         bank_financing_percentage: 90.00,
         bank_financing_amount: bankFinancingAmount,
         downpayment_status: remainingDownpayment > 0 ? 'in_progress' : 'completed',
@@ -187,24 +235,50 @@ export async function POST(request) {
 
     // Generate payment schedules
     const paymentSchedules = [];
-    const gracePeriodDays = 7;
 
-    for (let i = 1; i <= payment_plan_months; i++) {
+    // Adjust grace period based on frequency
+    const gracePeriodDays = payment_frequency === 'daily' ? 0 :
+                           payment_frequency === 'weekly' ? 1 : 3;
+
+    for (let i = 1; i <= paymentCount; i++) {
       const dueDate = new Date(firstInstallmentDate);
-      dueDate.setMonth(dueDate.getMonth() + (i - 1));
+
+      // Calculate due date based on frequency
+      switch(payment_frequency) {
+        case 'weekly':
+          dueDate.setDate(dueDate.getDate() + ((i - 1) * 7)); // Add weeks
+          break;
+        case 'daily':
+          dueDate.setDate(dueDate.getDate() + (i - 1)); // Add days
+          break;
+        case 'monthly':
+        default:
+          dueDate.setMonth(dueDate.getMonth() + (i - 1)); // Add months
+          break;
+      }
 
       const gracePeriodEndDate = new Date(dueDate);
       gracePeriodEndDate.setDate(gracePeriodEndDate.getDate() + gracePeriodDays);
 
+      // Determine period type and description
+      const periodType = payment_frequency === 'daily' ? 'day' :
+                        payment_frequency === 'weekly' ? 'week' : 'month';
+      const frequencyLabel = payment_frequency.charAt(0).toUpperCase() + payment_frequency.slice(1);
+
       paymentSchedules.push({
         contract_id: contract.contract_id,
         installment_number: i,
-        installment_description: `Monthly Payment ${i} of ${payment_plan_months}`,
-        scheduled_amount: monthlyInstallment,
+        period_number: i, // NEW
+        period_type: periodType, // NEW
+        payment_frequency: payment_frequency, // NEW
+        installment_description: `${frequencyLabel} Payment ${i} of ${paymentCount}`,
+        scheduled_amount: installmentAmount,
         paid_amount: 0,
-        remaining_amount: monthlyInstallment,
+        remaining_amount: installmentAmount,
         due_date: dueDate.toISOString().split('T')[0], // Date only
         grace_period_end_date: gracePeriodEndDate.toISOString().split('T')[0],
+        grace_period_days: gracePeriodDays, // NEW
+        allows_partial: allow_partial_payments, // NEW
         payment_status: 'pending',
         is_overdue: false,
         days_overdue: 0,

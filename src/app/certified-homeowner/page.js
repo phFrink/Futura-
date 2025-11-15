@@ -3,7 +3,7 @@ import CertifiedHomeOwner from "@/components/features/certified-home-owner";
 
 const CertfiedHomeOwner = () => {
   return (
-    <MainLayout currentPageName="CertifiedHomeOwner">
+    <MainLayout currentPageName="Homeowner">
       <CertifiedHomeOwner />
     </MainLayout>
   );
