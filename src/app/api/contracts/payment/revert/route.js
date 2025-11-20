@@ -111,6 +111,14 @@ export async function POST(request) {
     const totalScheduled = schedule.contract.downpayment_total || 0;
     const newRemainingBalance = Math.max(0, totalScheduled - totalPaidAfterRevert);
 
+    console.log("📊 Remaining Balance Calculation:", {
+      totalScheduled,
+      revertedAmount,
+      totalPaidAfterRevert,
+      newRemainingBalance,
+      otherSchedulesCount: otherSchedules?.length || 0,
+    });
+
     // Start transaction by updating payment schedule
     const newRemainingAmount = schedule.scheduled_amount;
     const newPaidAmount = 0;

@@ -773,13 +773,13 @@ export default function ContractToSell() {
                                                   </style>
                                                   <div class="download-banner" style="position: fixed; top: 0; left: 0; right: 0; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 15px; text-align: center; z-index: 9999; font-family: Arial, sans-serif; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
                                                     <div style="display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 10px;">
-                                                      <strong style="font-size: 16px;">📥 To Download as PDF:</strong>
+                                                      <strong style="font-size: 16px;">To Download as PDF:</strong>
                                                       <span style="font-size: 14px;">Press Ctrl+P (or Cmd+P on Mac), select "Save as PDF" → Click Save</span>
                                                       <button onclick="window.print()" style="background: white; color: #10b981; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.3s;">
-                                                        📄 Download PDF Now
+                                                        Download PDF Now
                                                       </button>
                                                       <button onclick="document.querySelector('.guide-popup').classList.add('active'); document.querySelector('.guide-overlay').classList.add('active');" style="background: rgba(255,255,255,0.2); color: white; border: 2px solid white; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.3s;">
-                                                        📖 View Guide
+                                                        View Guide
                                                       </button>
                                                       <button onclick="this.closest('.download-banner').remove(); document.querySelector('.banner-spacer').remove();" style="background: rgba(255,255,255,0.2); color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer;">
                                                         ✕

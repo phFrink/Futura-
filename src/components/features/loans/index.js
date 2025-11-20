@@ -621,15 +621,7 @@ export default function Loans() {
                     </p>
                     <p className="text-2xl font-bold text-purple-900">
                       {formatCurrency(
-                        (() => {
-                          // Calculate total paid from all payment schedules
-                          const totalPaid = selectedContract.payment_schedules?.reduce(
-                            (sum, s) => sum + (parseFloat(s.paid_amount) || 0),
-                            0
-                          ) || 0;
-                          // Remaining balance = original amount - total paid (capped at 0)
-                          return Math.max(0, (parseFloat(selectedContract.remaining_downpayment) || 0) - totalPaid);
-                        })()
+                        Math.max(0, parseFloat(selectedContract.remaining_balance) || parseFloat(selectedContract.remaining_downpayment) || 0)
                       )}
                     </p>
                   </div>
