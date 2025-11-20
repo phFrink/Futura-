@@ -629,11 +629,11 @@ export default function ClientLandingPage() {
               >
                 Contact
               </a>
-              {/* {isAuthenticated && (
-                <>
+              {isAuthenticated && (
+                <div className="flex items-center gap-4">
                   <RealNotificationBell />
-                </>
-              )} */}
+                </div>
+              )}
               {isAuthenticated ? (
                 <div className="relative">
                   <button

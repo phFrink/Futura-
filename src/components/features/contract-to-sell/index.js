@@ -45,19 +45,37 @@ export default function ContractToSell() {
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState(null);
 
   useEffect(() => {
-    loadContracts();
+    // Get current user
+    const getCurrentUser = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          setCurrentUserId(user.id);
+          // Load contracts for this user
+          await loadContracts(user.id);
+        }
+      } catch (error) {
+        console.error("Error getting current user:", error);
+        // If not authenticated, just load all contracts
+        await loadContracts();
+      }
+    };
+    getCurrentUser();
   }, []);
 
   useEffect(() => {
     applyFilters();
   }, [searchTerm, statusFilter, contracts]);
 
-  const loadContracts = async () => {
+  const loadContracts = async (userId) => {
     setLoading(true);
     try {
-      const response = await fetch("/api/contracts");
+      // Build URL with user_id if available
+      const url = userId ? `/api/contracts?user_id=${userId}` : "/api/contracts";
+      const response = await fetch(url);
       const result = await response.json();
 
       if (result.success) {
