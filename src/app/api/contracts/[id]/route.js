@@ -79,10 +79,10 @@ export async function GET(request, { params }) {
         paid_installments: paidCount,
         pending_installments: pendingCount,
         overdue_installments: overdueCount,
-        payment_progress_percent: contract.remaining_downpayment > 0
+        payment_progress_percent: contract.downpayment_total > 0
           ? Math.min(
               100,
-              Math.round((contract.total_paid_amount / contract.remaining_downpayment) * 100)
+              Math.round((contract.total_paid_amount / contract.downpayment_total) * 100)
             )
           : 100,
       },

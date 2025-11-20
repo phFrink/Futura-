@@ -152,12 +152,14 @@ export async function GET(request) {
           0
         ) || 0;
 
+        // Calculate payment progress based on total downpayment, not remaining
+        const totalDownpayment = contract.downpayment_total || 0;
         const paymentProgress =
-          contract.remaining_downpayment > 0
+          totalDownpayment > 0
             ? Math.min(
                 100,
                 Math.round(
-                  (totalPaidFromSchedules / contract.remaining_downpayment) * 100
+                  (totalPaidFromSchedules / totalDownpayment) * 100
                 )
               )
             : 100;
