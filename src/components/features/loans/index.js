@@ -627,8 +627,8 @@ export default function Loans() {
                             (sum, s) => sum + (parseFloat(s.paid_amount) || 0),
                             0
                           ) || 0;
-                          // Remaining balance = original amount - total paid
-                          return (parseFloat(selectedContract.remaining_downpayment) || 0) - totalPaid;
+                          // Remaining balance = original amount - total paid (capped at 0)
+                          return Math.max(0, (parseFloat(selectedContract.remaining_downpayment) || 0) - totalPaid);
                         })()
                       )}
                     </p>
