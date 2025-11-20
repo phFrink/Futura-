@@ -156,7 +156,7 @@ export async function POST(request) {
         0
       );
       const totalScheduled = schedule.contract.downpayment_total || 0;
-      const newRemainingBalance = totalScheduled - totalPaid;
+      const newRemainingBalance = Math.max(0, totalScheduled - totalPaid);
 
       // Update contract remaining balance
       const { error: updateContractError } = await supabaseAdmin

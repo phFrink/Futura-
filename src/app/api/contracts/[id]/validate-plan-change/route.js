@@ -153,7 +153,7 @@ export async function POST(request, { params }) {
 
     // Calculate impact of plan change
     const pendingSchedules = schedules?.filter(s => s.payment_status === 'pending') || [];
-    const remainingAmount = contract.remaining_balance;
+    const remainingAmount = Math.max(0, contract.remaining_balance);
 
     // Calculate new monthly installment
     const newMonthlyInstallment = remainingAmount / new_payment_plan_months;

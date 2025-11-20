@@ -53,10 +53,26 @@ export default function ReservationDetails() {
   const [createdContract, setCreatedContract] = useState(null);
   const [creatingContract, setCreatingContract] = useState(false);
   const [isEditingPaymentPlan, setIsEditingPaymentPlan] = useState(false);
+  const [userRole, setUserRole] = useState(null);
 
   useEffect(() => {
+    getUserRole();
     loadReservations();
   }, []);
+
+  // Get current user role
+  const getUserRole = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const role = session.user.user_metadata?.role?.toLowerCase();
+        setUserRole(role);
+        console.log("User role:", role);
+      }
+    } catch (error) {
+      console.error("Error getting user role:", error);
+    }
+  };
 
   // Check for existing contract when modal opens
   useEffect(() => {
@@ -1806,16 +1822,19 @@ export default function ReservationDetails() {
                           >
                             <Printer className="h-3 w-3" />
                           </Button>
-                          <Button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setContractData(reservation);
-                              setShowContractModal(true);
-                            }}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 text-xs"
-                          >
-                            <FileSignature className="h-3 w-3" />
-                          </Button>
+                          {(userRole === "admin" || userRole === "customer service") && (
+                            <Button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setContractData(reservation);
+                                setShowContractModal(true);
+                              }}
+                              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 text-xs"
+                              title="Create contract (Admin & Customer Service only)"
+                            >
+                              <FileSignature className="h-3 w-3" />
+                            </Button>
+                          )}
                         </>
                       )}
                       {reservation.status === "rejected" && (
@@ -1852,6 +1871,9 @@ export default function ReservationDetails() {
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                      Buyer Name
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                       Tracking #
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
@@ -1883,6 +1905,24 @@ export default function ReservationDetails() {
                       transition={{ delay: index * 0.05 }}
                       className="hover:bg-slate-50 cursor-pointer transition-colors"
                     >
+                      {/* Buyer Name */}
+                      <td
+                        className="px-6 py-4"
+                        onClick={() => {
+                          setSelectedReservation(reservation);
+                          setShowDetailModal(true);
+                        }}
+                      >
+                        <div>
+                          <div className="font-semibold text-slate-900">
+                            {reservation.client_name}
+                          </div>
+                          <div className="text-xs text-slate-500">
+                            {reservation.client_email}
+                          </div>
+                        </div>
+                      </td>
+
                       <td
                         className="px-6 py-4 whitespace-nowrap"
                         onClick={() => {
@@ -2053,16 +2093,19 @@ export default function ReservationDetails() {
                               >
                                 <Printer className="h-3 w-3" />
                               </Button>
-                              <Button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setContractData(reservation);
-                                  setShowContractModal(true);
-                                }}
-                                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 text-xs"
-                              >
-                                <FileSignature className="h-3 w-3" />
-                              </Button>
+                              {(userRole === "admin" || userRole === "customer service") && (
+                                <Button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setContractData(reservation);
+                                    setShowContractModal(true);
+                                  }}
+                                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 text-xs"
+                                  title="Create contract (Admin & Customer Service only)"
+                                >
+                                  <FileSignature className="h-3 w-3" />
+                                </Button>
+                              )}
                             </>
                           )}
                           {reservation.status === "rejected" && (
@@ -3648,13 +3691,13 @@ export default function ReservationDetails() {
                           </style>
                           <div class="download-banner" style="position: fixed; top: 0; left: 0; right: 0; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 15px; text-align: center; z-index: 9999; font-family: Arial, sans-serif; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
                             <div style="display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 10px;">
-                              <strong style="font-size: 16px;">📥 To Download as PDF:</strong>
+                              <strong style="font-size: 16px;"> To Download as PDF:</strong>
                               <span style="font-size: 14px;">Press Ctrl+P (or Cmd+P on Mac), select "Save as PDF" → Click Save</span>
                               <button onclick="window.print()" style="background: white; color: #10b981; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.3s;">
-                                📄 Download PDF Now
+                                Download PDF Now
                               </button>
                               <button onclick="document.querySelector('.guide-popup').classList.add('active'); document.querySelector('.guide-overlay').classList.add('active');" style="background: rgba(255,255,255,0.2); color: white; border: 2px solid white; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.3s;">
-                                📖 View Guide
+                                View Guide
                               </button>
                               <button onclick="this.closest('.download-banner').remove(); document.querySelector('.banner-spacer').remove();" style="background: rgba(255,255,255,0.2); color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer;">
                                 ✕
@@ -3826,8 +3869,7 @@ export default function ReservationDetails() {
                                     </span>
                                     <span className="font-bold ml-2 text-red-600">
                                       {formatCurrency(
-                                        createdContract.contract
-                                          ?.remaining_balance
+                                        Math.max(0, createdContract.contract?.remaining_balance || 0)
                                       )}
                                     </span>
                                   </div>

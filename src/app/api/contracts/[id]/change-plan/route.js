@@ -147,7 +147,7 @@ export async function POST(request, { params }) {
     }
 
     // Calculate new payment details
-    const remainingBalance = contract.remaining_balance;
+    const remainingBalance = Math.max(0, contract.remaining_balance);
     const newMonthlyInstallment = remainingBalance / new_payment_plan_months;
 
     // Get the first unpaid schedule to determine new start date

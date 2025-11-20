@@ -1291,13 +1291,13 @@ export default function Homeowners() {
                           </div>
                         )}
 
-                        {homeowner.remaining_balance && (
+                        {homeowner.remaining_balance && Math.max(0, homeowner.remaining_balance) > 0 && (
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-medium text-orange-700">
                               Remaining Balance
                             </span>
                             <span className="font-bold text-orange-900">
-                              ₱{homeowner.remaining_balance?.toLocaleString()}
+                              ₱{Math.max(0, homeowner.remaining_balance)?.toLocaleString()}
                             </span>
                           </div>
                         )}
@@ -2037,14 +2037,14 @@ export default function Homeowners() {
                                   </span>
                                 </p>
                               )}
-                              {formData.remaining_balance && (
+                              {formData.remaining_balance && Math.max(0, parseFloat(formData.remaining_balance)) > 0 && (
                                 <p className="text-orange-700">
                                   Balance:{" "}
                                   <span className="font-semibold">
                                     ₱
-                                    {parseFloat(
-                                      formData.remaining_balance
-                                    ).toLocaleString()}
+                                    {Math.max(0, parseFloat(
+                                      formData.remaining_balance || 0
+                                    )).toLocaleString()}
                                   </span>
                                 </p>
                               )}

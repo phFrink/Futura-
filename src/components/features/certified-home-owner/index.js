@@ -502,7 +502,7 @@ export default function CertifiedHomeOwner() {
                       {/* Amount Column */}
                       <td className="px-6 py-4">
                         <p className="font-bold text-lg text-red-600">
-                          {formatCurrency(contract.remaining_balance)}
+                          {formatCurrency(Math.max(0, contract.remaining_balance || 0))}
                         </p>
                       </td>
 
@@ -736,7 +736,7 @@ export default function CertifiedHomeOwner() {
                             Remaining Balance
                           </span>
                           <p className="font-bold text-red-600 text-2xl mt-2">
-                            {formatCurrency(selectedContract.remaining_balance)}
+                            {formatCurrency(Math.max(0, selectedContract.remaining_balance || 0))}
                           </p>
                         </div>
                       </div>
