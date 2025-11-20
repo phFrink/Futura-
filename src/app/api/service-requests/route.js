@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import { createNotification, NotificationTemplates, getUserIdsByRole } from "@/lib/notification-helper";
+import { createNotification, NotificationTemplates, getUserIdsByRole, isCertifiedHomeowner } from "@/lib/notification-helper";
 
 // Create Supabase admin client
 const supabaseAdmin = createClient(
@@ -262,31 +262,40 @@ export async function PATCH(request) {
       const userId = data.property_contracts?.user_id || user_id;
 
       if (userId) {
-        let notificationTemplate = null;
+        // Check if homeowner is certified before sending notification
+        const isCertified = await isCertifiedHomeowner(supabaseAdmin, userId);
 
-        if (status === "approved" || status === "in_progress") {
-          notificationTemplate = NotificationTemplates.SERVICE_REQUEST_APPROVED({
-            title: data.title,
-          });
-        } else if (status === "completed") {
-          notificationTemplate = NotificationTemplates.SERVICE_REQUEST_COMPLETED({
-            title: data.title,
-          });
-        } else if (status === "declined" || status === "cancelled") {
-          notificationTemplate = NotificationTemplates.SERVICE_REQUEST_DECLINED({
-            title: data.title,
-          });
-        } else if (status === "pending") {
-          notificationTemplate = NotificationTemplates.SERVICE_REQUEST_REVERTED({
-            title: data.title,
-          });
-        }
+        if (isCertified) {
+          let notificationTemplate = null;
 
-        if (notificationTemplate) {
-          await createNotification(supabaseAdmin, {
-            ...notificationTemplate,
-            recipientId: userId,
-          });
+          if (status === "approved" || status === "in_progress") {
+            notificationTemplate = NotificationTemplates.SERVICE_REQUEST_APPROVED({
+              title: data.title,
+            });
+          } else if (status === "completed") {
+            notificationTemplate = NotificationTemplates.SERVICE_REQUEST_COMPLETED({
+              title: data.title,
+            });
+          } else if (status === "declined" || status === "cancelled") {
+            notificationTemplate = NotificationTemplates.SERVICE_REQUEST_DECLINED({
+              title: data.title,
+            });
+          } else if (status === "pending") {
+            notificationTemplate = NotificationTemplates.SERVICE_REQUEST_REVERTED({
+              title: data.title,
+            });
+          }
+
+          if (notificationTemplate) {
+            await createNotification(supabaseAdmin, {
+              ...notificationTemplate,
+              recipientId: userId,
+            });
+
+            console.log("✅ Service request notification sent to homeowner");
+          }
+        } else {
+          console.log("ℹ️ Homeowner is not certified - skipping notification");
         }
       }
     } catch (notifError) {
