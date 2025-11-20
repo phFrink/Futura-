@@ -290,6 +290,38 @@ export async function POST(request) {
       }
     }
 
+    // Recalculate and update contract remaining balance after payment
+    // Fetch all payment schedules to calculate total paid
+    const { data: allSchedules } = await supabaseAdmin
+      .from("contract_payment_schedules")
+      .select("paid_amount")
+      .eq("contract_id", scheduleData.contract_id);
+
+    if (allSchedules) {
+      const totalPaid = allSchedules.reduce(
+        (sum, s) => sum + (parseFloat(s.paid_amount) || 0),
+        0
+      );
+      const downpaymentTotal = scheduleData.contract.downpayment_total || 0;
+      const newRemainingBalance = Math.max(0, downpaymentTotal - totalPaid);
+
+      // Update contract with new remaining balance
+      await supabaseAdmin
+        .from("property_contracts")
+        .update({
+          remaining_balance: newRemainingBalance,
+          remaining_downpayment: newRemainingBalance,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("contract_id", scheduleData.contract_id);
+
+      console.log("✅ Updated contract remaining_balance:", {
+        total_paid: totalPaid,
+        downpayment_total: downpaymentTotal,
+        new_remaining_balance: newRemainingBalance,
+      });
+    }
+
     // Fetch updated schedule and contract data
     const { data: updatedSchedule } = await supabaseAdmin
       .from("contract_payment_schedules")
