@@ -1730,6 +1730,24 @@ export default function ReservationDetails() {
                       {getStatusBadge(reservation.status)}
                     </div>
 
+                    {/* Client Name */}
+                    <div className="pt-2 border-t border-slate-100">
+                      <p className="text-xs text-slate-500 mb-1">Client Name</p>
+                      <p className="font-semibold text-slate-900 text-base">
+                        {reservation.client_name || "N/A"}
+                      </p>
+                      {reservation.client_email && (
+                        <p className="text-xs text-slate-600 mt-1">
+                          {reservation.client_email}
+                        </p>
+                      )}
+                      {reservation.client_phone && (
+                        <p className="text-xs text-slate-600">
+                          {reservation.client_phone}
+                        </p>
+                      )}
+                    </div>
+
                     {/* Property Price Info */}
                     <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
                       <div>
@@ -1892,6 +1910,22 @@ export default function ReservationDetails() {
                             )}
                           </Button>
                         </>
+                      )}
+
+                      {/* Contract Link - Show if contract exists */}
+                      {reservation.contract && reservation.contract.contract_id && (
+                        <div className="pt-2 border-t border-slate-100">
+                          <Button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/contracts/${reservation.contract.contract_id}`);
+                            }}
+                            className="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white text-xs py-2"
+                          >
+                            <Home className="h-3 w-3 mr-2" />
+                            View Contract
+                          </Button>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -2162,6 +2196,19 @@ export default function ReservationDetails() {
                                 )}
                               </Button>
                             </>
+                          )}
+                          {/* Contract Link - Show if contract exists */}
+                          {reservation.contract && reservation.contract.contract_id && (
+                            <Button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(`/contracts/${reservation.contract.contract_id}`);
+                              }}
+                              className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white px-3 py-1 text-xs"
+                              title="View Contract"
+                            >
+                              <Home className="h-3 w-3" />
+                            </Button>
                           )}
                         </div>
                       </td>
