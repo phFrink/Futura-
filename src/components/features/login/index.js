@@ -67,12 +67,39 @@ export default function LoginComponent() {
       if (error) {
         setError(error.message);
       } else {
+        // First, check if user's account is active/inactive in profiles table
+        console.log("🔍 Checking user status in profiles...");
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("status")
+          .eq("id", data.user.id)
+          .single();
+
+        // Check user status
+        const userStatus = profileData?.status || "active";
+
+        console.log("📊 User status check:", {
+          userId: data.user.id,
+          email: data.user.email,
+          status: userStatus,
+          profileError: profileError?.message
+        });
+
+        // If user is inactive, deny login immediately
+        if (userStatus === "inactive") {
+          console.log("❌ Login denied: User account is inactive");
+          setError("Your account has been deactivated. Please contact the administrator.");
+          await supabase.auth.signOut();
+          return;
+        }
+
         // Get user role from metadata
         const userRole = data.user?.user_metadata?.role?.toLowerCase();
 
         console.log("✅ Login successful:", {
           email: data.user.email,
           role: userRole,
+          status: userStatus,
           metadata: data.user.user_metadata
         });
 
