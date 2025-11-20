@@ -54,6 +54,8 @@ export default function ReservationDetails() {
   const [creatingContract, setCreatingContract] = useState(false);
   const [isEditingPaymentPlan, setIsEditingPaymentPlan] = useState(false);
   const [userRole, setUserRole] = useState(null);
+  const [showContractViewModal, setShowContractViewModal] = useState(false);
+  const [contractPreviewHtml, setContractPreviewHtml] = useState(null);
 
   useEffect(() => {
     getUserRole();
@@ -729,6 +731,39 @@ export default function ReservationDetails() {
       console.error("Error generating PDF:", error);
       toast.error("Failed to generate PDF receipt");
     }
+  };
+
+  const openContractViewModal = () => {
+    setShowContractViewModal(true);
+  };
+
+  const handlePrintContract = () => {
+    // Close the view modal
+    setShowContractViewModal(false);
+
+    // Wait a moment for modal to close, then open print dialog
+    setTimeout(() => {
+      const propertyPrice =
+        contractData.property_info?.property_price || 0;
+      const trackingNumber =
+        contractData.tracking_number ||
+        `TRK-${contractData.reservation_id
+          ?.slice(0, 8)
+          .toUpperCase()}`;
+      const contractNumber = `CTS-${new Date().getFullYear()}-${trackingNumber.replace(
+        "TRK-",
+        ""
+      )}`;
+
+      // Open in new window for PDF download
+      const pdfWindow = window.open("", "_blank");
+      pdfWindow.document.write(contractPreviewHtml);
+      pdfWindow.document.close();
+      pdfWindow.document.title = `Contract_to_Sell_${contractNumber}`;
+      pdfWindow.focus();
+
+      setTimeout(() => pdfWindow.print(), 250);
+    }, 100);
   };
 
   const printReceipt = (reservation) => {
@@ -3152,7 +3187,7 @@ export default function ReservationDetails() {
                                       day: "numeric",
                                     });
 
-                                  // Generate HTML content
+                                  // Generate HTML content for viewing and printing
                                   const contractContent = `
                         <!DOCTYPE html>
                         <html>
@@ -3651,109 +3686,14 @@ export default function ReservationDetails() {
                         </html>
                       `;
 
-                                  // Open in new window for PDF download
-                                  const pdfWindow = window.open("", "_blank");
-
-                                  // Add download instruction banner (hidden when printing)
-                                  const downloadBanner = `
-                          <style>
-                            @media print {
-                              .download-banner, .banner-spacer { display: none !important; }
-                            }
-                            .guide-popup {
-                              display: none;
-                              position: fixed;
-                              top: 50%;
-                              left: 50%;
-                              transform: translate(-50%, -50%);
-                              background: white;
-                              padding: 20px;
-                              border-radius: 12px;
-                              box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-                              z-index: 10000;
-                              max-width: 90%;
-                              max-height: 90vh;
-                              overflow: auto;
-                            }
-                            .guide-overlay {
-                              display: none;
-                              position: fixed;
-                              top: 0;
-                              left: 0;
-                              right: 0;
-                              bottom: 0;
-                              background: rgba(0,0,0,0.5);
-                              z-index: 9999;
-                            }
-                            .guide-popup.active, .guide-overlay.active {
-                              display: block;
-                            }
-                          </style>
-                          <div class="download-banner" style="position: fixed; top: 0; left: 0; right: 0; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 15px; text-align: center; z-index: 9999; font-family: Arial, sans-serif; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
-                            <div style="display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 10px;">
-                              <strong style="font-size: 16px;"> To Download as PDF:</strong>
-                              <span style="font-size: 14px;">Press Ctrl+P (or Cmd+P on Mac), select "Save as PDF" → Click Save</span>
-                              <button onclick="window.print()" style="background: white; color: #10b981; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.3s;">
-                                Download PDF Now
-                              </button>
-                              <button onclick="document.querySelector('.guide-popup').classList.add('active'); document.querySelector('.guide-overlay').classList.add('active');" style="background: rgba(255,255,255,0.2); color: white; border: 2px solid white; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.3s;">
-                                View Guide
-                              </button>
-                              <button onclick="this.closest('.download-banner').remove(); document.querySelector('.banner-spacer').remove();" style="background: rgba(255,255,255,0.2); color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer;">
-                                ✕
-                              </button>
-                            </div>
-                          </div>
-                          <div class="banner-spacer" style="height: 90px;"></div>
-
-                          <!-- Guide Popup -->
-                          <div class="guide-overlay" onclick="this.classList.remove('active'); document.querySelector('.guide-popup').classList.remove('active');"></div>
-                          <div class="guide-popup">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 2px solid #10b981; padding-bottom: 10px;">
-                              <h2 style="margin: 0; color: #10b981; font-size: 20px;">📖 How to Download Contract as PDF</h2>
-                              <button onclick="this.closest('.guide-popup').classList.remove('active'); document.querySelector('.guide-overlay').classList.remove('active');" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold;">
-                                ✕ Close
-                              </button>
-                            </div>
-                            <div style="text-align: center;">
-                              <img src="https://res.cloudinary.com/dzmmibxoq/image/upload/v1761149253/guidepdfdownload_gueifd.png"
-                                   alt="PDF Download Guide"
-                                   style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" />
-                              <div style="margin-top: 20px; text-align: left; color: #333; line-height: 1.8;">
-                                <h3 style="color: #10b981; margin-bottom: 10px;">📋 Step-by-Step Instructions:</h3>
-                                <ol style="padding-left: 20px;">
-                                  <li style="margin-bottom: 10px;"><strong>Step 1:</strong> Click the green <strong>"Download PDF Now"</strong> button at the top</li>
-                                  <li style="margin-bottom: 10px;"><strong>Step 2:</strong> In the print dialog, find <strong>"Destination"</strong> or <strong>"Printer"</strong></li>
-                                  <li style="margin-bottom: 10px;"><strong>Step 3:</strong> Select <strong>"Save as PDF"</strong> or <strong>"Microsoft Print to PDF"</strong></li>
-                                  <li style="margin-bottom: 10px;"><strong>Step 4:</strong> Click <strong>"Save"</strong> button</li>
-                                  <li style="margin-bottom: 10px;"><strong>Step 5:</strong> Choose where to save the file and click <strong>"Save"</strong></li>
-                                </ol>
-                                <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px; margin-top: 15px; border-radius: 6px;">
-                                  <strong style="color: #92400e;">💡 Tip:</strong>
-                                  <span style="color: #78350f;"> The filename will be automatically suggested as "Contract_to_Sell_[contract_number]"</span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        `;
-
-                                  // Inject download banner before body content
-                                  const modifiedContent =
-                                    contractContent.replace(
-                                      "<body>",
-                                      "<body>" + downloadBanner
-                                    );
-
-                                  pdfWindow.document.write(modifiedContent);
-                                  pdfWindow.document.close();
-
-                                  // Set title for PDF filename
-                                  pdfWindow.document.title = `Contract_to_Sell_${contractNumber}`;
+                                  // Store the HTML in state and open view modal
+                                  setContractPreviewHtml(contractContent);
+                                  openContractViewModal();
 
                                   toast.success(
-                                    "Contract opened! Click 'Download PDF Now' or 'View Guide' for help",
+                                    "Contract is ready for viewing and printing",
                                     {
-                                      autoClose: 6000,
+                                      autoClose: 3000,
                                     }
                                   );
                                 } catch (error) {
@@ -3768,8 +3708,8 @@ export default function ReservationDetails() {
                               }}
                               className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-lg py-6"
                             >
-                              <Printer className="mr-2 h-5 w-5" />
-                              Print / Download Contract
+                              <FileText className="mr-2 h-5 w-5" />
+                              View / Print Contract
                             </Button>
                           </>
                         )}
@@ -4137,6 +4077,71 @@ export default function ReservationDetails() {
                     </div>
                   </div>
                 </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Contract View Modal */}
+      <AnimatePresence>
+        {showContractViewModal && contractPreviewHtml && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+            onClick={() => setShowContractViewModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-lg max-w-4xl max-h-[90vh] overflow-auto shadow-2xl"
+            >
+              {/* Modal Header */}
+              <div className="sticky top-0 bg-blue-600 text-white p-4 flex justify-between items-center border-b">
+                <h2 className="text-xl font-bold flex items-center gap-2">
+                  <FileText className="w-5 h-5" />
+                  Contract Preview
+                </h2>
+                <button
+                  onClick={() => setShowContractViewModal(false)}
+                  className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded font-semibold"
+                >
+                  ✕ Close
+                </button>
+              </div>
+
+              {/* Contract Preview Container */}
+              <div className="p-6 bg-gray-50">
+                <div
+                  className="bg-white p-8 shadow-md rounded border border-gray-200"
+                  dangerouslySetInnerHTML={{
+                    __html: contractPreviewHtml,
+                  }}
+                  style={{
+                    fontFamily: "'Times New Roman', Times, serif",
+                  }}
+                />
+              </div>
+
+              {/* Modal Footer with Action Buttons */}
+              <div className="sticky bottom-0 bg-gray-100 border-t p-4 flex gap-3 justify-end">
+                <Button
+                  onClick={() => setShowContractViewModal(false)}
+                  className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handlePrintContract}
+                  className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 flex items-center gap-2"
+                >
+                  <Printer className="w-4 h-4" />
+                  Print / Download
+                </Button>
               </div>
             </motion.div>
           </motion.div>
