@@ -677,15 +677,16 @@ export default function Loans() {
                           <tbody className="divide-y divide-gray-100">
                             {selectedContract.payment_schedules.map((schedule, index) => {
                               // Calculate the balance BEFORE this row's payment
-                              // This is: original total - all payments made BEFORE this row
-                              const paymentsBefore = selectedContract.payment_schedules
-                                .slice(0, index)
+                              // This is: downpayment_total - all payments made INCLUDING this row
+                              const downpaymentTotal = parseFloat(selectedContract.downpayment_total) || (parseFloat(selectedContract.property_price) * 0.10) || 0;
+
+                              // Total paid up to and including this row
+                              const totalPaidUpToHere = selectedContract.payment_schedules
+                                .slice(0, index + 1)
                                 .reduce((sum, s) => sum + (parseFloat(s.paid_amount) || 0), 0);
 
-                              const balanceBeforePayment = parseFloat(selectedContract.remaining_downpayment) - paymentsBefore;
-
-                              // Balance AFTER this row's payment
-                              const runningBalance = balanceBeforePayment - (parseFloat(schedule.paid_amount) || 0);
+                              // Running balance = original - all payments made up to here
+                              const runningBalance = Math.max(0, downpaymentTotal - totalPaidUpToHere);
 
                               return (
                                 <tr

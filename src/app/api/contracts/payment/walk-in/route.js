@@ -295,7 +295,7 @@ export async function POST(request) {
     // Fetch all payment schedules to calculate total paid
     const { data: allSchedules } = await supabaseAdmin
       .from("contract_payment_schedules")
-      .select("paid_amount")
+      .select("paid_amount, scheduled_amount")
       .eq("contract_id", scheduleData.contract_id);
 
     if (allSchedules) {
@@ -303,8 +303,19 @@ export async function POST(request) {
         (sum, s) => sum + (parseFloat(s.paid_amount) || 0),
         0
       );
+      const totalScheduled = allSchedules.reduce(
+        (sum, s) => sum + (parseFloat(s.scheduled_amount) || 0),
+        0
+      );
       const downpaymentTotal = scheduleData.contract.downpayment_total || 0;
-      const newRemainingBalance = Math.max(0, downpaymentTotal - totalPaid);
+
+      // Calculate remaining balance
+      let newRemainingBalance = Math.max(0, downpaymentTotal - totalPaid);
+
+      // If all installments are paid (totalPaid >= totalScheduled), explicitly set to 0
+      if (totalPaid >= totalScheduled && totalScheduled > 0) {
+        newRemainingBalance = 0;
+      }
 
       // Update contract with new remaining balance
       await supabaseAdmin
@@ -318,6 +329,7 @@ export async function POST(request) {
 
       console.log("✅ Updated contract remaining_balance:", {
         total_paid: totalPaid,
+        total_scheduled: totalScheduled,
         downpayment_total: downpaymentTotal,
         new_remaining_balance: newRemainingBalance,
       });
