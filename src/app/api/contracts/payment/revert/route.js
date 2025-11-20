@@ -51,12 +51,12 @@ export async function POST(request) {
       );
     }
 
-    // Check if payment is actually paid
-    if (schedule.payment_status !== "paid") {
+    // Check if payment is actually paid or has payment records
+    if (schedule.payment_status !== "paid" && (!schedule.paid_amount || parseFloat(schedule.paid_amount) === 0)) {
       return NextResponse.json(
         {
           success: false,
-          message: "Payment schedule is not in paid status",
+          message: "Payment schedule has no paid amount to revert",
         },
         { status: 400 }
       );

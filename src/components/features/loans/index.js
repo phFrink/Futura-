@@ -777,7 +777,7 @@ export default function Loans() {
                                     </span>
                                   </td>
                                   <td className="px-4 py-3 text-center">
-                                    {schedule.payment_status === "paid" ? (
+                                    {schedule.paid_amount && parseFloat(schedule.paid_amount) > 0 ? (
                                       <Button
                                         size="sm"
                                         variant="outline"
