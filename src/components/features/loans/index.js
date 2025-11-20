@@ -139,8 +139,8 @@ export default function Loans() {
     // Reload contracts to get updated data
     await loadContracts();
 
-    // Reload the selected contract details if modal is open
-    if (selectedContract && showPlanModal) {
+    // Always reload the selected contract details to update remaining balance and payment progress
+    if (selectedContract) {
       try {
         const response = await fetch("/api/contracts");
         const result = await response.json();
