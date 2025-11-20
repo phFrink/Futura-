@@ -203,26 +203,6 @@ export default function ServiceRequests() {
           color: "bg-red-100 text-red-800 border-red-200",
           icon: XCircle,
         };
-      case "in_progress":
-        return {
-          color: "bg-blue-100 text-blue-800 border-blue-200",
-          icon: AlertCircle,
-        };
-      case "completed":
-        return {
-          color: "bg-green-100 text-green-800 border-green-200",
-          icon: CheckCircle,
-        };
-      case "cancelled":
-        return {
-          color: "bg-gray-100 text-gray-800 border-gray-200",
-          icon: XCircle,
-        };
-      case "on_hold":
-        return {
-          color: "bg-orange-100 text-orange-800 border-orange-200",
-          icon: Clock,
-        };
       default:
         return {
           color: "bg-gray-100 text-gray-800 border-gray-200",
@@ -725,10 +705,6 @@ export default function ServiceRequests() {
                   <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="approved">Approved</SelectItem>
                   <SelectItem value="declined">Declined</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                  <SelectItem value="on_hold">On Hold</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={priorityFilter} onValueChange={setPriorityFilter}>
