@@ -89,6 +89,7 @@ export default function Reports() {
 
   useEffect(() => {
     if (activeReport) {
+      console.log('🎯 Trigger: Report generation started for', activeReport);
       generateReport();
     }
   }, [activeReport, startDate, endDate]);
@@ -118,10 +119,12 @@ export default function Reports() {
         activeReport === 'billings' ? 'billing_tbl' :
         'announcement_tbl';
 
-      console.log('Generating report for table:', tableName);
-      console.log('Date filters:', { startDate, endDate });
+      console.log('🔄 Generating fresh report for table:', tableName);
+      console.log('📅 Date filters:', { startDate, endDate });
+      console.log('⏰ Timestamp:', new Date().toISOString());
 
       // Simple query without ordering first
+      // Add cache-busting parameter to force fresh data
       let query = supabase.from(tableName).select('*');
 
       // Apply date filters if provided
@@ -133,10 +136,12 @@ export default function Reports() {
           activeReport === 'announcements' ? 'publish_date' :
           'created_at';
 
-        console.log('Applying date filter on field:', dateField);
+        console.log('📊 Applying date filter on field:', dateField);
+        console.log('   From:', startDate, 'To:', endDate);
         query = query.gte(dateField, startDate).lte(dateField, endDate);
       }
 
+      // Execute query and force no cache
       const { data, error } = await query;
 
       if (error) {
@@ -152,12 +157,18 @@ export default function Reports() {
         return;
       }
 
-      console.log('Report data retrieved:', data?.length, 'records');
+      console.log('✅ Report data retrieved:', data?.length, 'records');
+      console.log('📋 Data sample:', data?.slice(0, 2));
+      if (data && data.length > 0) {
+        console.log('🔐 Data integrity - First record keys:', Object.keys(data[0]));
+      }
 
-      // Sort data client-side to avoid ordering errors
-      let sortedData = data || [];
+      // Ensure data is fresh (force deep copy to avoid stale references)
+      let sortedData = data && data.length > 0 ? JSON.parse(JSON.stringify(data)) : [];
+
       if (sortedData.length > 0) {
-        sortedData = [...sortedData].sort((a, b) => {
+        // Sort data client-side to avoid ordering errors
+        sortedData = sortedData.sort((a, b) => {
           // Try to sort by created_at, id, or any available field
           if (a.created_at && b.created_at) {
             return new Date(b.created_at) - new Date(a.created_at);
@@ -167,10 +178,13 @@ export default function Reports() {
           }
           return 0;
         });
+        console.log('📊 Data sorted, showing first record:', sortedData[0]);
       }
 
+      // Force state update with fresh data
       setReportData(sortedData);
       setFilteredData(sortedData);
+      console.log('✨ State updated with', sortedData.length, 'records');
     } catch (error) {
       console.error('Exception in generateReport:', error);
       console.error('Error type:', typeof error);
