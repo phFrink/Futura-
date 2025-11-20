@@ -274,9 +274,21 @@ export default function ClientAmenities() {
         return;
       }
 
-      if (parseInt(formData.quantity) > selectedAmenity.available_quantity) {
+      // Validate quantity
+      const requestedQty = parseInt(formData.quantity);
+      const availableQty = parseInt(selectedAmenity.available_quantity);
+
+      // Check if quantity is valid number
+      if (isNaN(requestedQty) || requestedQty <= 0) {
+        toast.error("Please enter a valid quantity");
+        setSubmitting(false);
+        return;
+      }
+
+      // Check if requested quantity exceeds available (strict validation)
+      if (requestedQty > availableQty) {
         toast.error(
-          `Only ${selectedAmenity.available_quantity} units available`
+          `Cannot borrow ${requestedQty} units. Only ${availableQty} unit${availableQty !== 1 ? 's' : ''} available`
         );
         setSubmitting(false);
         return;
@@ -290,16 +302,23 @@ export default function ClientAmenities() {
         return_date: formData.return_date || null,
         quantity: parseInt(formData.quantity),
         purpose: formData.purpose,
-        status: "pending",
         notes: formData.notes || null,
-        created_at: new Date().toISOString(),
       };
 
-      const { error } = await supabase
-        .from("amenity_borrow_requests")
-        .insert([submitData]);
+      // Use API endpoint for validated borrow request creation
+      const response = await fetch("/api/amenities/borrow-request", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(submitData),
+      });
 
-      if (error) throw error;
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to submit borrow request");
+      }
 
       setIsModalOpen(false);
       toast.success("Borrow request submitted successfully!");
