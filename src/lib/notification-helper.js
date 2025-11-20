@@ -512,6 +512,50 @@ export const NotificationTemplates = {
     data: complaintData,
   }),
 
+  // Payments - Homeowner Notifications
+  PAYMENT_RECEIVED: (paymentData) => ({
+    type: "payment_received",
+    title: "✅ Payment Received",
+    message: `We received your payment of ${paymentData.currencySymbol || "₱"}${parseFloat(paymentData.amount || 0).toLocaleString("en-US", {minimumFractionDigits: 2, maximumFractionDigits: 2})} for ${paymentData.installmentDescription || "Installment " + (paymentData.installmentNumber || "1")}. Receipt #: ${paymentData.receiptNumber || "Pending"}`,
+    icon: "💳",
+    priority: "normal",
+    recipientRole: "home owner",
+    sourceTable: "contract_payment_transactions",
+    sourceTableDisplayName: "Payment",
+    actionUrl: "/contracts", // Admin URL
+    clientActionUrl: "/client-contract-to-sell", // Client URL
+    data: paymentData,
+  }),
+
+  // Amenity Borrow Requests - Homeowner Notifications
+  AMENITY_REQUEST_APPROVED: (amenityData) => ({
+    type: "amenity_request_approved",
+    title: "✅ Amenity Request Approved",
+    message: `Your request to borrow "${amenityData.amenityName}" has been approved. Borrow period: ${amenityData.borrowDate} to ${amenityData.returnDate}. Please visit the amenities office to pick up the item.`,
+    icon: "🏠",
+    priority: "normal",
+    recipientRole: "home owner",
+    sourceTable: "amenity_borrow_requests",
+    sourceTableDisplayName: "Amenity Request",
+    actionUrl: "/amenities", // Admin URL
+    clientActionUrl: "/client-amenities", // Client URL
+    data: amenityData,
+  }),
+
+  AMENITY_REQUEST_DECLINED: (amenityData) => ({
+    type: "amenity_request_declined",
+    title: "❌ Amenity Request Declined",
+    message: `Your request to borrow "${amenityData.amenityName}" has been declined. ${amenityData.reason ? "Reason: " + amenityData.reason : "Please contact the amenities office for more information."}`,
+    icon: "📋",
+    priority: "normal",
+    recipientRole: "home owner",
+    sourceTable: "amenity_borrow_requests",
+    sourceTableDisplayName: "Amenity Request",
+    actionUrl: "/amenities", // Admin URL
+    clientActionUrl: "/client-amenities", // Client URL
+    data: amenityData,
+  }),
+
   // Generic
   SYSTEM_EVENT: (eventData) => ({
     type: "system_event",
@@ -526,3 +570,33 @@ export const NotificationTemplates = {
     data: eventData.data || {},
   }),
 };
+
+/**
+ * Check if a user is a certified homeowner
+ * @param {Object} supabaseAdmin - Supabase admin client
+ * @param {string} userId - User ID to check
+ * @returns {Promise<boolean>} True if user is certified homeowner
+ */
+export async function isCertifiedHomeowner(supabaseAdmin, userId) {
+  try {
+    if (!userId) return false;
+
+    // Check if user has an active contract (which means they are certified)
+    const { data: contracts, error } = await supabaseAdmin
+      .from("property_contracts")
+      .select("contract_id")
+      .eq("user_id", userId)
+      .eq("contract_status", "active")
+      .limit(1);
+
+    if (error) {
+      console.error("Error checking homeowner status:", error);
+      return false;
+    }
+
+    return contracts && contracts.length > 0;
+  } catch (error) {
+    console.error("Error in isCertifiedHomeowner:", error);
+    return false;
+  }
+}

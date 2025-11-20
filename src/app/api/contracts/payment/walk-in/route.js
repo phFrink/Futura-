@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { createNotification, NotificationTemplates, isCertifiedHomeowner } from "@/lib/notification-helper";
 
 // Function to create Supabase admin client safely
 function createSupabaseAdmin() {
@@ -334,6 +335,34 @@ export async function POST(request) {
       .select("*")
       .eq("contract_id", scheduleData.contract_id)
       .single();
+
+    // Send payment notification to homeowner if they are certified
+    try {
+      const isCertified = await isCertifiedHomeowner(supabaseAdmin, scheduleData.contract.user_id);
+
+      if (isCertified && scheduleData.contract.user_id) {
+        const paymentNotificationData = NotificationTemplates.PAYMENT_RECEIVED({
+          amount: amount_paid,
+          installmentNumber: updatedSchedule?.installment_number || 1,
+          installmentDescription: `Installment #${updatedSchedule?.installment_number || 1}`,
+          receiptNumber: paymentResult[0]?.transaction_id?.substring(0, 8).toUpperCase() || "Pending",
+          currencySymbol: "₱",
+          propertyTitle: scheduleData.contract?.property_id ? "Your Property" : "Your Contract",
+        });
+
+        await createNotification(supabaseAdmin, {
+          ...paymentNotificationData,
+          recipientId: scheduleData.contract.user_id,
+          sourceTable: "contract_payment_transactions",
+          sourceTableDisplayName: "Payment Receipt",
+        });
+
+        console.log("✅ Payment notification sent to homeowner");
+      }
+    } catch (notificationError) {
+      console.error("⚠️ Warning: Failed to send payment notification:", notificationError);
+      // Don't fail the payment if notification fails
+    }
 
     console.log("✅ Walk-in payment processed successfully");
 
