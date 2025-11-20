@@ -91,7 +91,7 @@ export default function Reports() {
     if (activeReport) {
       generateReport();
     }
-  }, [activeReport]);
+  }, [activeReport, startDate, endDate]);
 
   useEffect(() => {
     // Filter data based on search term
@@ -681,13 +681,31 @@ export default function Reports() {
                       </button>
                     </div>
 
-                    {filteredData.length > 0 && (
-                      <div className="flex justify-center pt-6">
-                        <div className="bg-gradient-to-r from-red-50 to-rose-50 px-5 py-2.5 rounded-xl border border-red-200 shadow-sm">
-                          <p className="text-sm font-bold text-red-800">
-                            {filteredData.length} {filteredData.length === 1 ? 'record' : 'records'} found
-                          </p>
+                    {/* Summary Statistics */}
+                    {(filteredData.length > 0 || reportData.length > 0) && (
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 pt-6 border-t border-slate-200">
+                        <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-4">
+                          <p className="text-xs text-blue-700 font-semibold mb-1">Total Records</p>
+                          <p className="text-2xl font-bold text-blue-900">{reportData.length}</p>
                         </div>
+                        {(startDate || endDate) && (
+                          <div className="bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-lg p-4">
+                            <p className="text-xs text-purple-700 font-semibold mb-1">Filtered Records</p>
+                            <p className="text-2xl font-bold text-purple-900">{filteredData.length}</p>
+                          </div>
+                        )}
+                        {!startDate && !endDate && (
+                          <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-lg p-4">
+                            <p className="text-xs text-green-700 font-semibold mb-1">Displaying</p>
+                            <p className="text-2xl font-bold text-green-900">{filteredData.length}</p>
+                          </div>
+                        )}
+                        {searchTerm && (
+                          <div className="bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200 rounded-lg p-4">
+                            <p className="text-xs text-orange-700 font-semibold mb-1">Search Results</p>
+                            <p className="text-2xl font-bold text-orange-900">{filteredData.length}</p>
+                          </div>
+                        )}
                       </div>
                     )}
                   </CardContent>
@@ -706,6 +724,11 @@ export default function Reports() {
                 <CardTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
                   <FileText className="w-5 h-5 text-red-600" />
                   {reportTypes.find(r => r.id === activeReport)?.title || 'Report Results'}
+                  {filteredData.length > 0 && (
+                    <span className="ml-auto text-sm font-normal text-slate-600 bg-slate-100 px-3 py-1 rounded-full">
+                      Showing {filteredData.length} of {reportData.length} records
+                    </span>
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent>
