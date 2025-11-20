@@ -36,6 +36,18 @@ import {
   generateDateRangeReceipt,
 } from "@/lib/receipt-generator";
 
+// Define all available payment methods
+const PAYMENT_METHODS = [
+  "cash",
+  "check",
+  "bank transfer",
+  "credit card",
+  "debit card",
+  "online payment",
+  "gcash",
+  "paymaya",
+];
+
 export default function Transactions() {
   const [transactions, setTransactions] = useState([]);
   const [filteredTransactions, setFilteredTransactions] = useState([]);
@@ -48,6 +60,7 @@ export default function Transactions() {
   const [paymentMethod, setPaymentMethod] = useState("all");
   const [contractId, setContractId] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedClients, setSelectedClients] = useState(new Set());
 
   useEffect(() => {
     loadData();
@@ -178,6 +191,7 @@ export default function Transactions() {
     setPaymentMethod("all");
     setContractId("all");
     setSearchTerm("");
+    setSelectedClients(new Set());
   };
 
   // Generate individual receipt
@@ -214,57 +228,140 @@ export default function Transactions() {
     }
   };
 
-  // Generate date range receipt
+  // Generate date range receipt (filtered by selected clients)
   const handleGenerateDateRangeReceipt = async (action = "download") => {
     try {
-      if (!startDate && !endDate) {
-        toast.error("Please select a date range first");
+      // If multiple clients selected, use bulk print logic
+      if (selectedClients.size > 1) {
+        handleBulkPrintByClients(action);
         return;
       }
 
-      toast.info("Generating summary receipt...");
+      // If single client selected, filter by that client
+      if (selectedClients.size === 1) {
+        const selectedClientName = Array.from(selectedClients)[0];
+        const clientTransactions = filteredTransactions.filter(
+          (t) => t.property_contracts?.client_name === selectedClientName
+        );
 
-      const params = new URLSearchParams();
-      if (startDate) params.append("start_date", startDate);
-      if (endDate) params.append("end_date", endDate);
+        if (clientTransactions.length === 0) {
+          toast.error("No transactions found for the selected client");
+          return;
+        }
 
-      const response = await fetch(`/api/transactions/receipt?${params}`);
-      const result = await response.json();
+        toast.info("Generating receipt...");
 
-      if (!result.success) {
-        toast.error(result.error || "Failed to generate receipt");
+        // Generate PDF with filtered transactions
+        const doc = generateDateRangeReceipt(
+          clientTransactions,
+          startDate,
+          endDate
+        );
+
+        if (action === "print") {
+          doc.autoPrint();
+          window.open(doc.output("bloburl"), "_blank");
+          toast.success("Opening print dialog...");
+        } else {
+          const filename = `transaction-${selectedClientName}-${startDate || "start"}-to-${
+            endDate || "end"
+          }.pdf`;
+          doc.save(filename);
+          toast.success("Receipt downloaded successfully!");
+        }
         return;
       }
 
-      if (result.data.length === 0) {
-        toast.error("No transactions found in the selected date range");
-        return;
-      }
-
-      // Generate PDF
-      const doc = generateDateRangeReceipt(
-        result.data,
-        result.startDate,
-        result.endDate
+      // If no client selected, show error
+      toast.error(
+        "Please select a client to print/download. Select one for single person report or multiple for bulk."
       );
-
-      if (action === "print") {
-        // Open print dialog
-        doc.autoPrint();
-        window.open(doc.output("bloburl"), "_blank");
-        toast.success("Opening print dialog...");
-      } else {
-        // Download PDF
-        const filename = `transaction-summary-${startDate || "start"}-to-${
-          endDate || "end"
-        }.pdf`;
-        doc.save(filename);
-        toast.success("Summary receipt downloaded successfully!");
-      }
     } catch (error) {
       console.error("Error generating date range receipt:", error);
-      toast.error("Failed to generate summary receipt");
+      toast.error("Failed to generate receipt");
     }
+  };
+
+  // Handle bulk print for multiple clients
+  const handleBulkPrintByClients = async (action = "download") => {
+    try {
+      toast.info("Generating bulk receipts...");
+
+      const selectedClientNames = Array.from(selectedClients);
+      const docs = [];
+
+      // Generate a separate PDF for each selected client
+      for (const clientName of selectedClientNames) {
+        const clientTransactions = filteredTransactions.filter(
+          (t) => t.property_contracts?.client_name === clientName
+        );
+
+        if (clientTransactions.length > 0) {
+          const doc = generateDateRangeReceipt(
+            clientTransactions,
+            startDate,
+            endDate
+          );
+          docs.push({ doc, clientName });
+        }
+      }
+
+      if (docs.length === 0) {
+        toast.error("No transactions found for selected clients");
+        return;
+      }
+
+      if (action === "print") {
+        // Open each document for printing in separate windows
+        docs.forEach(({ doc }, index) => {
+          setTimeout(() => {
+            doc.autoPrint();
+            window.open(doc.output("bloburl"), "_blank");
+          }, index * 500); // Stagger window opens
+        });
+        toast.success(
+          `Opening ${docs.length} print dialog${docs.length > 1 ? "s" : ""}...`
+        );
+      } else {
+        // For bulk download, create a single file with all clients
+        // Using the first doc as base and appending others
+        let mergedDoc = docs[0].doc;
+
+        for (let i = 1; i < docs.length; i++) {
+          // Add new page and merge
+          const pageCount = docs[i].doc.internal.pages.length - 1;
+          for (let p = 1; p <= pageCount; p++) {
+            mergedDoc.addPage();
+            const pageSize = docs[i].doc.internal.pageSize;
+            const imgData = docs[i].doc.internal.pages[p].getDrawing();
+            mergedDoc.internal.pages[mergedDoc.internal.pages.length - 1] =
+              imgData;
+          }
+        }
+
+        const filename = `transaction-bulk-${startDate || "start"}-to-${
+          endDate || "end"
+        }.pdf`;
+        mergedDoc.save(filename);
+        toast.success(
+          `Bulk receipt with ${docs.length} client${docs.length > 1 ? "s" : ""} downloaded!`
+        );
+      }
+    } catch (error) {
+      console.error("Error generating bulk receipt:", error);
+      toast.error("Failed to generate bulk receipt");
+    }
+  };
+
+  // Toggle client selection for bulk print
+  const toggleClientSelection = (clientName) => {
+    const newSelected = new Set(selectedClients);
+    if (newSelected.has(clientName)) {
+      newSelected.delete(clientName);
+    } else {
+      newSelected.add(clientName);
+    }
+    setSelectedClients(newSelected);
   };
 
   const getStatusColor = (status) => {
@@ -306,10 +403,21 @@ export default function Transactions() {
     (t) => t.payment_status === "completed"
   ).length;
 
-  // Get unique payment methods for filter
-  const uniquePaymentMethods = [
-    ...new Set(transactions.map((t) => t.payment_method).filter(Boolean)),
-  ];
+  // Get unique clients for bulk print selection
+  const uniqueClients = [
+    ...new Map(
+      transactions.map((t) => [
+        t.property_contracts?.client_name,
+        {
+          name: t.property_contracts?.client_name,
+          phone: t.property_contracts?.client_phone,
+        },
+      ])
+    ).values(),
+  ].filter((c) => c.name);
+
+  // Use predefined payment methods (always show all available methods)
+  const uniquePaymentMethods = PAYMENT_METHODS;
 
   // Get unique contract IDs for filter
   const uniqueContractIds = [
@@ -428,6 +536,63 @@ export default function Transactions() {
               </CardContent>
             </Card>
           </div>
+        </motion.div>
+
+        {/* Client Selection for Print/Download */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.15 }}
+        >
+          <Card className="bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200 shadow-md">
+            <CardHeader>
+              <CardTitle className="text-xl font-bold text-blue-900 flex items-center gap-2">
+                <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                  *
+                </div>
+                Select Client(s) for Print/Download
+              </CardTitle>
+              <p className="text-sm text-blue-700 mt-1">
+                Select one client for a single report, or multiple clients for bulk printing
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                {uniqueClients.length === 0 ? (
+                  <p className="text-sm text-slate-500 col-span-full">
+                    No clients found in transactions
+                  </p>
+                ) : (
+                  uniqueClients.map((client) => (
+                    <label
+                      key={client.name}
+                      className="flex items-start p-3 rounded-lg border border-blue-200 hover:bg-blue-100/50 cursor-pointer transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedClients.has(client.name)}
+                        onChange={() => toggleClientSelection(client.name)}
+                        className="mt-1 mr-3"
+                      />
+                      <div className="flex-1">
+                        <p className="font-medium text-slate-900">{client.name}</p>
+                        {client.phone && (
+                          <p className="text-xs text-slate-600">{client.phone}</p>
+                        )}
+                      </div>
+                    </label>
+                  ))
+                )}
+              </div>
+              {selectedClients.size > 0 && (
+                <div className="mt-4 p-3 bg-blue-100 rounded-lg border border-blue-200">
+                  <p className="text-sm font-medium text-blue-900">
+                    Selected: {selectedClients.size} client{selectedClients.size > 1 ? "s" : ""}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </motion.div>
 
         {/* Filters Section */}
