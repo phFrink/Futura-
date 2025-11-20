@@ -154,8 +154,11 @@ export async function GET(request) {
 
         const paymentProgress =
           contract.remaining_downpayment > 0
-            ? Math.round(
-                (totalPaidFromSchedules / contract.remaining_downpayment) * 100
+            ? Math.min(
+                100,
+                Math.round(
+                  (totalPaidFromSchedules / contract.remaining_downpayment) * 100
+                )
               )
             : 100;
 
