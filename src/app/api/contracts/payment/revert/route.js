@@ -87,6 +87,30 @@ export async function POST(request) {
 
     console.log(`📦 Found ${transactions?.length || 0} transactions to revert`);
 
+    // Calculate the new contract balance BEFORE updating the schedule
+    // Save the old paid amount to calculate the balance change
+    const revertedAmount = parseFloat(schedule.paid_amount) || 0;
+    const revertedPenalty = parseFloat(schedule.penalty_amount) || 0;
+
+    // Get all other schedules' paid amounts (excluding this one)
+    const { data: otherSchedules, error: otherSchedulesError } = await supabaseAdmin
+      .from("contract_payment_schedules")
+      .select("paid_amount")
+      .eq("contract_id", schedule.contract_id)
+      .neq("schedule_id", schedule_id);
+
+    let totalPaidAfterRevert = 0;
+    if (!otherSchedulesError && otherSchedules) {
+      totalPaidAfterRevert = otherSchedules.reduce(
+        (sum, s) => sum + (parseFloat(s.paid_amount) || 0),
+        0
+      );
+    }
+
+    // Calculate new remaining balance after revert
+    const totalScheduled = schedule.contract.downpayment_total || 0;
+    const newRemainingBalance = Math.max(0, totalScheduled - totalPaidAfterRevert);
+
     // Start transaction by updating payment schedule
     const newRemainingAmount = schedule.scheduled_amount;
     const newPaidAmount = 0;
@@ -139,24 +163,8 @@ export async function POST(request) {
       }
     }
 
-    // Recalculate contract totals
-    const { data: allSchedules, error: allSchedulesError } = await supabaseAdmin
-      .from("contract_payment_schedules")
-      .select("paid_amount")
-      .eq("contract_id", schedule.contract_id);
-
-    if (allSchedulesError) {
-      console.error(
-        "⚠️ Warning: Failed to fetch schedules:",
-        allSchedulesError
-      );
-    } else if (schedule.contract) {
-      const totalPaid = allSchedules.reduce(
-        (sum, s) => sum + (parseFloat(s.paid_amount) || 0),
-        0
-      );
-      const totalScheduled = schedule.contract.downpayment_total || 0;
-      const newRemainingBalance = Math.max(0, totalScheduled - totalPaid);
+    // Update contract remaining balance with pre-calculated value
+    if (schedule.contract) {
 
       // Update contract remaining balance
       const { error: updateContractError } = await supabaseAdmin
@@ -179,9 +187,11 @@ export async function POST(request) {
     }
 
     console.log("✅ Payment reverted successfully", {
-      paid_amount_reverted: schedule.paid_amount,
-      penalty_amount_reverted: schedule.penalty_amount,
+      paid_amount_reverted: revertedAmount,
+      penalty_amount_reverted: revertedPenalty,
       transactions_reverted: transactions?.length || 0,
+      new_remaining_balance: newRemainingBalance,
+      total_paid_after_revert: totalPaidAfterRevert,
     });
 
     return NextResponse.json({
@@ -189,9 +199,11 @@ export async function POST(request) {
       message: "Payment reverted to pending successfully",
       data: {
         schedule_id: schedule_id,
-        paid_amount_reverted: schedule.paid_amount,
-        penalty_amount_reverted: schedule.penalty_amount,
+        paid_amount_reverted: revertedAmount,
+        penalty_amount_reverted: revertedPenalty,
         transactions_reverted: transactions?.length || 0,
+        new_remaining_balance: newRemainingBalance,
+        total_paid_after_revert: totalPaidAfterRevert,
       },
     });
   } catch (error) {
