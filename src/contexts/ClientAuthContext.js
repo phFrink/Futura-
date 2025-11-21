@@ -36,6 +36,12 @@ export const ClientAuthProvider = ({ children }) => {
     // Check current session and listen for auth changes
     const initializeAuth = async () => {
       try {
+        // Set a timeout to prevent loading from staying true indefinitely
+        const timeout = setTimeout(() => {
+          console.warn('⚠️ Auth initialization timeout, enabling form');
+          setLoading(false);
+        }, 5000); // 5 second timeout
+
         // Get initial session
         const { data: { session }, error } = await supabase.auth.getSession();
 
@@ -68,6 +74,7 @@ export const ClientAuthProvider = ({ children }) => {
         console.error('Error initializing auth:', error);
         setUser(null);
       } finally {
+        clearTimeout(timeout);
         setLoading(false);
       }
     };
