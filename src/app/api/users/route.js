@@ -362,50 +362,10 @@ export async function PUT(request) {
 
     console.log("✅ User updated successfully in Auth:", userId);
 
-    // Update user profile in profiles table (status, avatar, etc.)
-    let statusUpdateWarning = null;
+    // Update user status using Supabase ban/unban feature
+    // Status is checked via user.banned_until field during login
     if (userData.status !== undefined) {
       try {
-        console.log(`📝 Updating user status to: ${userData.status}`);
-
-        // First, try to update profiles table status column
-        const { error: profileError } = await supabaseAdmin
-          .from("profiles")
-          .update({
-            status: userData.status,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", userId);
-
-        if (profileError) {
-          console.error("❌ Profile update error:", profileError);
-          console.error("Error details:", {
-            message: profileError.message,
-            code: profileError.code,
-            details: profileError.details,
-          });
-
-          // Check if error is due to missing column or table
-          if (profileError.message && profileError.message.includes("column")) {
-            console.warn("⚠️ Status column may not exist in profiles table");
-            statusUpdateWarning = "Status column not found, using auth ban feature";
-          } else {
-            // For other errors, return detailed error response
-            return NextResponse.json(
-              {
-                success: false,
-                error: profileError.message || "Failed to update profile",
-                message: `Failed to update user status: ${profileError.message}`,
-                details: profileError.details,
-              },
-              { status: 400 }
-            );
-          }
-        } else {
-          console.log("✅ User status updated in profiles table:", userId);
-        }
-
-        // Also use Supabase ban/unban feature as fallback/backup
         if (userData.status === "inactive") {
           console.log(`🔒 Banning user in Supabase Auth: ${userId}`);
           const { error: banError } = await supabaseAdmin.auth.admin.updateUserById(
@@ -413,10 +373,17 @@ export async function PUT(request) {
             { ban_duration: "none" } // Ban indefinitely
           );
           if (banError) {
-            console.warn("⚠️ Could not set ban in auth:", banError.message);
-          } else {
-            console.log("✅ User banned in Supabase Auth");
+            console.error("❌ Failed to ban user:", banError);
+            return NextResponse.json(
+              {
+                success: false,
+                error: banError.message || "Failed to ban user",
+                message: `Failed to update user status: ${banError.message}`,
+              },
+              { status: 400 }
+            );
           }
+          console.log("✅ User banned in Supabase Auth");
         } else if (userData.status === "active") {
           console.log(`🔓 Unbanning user in Supabase Auth: ${userId}`);
           const { error: unbanError } = await supabaseAdmin.auth.admin.updateUserById(
@@ -424,14 +391,28 @@ export async function PUT(request) {
             { ban_duration: "0" } // Remove ban
           );
           if (unbanError) {
-            console.warn("⚠️ Could not unban in auth:", unbanError.message);
-          } else {
-            console.log("✅ User unbanned in Supabase Auth");
+            console.error("❌ Failed to unban user:", unbanError);
+            return NextResponse.json(
+              {
+                success: false,
+                error: unbanError.message || "Failed to unban user",
+                message: `Failed to update user status: ${unbanError.message}`,
+              },
+              { status: 400 }
+            );
           }
+          console.log("✅ User unbanned in Supabase Auth");
         }
-      } catch (profileUpdateError) {
-        console.error("❌ Exception during profile update:", profileUpdateError);
-        statusUpdateWarning = `Warning: ${profileUpdateError.message}`;
+      } catch (statusUpdateError) {
+        console.error("❌ Exception during status update:", statusUpdateError);
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Exception updating user status",
+            message: `Failed to update user status: ${statusUpdateError.message}`,
+          },
+          { status: 400 }
+        );
       }
     }
 
@@ -456,8 +437,7 @@ export async function PUT(request) {
     return NextResponse.json({
       success: true,
       data: formattedUser,
-      message: statusUpdateWarning ? `User updated, but status: ${statusUpdateWarning}` : "User updated successfully",
-      warning: statusUpdateWarning,
+      message: "User updated successfully",
     });
   } catch (error) {
     console.error("❌ Update user error:", error);
