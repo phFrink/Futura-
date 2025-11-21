@@ -360,7 +360,33 @@ export async function PUT(request) {
       );
     }
 
-    console.log("✅ User updated successfully:", userId);
+    console.log("✅ User updated successfully in Auth:", userId);
+
+    // Update user profile in profiles table (status, avatar, etc.)
+    if (userData.status !== undefined) {
+      console.log(`📝 Updating user status to: ${userData.status}`);
+      const { error: profileError } = await supabaseAdmin
+        .from("profiles")
+        .update({
+          status: userData.status,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", userId);
+
+      if (profileError) {
+        console.error("❌ Profile update error:", profileError);
+        return NextResponse.json(
+          {
+            success: false,
+            error: profileError.message,
+            message: "Failed to update user status: " + profileError.message,
+          },
+          { status: 400 }
+        );
+      }
+
+      console.log("✅ User status updated in profiles table:", userId);
+    }
 
     // Return formatted user data
     const formattedUser = {
