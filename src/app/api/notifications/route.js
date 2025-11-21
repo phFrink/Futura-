@@ -47,13 +47,19 @@ export async function GET(request) {
     if (userId && role) {
       console.log(`🔍 Applying filter for userId: "${userId}" and role: "${role}"`);
 
-      // User sees notifications that are either:
-      // 1. Specifically for them (recipient_id matches)
-      // 2. For their role (recipient_role matches)
-      // 3. For all users (recipient_role = 'all')
-      const filterQuery = `recipient_id.eq.${userId},recipient_role.eq.${role},recipient_role.eq.all`;
-      console.log(`🔒 Filter applied: ${filterQuery}`);
-      query = query.or(filterQuery);
+      // Homeowners (clients) ONLY see notifications specifically for them
+      if (role === 'homeowner') {
+        console.log(`🔒 Homeowner filter: showing only notifications for this specific user`);
+        query = query.eq('recipient_id', userId);
+      } else {
+        // Admin/staff roles see notifications that are either:
+        // 1. Specifically for them (recipient_id matches)
+        // 2. For their role (recipient_role matches)
+        // 3. For all users (recipient_role = 'all')
+        const filterQuery = `recipient_id.eq.${userId},recipient_role.eq.${role},recipient_role.eq.all`;
+        console.log(`🔒 Filter applied: ${filterQuery}`);
+        query = query.or(filterQuery);
+      }
     } else if (role) {
       console.log(`🔍 Applying filter for role only: "${role}"`);
 
