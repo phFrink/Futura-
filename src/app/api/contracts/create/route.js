@@ -202,10 +202,6 @@ export async function POST(request) {
         remaining_downpayment: remainingDownpayment,
         payment_plan_months: payment_plan_months,
         monthly_installment: monthlyInstallment,
-        payment_frequency: payment_frequency, // NEW
-        payment_frequency_count: paymentCount, // NEW
-        allow_partial_payments: allow_partial_payments, // NEW
-        installment_amount: installmentAmount, // NEW
         bank_financing_percentage: 90.00,
         bank_financing_amount: bankFinancingAmount,
         downpayment_status: remainingDownpayment > 0 ? 'in_progress' : 'completed',
@@ -268,17 +264,11 @@ export async function POST(request) {
       paymentSchedules.push({
         contract_id: contract.contract_id,
         installment_number: i,
-        period_number: i, // NEW
-        period_type: periodType, // NEW
-        payment_frequency: payment_frequency, // NEW
         installment_description: `${frequencyLabel} Payment ${i} of ${paymentCount}`,
         scheduled_amount: installmentAmount,
         paid_amount: 0,
         remaining_amount: installmentAmount,
-        due_date: dueDate.toISOString().split('T')[0], // Date only
-        grace_period_end_date: gracePeriodEndDate.toISOString().split('T')[0],
-        grace_period_days: gracePeriodDays, // NEW
-        allows_partial: allow_partial_payments, // NEW
+        due_date: dueDate.toISOString().split('T')[0],
         payment_status: 'pending',
         is_overdue: false,
         days_overdue: 0,
