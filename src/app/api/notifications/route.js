@@ -382,7 +382,7 @@ export async function DELETE(request) {
   }
 }
 
-// PATCH - Fix existing notifications with incorrect recipient_role
+// PATCH - Fix existing notifications with incorrect recipient_role, or get diagnostics
 // This endpoint cleans up old notifications that have recipient_role='all' when they should be role-specific
 export async function PATCH(request) {
   try {
@@ -437,12 +437,56 @@ export async function PATCH(request) {
         },
         { status: 200 }
       );
+    } else if (action === 'diagnose') {
+      // Get current user and check what they should see
+      const { data: { user } } = await supabaseAdmin.auth.admin.getUserById(
+        request.headers.get('x-user-id') || ''
+      );
+
+      if (!user) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'User not found. Please provide x-user-id header or pass user in body',
+          },
+          { status: 400 }
+        );
+      }
+
+      const userId = user.id;
+      const userRole = user.user_metadata?.role?.toLowerCase() || 'unknown';
+
+      console.log(`🔍 Diagnostics for user: ${userId} (role: ${userRole})`);
+
+      // Get all notifications for this user based on the filter
+      const { data: allNotifications } = await supabaseAdmin
+        .from('notifications_tbl')
+        .select('id, title, recipient_role, recipient_id, status, created_at')
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      // Count notifications by role
+      const roleGroups = {};
+      allNotifications?.forEach(notif => {
+        const key = `role:${notif.recipient_role || 'null'}, id:${notif.recipient_id || 'null'}`;
+        roleGroups[key] = (roleGroups[key] || 0) + 1;
+      });
+
+      return NextResponse.json(
+        {
+          success: true,
+          user: { id: userId, role: userRole },
+          summaryByRole: roleGroups,
+          sampleNotifications: allNotifications?.slice(0, 10) || [],
+        },
+        { status: 200 }
+      );
     }
 
     return NextResponse.json(
       {
         success: false,
-        error: 'Invalid action provided',
+        error: 'Invalid action provided. Use "fix_notification_roles" or "diagnose"',
       },
       { status: 400 }
     );
