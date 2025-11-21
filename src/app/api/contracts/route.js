@@ -152,14 +152,18 @@ export async function GET(request) {
           0
         ) || 0;
 
-        // Calculate payment progress based on total downpayment, not remaining
+        // Add reservation fee to total paid (it's part of downpayment but tracked separately)
+        const reservationFeePaid = parseFloat(contract.reservation_fee_paid || 0);
+        const totalPaidAmount = totalPaidFromSchedules + reservationFeePaid;
+
+        // Calculate payment progress based on total downpayment
         const totalDownpayment = contract.downpayment_total || 0;
         const paymentProgress =
           totalDownpayment > 0
             ? Math.min(
                 100,
                 Math.round(
-                  (totalPaidFromSchedules / totalDownpayment) * 100
+                  (totalPaidAmount / totalDownpayment) * 100
                 )
               )
             : 100;
