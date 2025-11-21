@@ -41,6 +41,8 @@ export default function Reports() {
   const [reportData, setReportData] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredData, setFilteredData] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
 
   const reportTypes = [
     {
@@ -107,6 +109,17 @@ export default function Reports() {
       setFilteredData(filtered);
     }
   }, [searchTerm, reportData]);
+
+  useEffect(() => {
+    // Reset to page 1 when filtered data changes
+    setCurrentPage(1);
+  }, [filteredData]);
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedData = filteredData.slice(startIndex, endIndex);
 
   const generateReport = async () => {
     setLoading(true);
@@ -813,7 +826,7 @@ export default function Reports() {
                                       </tr>
                                     </thead>
                                     <tbody className="bg-white divide-y divide-slate-200">
-                                      {filteredData.map((item, index) => (
+                                      {paginatedData.map((item, index) => (
                                         <tr
                                           key={index}
                                           className={`transition-colors duration-200 hover:bg-red-50 ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'
@@ -948,30 +961,79 @@ export default function Reports() {
                                 </div>
                               </div>
 
-                              {/* Table Info Banner */}
-                              <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex items-center justify-between text-sm">
-                                <div className="flex items-center space-x-4">
-                                  <span className="text-slate-600 font-medium">
-                                    {filteredData.length} {filteredData.length === 1 ? 'record' : 'records'} found
-                                  </span>
-                                  {searchTerm && (
-                                    <span className="text-slate-500 text-xs">
-                                      Filtered by: "{searchTerm}"
+                              {/* Table Info Banner with Pagination */}
+                              <div className="bg-slate-50 border-t border-slate-200 px-4 py-4 space-y-4">
+                                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                                  <div className="flex items-center space-x-4">
+                                    <span className="text-slate-600 font-medium text-sm">
+                                      {filteredData.length > 0 ? `Showing ${startIndex + 1}-${Math.min(endIndex, filteredData.length)} of ${filteredData.length}` : 'No records'} {filteredData.length === 1 ? 'record' : 'records'}
                                     </span>
-                                  )}
+                                    {searchTerm && (
+                                      <span className="text-slate-500 text-xs">
+                                        Filtered by: "{searchTerm}"
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="hidden md:flex items-center space-x-2 text-xs text-slate-500">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span>Scroll horizontally to view all columns</span>
+                                  </div>
                                 </div>
-                                <div className="hidden md:flex items-center space-x-2 text-xs text-slate-500">
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                  </svg>
-                                  <span>Scroll horizontally to view all columns</span>
-                                </div>
+
+                                {/* Pagination Controls */}
+                                {filteredData.length > itemsPerPage && (
+                                  <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-2">
+                                    <div className="flex items-center space-x-2">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                        disabled={currentPage === 1}
+                                        className="text-xs"
+                                      >
+                                        Previous
+                                      </Button>
+
+                                      <div className="flex items-center gap-1">
+                                        {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                                          <button
+                                            key={page}
+                                            onClick={() => setCurrentPage(page)}
+                                            className={`w-8 h-8 rounded text-xs font-medium transition-colors ${
+                                              currentPage === page
+                                                ? 'bg-red-600 text-white'
+                                                : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+                                            }`}
+                                          >
+                                            {page}
+                                          </button>
+                                        ))}
+                                      </div>
+
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                        disabled={currentPage === totalPages}
+                                        className="text-xs"
+                                      >
+                                        Next
+                                      </Button>
+                                    </div>
+
+                                    <span className="text-xs text-slate-600 font-medium">
+                                      Page {currentPage} of {totalPages}
+                                    </span>
+                                  </div>
+                                )}
                               </div>
                             </div>
 
-                            {/* Mobile Card View - displays ALL rows */}
+                            {/* Mobile Card View - displays paginated rows */}
                             <div className="block md:hidden space-y-4">
-                              {filteredData.map((item, index) => (
+                              {paginatedData.map((item, index) => (
                                 <motion.div
                                   key={index}
                                   initial={{ opacity: 0, y: 10 }}
@@ -1038,6 +1100,53 @@ export default function Reports() {
                                   </div>
                                 </motion.div>
                               ))}
+
+                              {/* Mobile Pagination Controls */}
+                              {filteredData.length > itemsPerPage && (
+                                <div className="flex flex-col items-center gap-3 pt-4 pb-2">
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                      disabled={currentPage === 1}
+                                      className="text-xs"
+                                    >
+                                      Previous
+                                    </Button>
+
+                                    <div className="flex items-center gap-1">
+                                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                                        <button
+                                          key={page}
+                                          onClick={() => setCurrentPage(page)}
+                                          className={`w-7 h-7 rounded text-xs font-medium transition-colors ${
+                                            currentPage === page
+                                              ? 'bg-red-600 text-white'
+                                              : 'bg-white border border-slate-200 text-slate-700'
+                                          }`}
+                                        >
+                                          {page}
+                                        </button>
+                                      ))}
+                                    </div>
+
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                      disabled={currentPage === totalPages}
+                                      className="text-xs"
+                                    >
+                                      Next
+                                    </Button>
+                                  </div>
+
+                                  <span className="text-xs text-slate-600 font-medium">
+                                    Page {currentPage} of {totalPages}
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           </>
                         )}
