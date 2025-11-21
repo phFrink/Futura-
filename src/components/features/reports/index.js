@@ -117,6 +117,7 @@ export default function Reports() {
         activeReport === 'properties' ? 'property_tbl' :
         activeReport === 'complaints' ? 'complaint_tbl' :
         activeReport === 'billings' ? 'billing_tbl' :
+        activeReport === 'announcements' ? 'homeowner_announcements' :
         'announcement_tbl';
 
       console.log('🔄 Generating fresh report for table:', tableName);
@@ -133,7 +134,7 @@ export default function Reports() {
           activeReport === 'service_requests' ? 'created_at' :
           activeReport === 'complaints' ? 'created_at' :
           activeReport === 'billings' ? 'due_date' :
-          activeReport === 'announcements' ? 'publish_date' :
+          activeReport === 'announcements' ? 'created_date' :
           'created_at';
 
         console.log('📊 Applying date filter on field:', dateField);
