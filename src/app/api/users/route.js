@@ -368,6 +368,7 @@ export async function PUT(request) {
       try {
         console.log(`📝 Updating user status to: ${userData.status}`);
 
+        // First, try to update profiles table status column
         const { error: profileError } = await supabaseAdmin
           .from("profiles")
           .update({
@@ -387,7 +388,7 @@ export async function PUT(request) {
           // Check if error is due to missing column or table
           if (profileError.message && profileError.message.includes("column")) {
             console.warn("⚠️ Status column may not exist in profiles table");
-            statusUpdateWarning = "Status column not found in database";
+            statusUpdateWarning = "Status column not found, using auth ban feature";
           } else {
             // For other errors, return detailed error response
             return NextResponse.json(
@@ -402,6 +403,31 @@ export async function PUT(request) {
           }
         } else {
           console.log("✅ User status updated in profiles table:", userId);
+        }
+
+        // Also use Supabase ban/unban feature as fallback/backup
+        if (userData.status === "inactive") {
+          console.log(`🔒 Banning user in Supabase Auth: ${userId}`);
+          const { error: banError } = await supabaseAdmin.auth.admin.updateUserById(
+            userId,
+            { ban_duration: "none" } // Ban indefinitely
+          );
+          if (banError) {
+            console.warn("⚠️ Could not set ban in auth:", banError.message);
+          } else {
+            console.log("✅ User banned in Supabase Auth");
+          }
+        } else if (userData.status === "active") {
+          console.log(`🔓 Unbanning user in Supabase Auth: ${userId}`);
+          const { error: unbanError } = await supabaseAdmin.auth.admin.updateUserById(
+            userId,
+            { ban_duration: "0" } // Remove ban
+          );
+          if (unbanError) {
+            console.warn("⚠️ Could not unban in auth:", unbanError.message);
+          } else {
+            console.log("✅ User unbanned in Supabase Auth");
+          }
         }
       } catch (profileUpdateError) {
         console.error("❌ Exception during profile update:", profileUpdateError);
