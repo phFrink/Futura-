@@ -363,29 +363,50 @@ export async function PUT(request) {
     console.log("✅ User updated successfully in Auth:", userId);
 
     // Update user profile in profiles table (status, avatar, etc.)
+    let statusUpdateWarning = null;
     if (userData.status !== undefined) {
-      console.log(`📝 Updating user status to: ${userData.status}`);
-      const { error: profileError } = await supabaseAdmin
-        .from("profiles")
-        .update({
-          status: userData.status,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", userId);
+      try {
+        console.log(`📝 Updating user status to: ${userData.status}`);
 
-      if (profileError) {
-        console.error("❌ Profile update error:", profileError);
-        return NextResponse.json(
-          {
-            success: false,
-            error: profileError.message,
-            message: "Failed to update user status: " + profileError.message,
-          },
-          { status: 400 }
-        );
+        const { error: profileError } = await supabaseAdmin
+          .from("profiles")
+          .update({
+            status: userData.status,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", userId);
+
+        if (profileError) {
+          console.error("❌ Profile update error:", profileError);
+          console.error("Error details:", {
+            message: profileError.message,
+            code: profileError.code,
+            details: profileError.details,
+          });
+
+          // Check if error is due to missing column or table
+          if (profileError.message && profileError.message.includes("column")) {
+            console.warn("⚠️ Status column may not exist in profiles table");
+            statusUpdateWarning = "Status column not found in database";
+          } else {
+            // For other errors, return detailed error response
+            return NextResponse.json(
+              {
+                success: false,
+                error: profileError.message || "Failed to update profile",
+                message: `Failed to update user status: ${profileError.message}`,
+                details: profileError.details,
+              },
+              { status: 400 }
+            );
+          }
+        } else {
+          console.log("✅ User status updated in profiles table:", userId);
+        }
+      } catch (profileUpdateError) {
+        console.error("❌ Exception during profile update:", profileUpdateError);
+        statusUpdateWarning = `Warning: ${profileUpdateError.message}`;
       }
-
-      console.log("✅ User status updated in profiles table:", userId);
     }
 
     // Return formatted user data
@@ -409,7 +430,8 @@ export async function PUT(request) {
     return NextResponse.json({
       success: true,
       data: formattedUser,
-      message: "User updated successfully",
+      message: statusUpdateWarning ? `User updated, but status: ${statusUpdateWarning}` : "User updated successfully",
+      warning: statusUpdateWarning,
     });
   } catch (error) {
     console.error("❌ Update user error:", error);
