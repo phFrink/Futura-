@@ -146,24 +146,29 @@ export async function GET(request) {
           (s) => s.payment_status === "pending"
         );
 
-        // Calculate total paid from payment schedules
+        // Calculate total scheduled and total paid dynamically from actual schedules
+        const totalScheduledAmount = schedules?.reduce(
+          (sum, s) => sum + (parseFloat(s.scheduled_amount) || 0),
+          0
+        ) || 0;
+
         const totalPaidFromSchedules = schedules?.reduce(
           (sum, s) => sum + (parseFloat(s.paid_amount) || 0),
           0
         ) || 0;
 
-        // Add reservation fee to total paid (it's part of downpayment but tracked separately)
+        // Add reservation fee to both total and paid amounts
         const reservationFeePaid = parseFloat(contract.reservation_fee_paid || 0);
+        const totalDownpaymentFromSchedules = reservationFeePaid + totalScheduledAmount;
         const totalPaidAmount = totalPaidFromSchedules + reservationFeePaid;
 
-        // Calculate payment progress based on total downpayment
-        const totalDownpayment = contract.downpayment_total || 0;
+        // Calculate payment progress based on actual totals from schedules
         const paymentProgress =
-          totalDownpayment > 0
+          totalDownpaymentFromSchedules > 0
             ? Math.min(
                 100,
                 Math.round(
-                  (totalPaidAmount / totalDownpayment) * 100
+                  (totalPaidAmount / totalDownpaymentFromSchedules) * 100
                 )
               )
             : 100;
