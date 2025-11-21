@@ -80,9 +80,9 @@ export default function Reports() {
     },
     {
       id: 'announcements',
-      title: 'Announcements Report',
+      title: 'Homeowners Report',
       icon: Bell,
-      description: 'All announcements and their publication dates',
+      description: 'All homeowners and their announcement publications',
       color: 'indigo'
     }
   ];
