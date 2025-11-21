@@ -381,3 +381,79 @@ export async function DELETE(request) {
     );
   }
 }
+
+// PATCH - Fix existing notifications with incorrect recipient_role
+// This endpoint cleans up old notifications that have recipient_role='all' when they should be role-specific
+export async function PATCH(request) {
+  try {
+    const { action } = await request.json();
+
+    if (action === 'fix_notification_roles') {
+      console.log("🔧 Starting notification role cleanup...");
+
+      // Fix notifications with specific titles to have correct roles
+      const updates = [
+        {
+          titles: ['New User Registered'],
+          old_role: 'all',
+          new_role: 'admin',
+          reason: 'User registration notifications should only go to admins'
+        },
+        {
+          titles: ['New Property Reservation', 'New Property Inquiry'],
+          old_role: 'all',
+          new_role: 'sales representative',
+          reason: 'Reservation and inquiry notifications should only go to sales reps'
+        },
+      ];
+
+      let totalFixed = 0;
+
+      for (const update of updates) {
+        for (const title of update.titles) {
+          console.log(`🔄 Updating "${title}" from role="${update.old_role}" to role="${update.new_role}"...`);
+
+          const { data, error } = await supabaseAdmin
+            .from('notifications_tbl')
+            .update({ recipient_role: update.new_role })
+            .eq('title', title)
+            .eq('recipient_role', update.old_role)
+            .select();
+
+          if (error) {
+            console.error(`❌ Error updating ${title}:`, error);
+          } else {
+            console.log(`✅ Updated ${data?.length || 0} notifications for "${title}"`);
+            totalFixed += data?.length || 0;
+          }
+        }
+      }
+
+      return NextResponse.json(
+        {
+          success: true,
+          message: `Notification role cleanup completed! Fixed ${totalFixed} notifications.`,
+          fixedCount: totalFixed,
+        },
+        { status: 200 }
+      );
+    }
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Invalid action provided',
+      },
+      { status: 400 }
+    );
+  } catch (error) {
+    console.error("❌ Exception in PATCH handler:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: error.message,
+      },
+      { status: 500 }
+    );
+  }
+}
