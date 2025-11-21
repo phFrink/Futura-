@@ -1913,37 +1913,47 @@ export default function ReservationDetails() {
                         </>
                       )}
 
-                      {/* Contract Link - Show if contract exists */}
-                      {reservation.contract && reservation.contract.contract_id && (
-                        <div className="pt-2 border-t border-slate-100">
-                          <Button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              router.push(`/contracts/${reservation.contract.contract_id}`);
-                            }}
-                            className="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white text-xs py-2"
-                          >
-                            <Home className="h-3 w-3 mr-2" />
-                            View Contract
-                          </Button>
-                        </div>
-                      )}
-
-                      {/* Contract Request Button - Show if no contract exists and approved (for homeowners) */}
-                      {!reservation.contract && reservation.status === "approved" && userRole === "homeowner" && (
-                        <div className="pt-2 border-t border-slate-100">
-                          <Button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setContractData(reservation);
-                              setShowContractModal(true);
-                            }}
-                            className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-xs py-2"
-                            title="Request contract creation"
-                          >
-                            <FileSignature className="h-3 w-3 mr-2" />
-                            Request Contract
-                          </Button>
+                      {/* Contract Button Section */}
+                      {reservation.status === "approved" && (
+                        <div className="pt-2 border-t border-slate-100 w-full">
+                          {reservation.contract?.contract_id ? (
+                            <Button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(`/contracts/${reservation.contract.contract_id}`);
+                              }}
+                              className="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white text-xs py-2"
+                            >
+                              <Home className="h-3 w-3 mr-2" />
+                              View Contract
+                            </Button>
+                          ) : (userRole === "admin" || userRole === "customer service") ? (
+                            <Button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setContractData(reservation);
+                                setShowContractModal(true);
+                              }}
+                              className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-xs py-2"
+                              title="Create contract for this reservation"
+                            >
+                              <FileSignature className="h-3 w-3 mr-2" />
+                              Create Contract
+                            </Button>
+                          ) : (
+                            <Button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setContractData(reservation);
+                                setShowContractModal(true);
+                              }}
+                              className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-xs py-2"
+                              title="Request contract creation"
+                            >
+                              <FileSignature className="h-3 w-3 mr-2" />
+                              Request Contract
+                            </Button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -2217,32 +2227,49 @@ export default function ReservationDetails() {
                               </Button>
                             </>
                           )}
-                          {/* Contract Link - Show if contract exists */}
-                          {reservation.contract && reservation.contract.contract_id && (
-                            <Button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                router.push(`/contracts/${reservation.contract.contract_id}`);
-                              }}
-                              className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white px-3 py-1 text-xs"
-                              title="View Contract"
-                            >
-                              <Home className="h-3 w-3" />
-                            </Button>
-                          )}
-                          {/* Contract Request Button - Show if no contract exists and approved (for homeowners) */}
-                          {!reservation.contract && reservation.status === "approved" && userRole === "homeowner" && (
-                            <Button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setContractData(reservation);
-                                setShowContractModal(true);
-                              }}
-                              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-3 py-1 text-xs"
-                              title="Request contract creation"
-                            >
-                              <FileSignature className="h-3 w-3" />
-                            </Button>
+                          {/* Contract Button - Show if approved */}
+                          {reservation.status === "approved" && (
+                            <>
+                              {reservation.contract?.contract_id ? (
+                                <Button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    router.push(`/contracts/${reservation.contract.contract_id}`);
+                                  }}
+                                  className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white px-3 py-1 text-xs"
+                                  title="View Contract"
+                                >
+                                  <Home className="h-3 w-3 mr-1" />
+                                  View
+                                </Button>
+                              ) : (userRole === "admin" || userRole === "customer service") ? (
+                                <Button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setContractData(reservation);
+                                    setShowContractModal(true);
+                                  }}
+                                  className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-3 py-1 text-xs"
+                                  title="Create contract for this reservation"
+                                >
+                                  <FileSignature className="h-3 w-3 mr-1" />
+                                  Create
+                                </Button>
+                              ) : (
+                                <Button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setContractData(reservation);
+                                    setShowContractModal(true);
+                                  }}
+                                  className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-3 py-1 text-xs"
+                                  title="Request contract creation"
+                                >
+                                  <FileSignature className="h-3 w-3 mr-1" />
+                                  Request
+                                </Button>
+                              )}
+                            </>
                           )}
                         </div>
                       </td>
