@@ -47,10 +47,15 @@ export async function GET(request) {
     if (userId && role) {
       console.log(`🔍 Applying filter for userId: "${userId}" and role: "${role}"`);
 
-      // Homeowners (clients) ONLY see notifications specifically for them
+      // Homeowners (clients) ONLY see notifications specifically for them OR notifications for "all"
       if (role === 'homeowner') {
-        console.log(`🔒 Homeowner filter: showing only notifications for this specific user`);
-        query = query.eq('recipient_id', userId);
+        console.log(`🔒 Homeowner filter: showing only notifications for this specific user or all users`);
+        // Homeowners can see:
+        // 1. Notifications specifically for them (recipient_id matches)
+        // 2. Notifications for all users (recipient_role = 'all')
+        // They CANNOT see role-based notifications (like "admin", "customer service", etc.)
+        const filterQuery = `recipient_id.eq.${userId},recipient_role.eq.all`;
+        query = query.or(filterQuery);
       } else {
         // Admin/staff roles see notifications that are either:
         // 1. Specifically for them (recipient_id matches)
@@ -73,8 +78,9 @@ export async function GET(request) {
     } else if (userId) {
       console.log(`🔍 Applying filter for userId only: "${userId}"`);
 
-      // Only show notifications specifically for this user
-      query = query.eq('recipient_id', userId);
+      // Only show notifications specifically for this user OR for all users
+      const filterQuery = `recipient_id.eq.${userId},recipient_role.eq.all`;
+      query = query.or(filterQuery);
     } else {
       console.log("⚠️ No role or userId provided - showing all notifications");
     }
