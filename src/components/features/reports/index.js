@@ -116,7 +116,7 @@ export default function Reports() {
         activeReport === 'homeowners' ? 'homeowner_tbl' :
           activeReport === 'properties' ? 'property_tbl' :
             activeReport === 'complaints' ? 'complaint_tbl' :
-              activeReport === 'billings' ? 'billing_tbl' :
+              activeReport === 'billings' ? 'contract_payment_schedules' :
                 activeReport === 'announcements' ? 'homeowner_announcements' :
                   'announcement_tbl';
 
