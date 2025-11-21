@@ -1882,10 +1882,11 @@ export default function ReservationDetails() {
                                 setContractData(reservation);
                                 setShowContractModal(true);
                               }}
-                              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 text-xs"
+                              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 text-xs flex-1"
                               title="Create contract (Admin & Customer Service only)"
                             >
-                              <FileSignature className="h-3 w-3" />
+                              <FileSignature className="h-3 w-3 mr-1" />
+                              Contract
                             </Button>
                           )}
                         </>
@@ -1924,6 +1925,24 @@ export default function ReservationDetails() {
                           >
                             <Home className="h-3 w-3 mr-2" />
                             View Contract
+                          </Button>
+                        </div>
+                      )}
+
+                      {/* Contract Request Button - Show if no contract exists and approved (for homeowners) */}
+                      {!reservation.contract && reservation.status === "approved" && userRole === "homeowner" && (
+                        <div className="pt-2 border-t border-slate-100">
+                          <Button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setContractData(reservation);
+                              setShowContractModal(true);
+                            }}
+                            className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-xs py-2"
+                            title="Request contract creation"
+                          >
+                            <FileSignature className="h-3 w-3 mr-2" />
+                            Request Contract
                           </Button>
                         </div>
                       )}
@@ -2172,7 +2191,8 @@ export default function ReservationDetails() {
                                   className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 text-xs"
                                   title="Create contract (Admin & Customer Service only)"
                                 >
-                                  <FileSignature className="h-3 w-3" />
+                                  <FileSignature className="h-3 w-3 mr-1" />
+                                  Create
                                 </Button>
                               )}
                             </>
@@ -2208,6 +2228,20 @@ export default function ReservationDetails() {
                               title="View Contract"
                             >
                               <Home className="h-3 w-3" />
+                            </Button>
+                          )}
+                          {/* Contract Request Button - Show if no contract exists and approved (for homeowners) */}
+                          {!reservation.contract && reservation.status === "approved" && userRole === "homeowner" && (
+                            <Button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setContractData(reservation);
+                                setShowContractModal(true);
+                              }}
+                              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-3 py-1 text-xs"
+                              title="Request contract creation"
+                            >
+                              <FileSignature className="h-3 w-3" />
                             </Button>
                           )}
                         </div>
