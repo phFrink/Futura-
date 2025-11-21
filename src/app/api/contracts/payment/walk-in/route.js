@@ -25,7 +25,8 @@ const supabaseAdmin = createSupabaseAdmin();
 /**
  * Calculate penalty for overdue payment
  * Penalty starts 3 days after due date
- * Default penalty rate: 2% per month (or from schedule.penalty_rate)
+ * Default penalty rate: 3% per month (or from schedule.penalty_rate for higher rates like 6% next month)
+ * Formula: (base_amount * penalty_rate / 30 days) * days_overdue
  */
 function calculatePenalty(schedule) {
   // Parse due date and normalize to start of day
@@ -73,7 +74,6 @@ function calculatePenalty(schedule) {
   const baseAmount = parseFloat(schedule.remaining_amount || schedule.scheduled_amount || 0);
 
   // Apply monthly penalty rate, converted to daily
-  // Formula: (base_amount * penalty_rate / 30 days) * days_overdue
   const dailyPenaltyRate = penaltyRate / 30;
   const penaltyAmount = baseAmount * dailyPenaltyRate * daysOverdue;
 
