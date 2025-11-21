@@ -80,7 +80,7 @@ export default function Reports() {
     },
     {
       id: 'announcements',
-      title: 'Homeowners Announcements',
+      title: 'General Announcements',
       icon: Bell,
       description: 'All homeowners and their announcement publications',
       color: 'indigo'
@@ -124,11 +124,12 @@ export default function Reports() {
       console.log('📅 Date filters:', { startDate, endDate });
       console.log('⏰ Timestamp:', new Date().toISOString());
 
-      // Simple query without ordering first
-      // Add cache-busting parameter to force fresh data
+      // Fetch ALL records from the table without any limits or pagination
+      // No .limit() is applied - all data will be loaded and displayed
       let query = supabase.from(tableName).select('*');
 
-      // Apply date filters if provided
+      // Apply date filters ONLY if both startDate and endDate are provided
+      // If no dates are set, ALL records are returned (no filtering)
       if (startDate && endDate) {
         const dateField = activeReport === 'homeowners' ? 'move_in_date' :
           activeReport === 'service_requests' ? 'created_at' :
@@ -140,9 +141,11 @@ export default function Reports() {
         console.log('📊 Applying date filter on field:', dateField);
         console.log('   From:', startDate, 'To:', endDate);
         query = query.gte(dateField, startDate).lte(dateField, endDate);
+      } else {
+        console.log('📋 Loading ALL records without date filtering');
       }
 
-      // Execute query and force no cache
+      // Execute query - returns ALL matching records without any limits
       const { data, error } = await query;
 
       if (error) {
@@ -732,7 +735,7 @@ export default function Reports() {
                         {reportTypes.find(r => r.id === activeReport)?.title || 'Report Results'}
                         {filteredData.length > 0 && (
                           <span className="ml-auto text-sm font-normal text-slate-600 bg-slate-100 px-3 py-1 rounded-full">
-                            Showing {filteredData.length} of {reportData.length} records
+                            {searchTerm ? `${filteredData.length} of ${reportData.length} records found` : `${filteredData.length} total records`}
                           </span>
                         )}
                       </CardTitle>
@@ -753,7 +756,7 @@ export default function Reports() {
                           </div>
                         ) : (
                           <>
-                            {/* Desktop Table View */}
+                            {/* Desktop Table View - Full height, all data displayed */}
                             <div className="hidden md:block">
                               <style jsx>{`
                           .custom-scrollbar::-webkit-scrollbar {
@@ -771,6 +774,7 @@ export default function Reports() {
                             background: #94a3b8;
                           }
                         `}</style>
+                              {/* Table container - displays ALL rows without limits */}
                               <div className="w-full overflow-x-auto custom-scrollbar rounded-xl border border-slate-200 shadow-sm bg-white">
                                 <div className="inline-block min-w-full align-middle">
                                   <table className="min-w-full divide-y divide-slate-200">
@@ -965,7 +969,7 @@ export default function Reports() {
                               </div>
                             </div>
 
-                            {/* Mobile Card View */}
+                            {/* Mobile Card View - displays ALL rows */}
                             <div className="block md:hidden space-y-4">
                               {filteredData.map((item, index) => (
                                 <motion.div
