@@ -141,7 +141,7 @@ export async function GET(request) {
         user_metadata_role: user.user_metadata?.role || null, // Store original user_metadata.role
         staff_type: staffType, // 'resident', 'assistant', or null
         is_staff: isStaff, // Flag to identify staff members
-        status: profile?.status || (user.banned_until ? "inactive" : "active"),
+        status: user.banned_until ? "inactive" : "active",
         avatar_url: profile?.avatar_url || user.user_metadata?.profilePhoto,
         profile_photo:
           user.user_metadata?.profile_photo ||
