@@ -80,7 +80,7 @@ export default function Reports() {
     },
     {
       id: 'announcements',
-      title: 'Homeowners Report',
+      title: 'Homeowners Announcements',
       icon: Bell,
       description: 'All homeowners and their announcement publications',
       color: 'indigo'
@@ -114,11 +114,11 @@ export default function Reports() {
       // Determine table name based on active report
       const tableName = activeReport === 'service_requests' ? 'request_tbl' :
         activeReport === 'homeowners' ? 'homeowner_tbl' :
-        activeReport === 'properties' ? 'property_tbl' :
-        activeReport === 'complaints' ? 'complaint_tbl' :
-        activeReport === 'billings' ? 'billing_tbl' :
-        activeReport === 'announcements' ? 'homeowner_announcements' :
-        'announcement_tbl';
+          activeReport === 'properties' ? 'property_tbl' :
+            activeReport === 'complaints' ? 'complaint_tbl' :
+              activeReport === 'billings' ? 'billing_tbl' :
+                activeReport === 'announcements' ? 'homeowner_announcements' :
+                  'announcement_tbl';
 
       console.log('🔄 Generating fresh report for table:', tableName);
       console.log('📅 Date filters:', { startDate, endDate });
@@ -132,10 +132,10 @@ export default function Reports() {
       if (startDate && endDate) {
         const dateField = activeReport === 'homeowners' ? 'move_in_date' :
           activeReport === 'service_requests' ? 'created_at' :
-          activeReport === 'complaints' ? 'created_at' :
-          activeReport === 'billings' ? 'due_date' :
-          activeReport === 'announcements' ? 'created_date' :
-          'created_at';
+            activeReport === 'complaints' ? 'created_at' :
+              activeReport === 'billings' ? 'due_date' :
+                activeReport === 'announcements' ? 'created_date' :
+                  'created_at';
 
         console.log('📊 Applying date filter on field:', dateField);
         console.log('   From:', startDate, 'To:', endDate);
@@ -439,7 +439,7 @@ export default function Reports() {
     `);
 
     printWindow.document.close();
-    printWindow.onload = function() {
+    printWindow.onload = function () {
       printWindow.print();
       printWindow.close();
     };
@@ -494,28 +494,24 @@ export default function Reports() {
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: index * 0.1 }}
                         onClick={() => setActiveReport(report.id)}
-                        className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 ${
-                          activeReport === report.id
+                        className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 ${activeReport === report.id
                             ? 'bg-gradient-to-r from-red-50 to-red-100 border-2 border-red-200 shadow-md'
                             : 'bg-slate-50/50 hover:bg-slate-100/50 hover:shadow-sm'
-                        }`}
+                          }`}
                       >
-                        <div className={`p-2 rounded-lg flex-shrink-0 ${
-                          activeReport === report.id
+                        <div className={`p-2 rounded-lg flex-shrink-0 ${activeReport === report.id
                             ? 'bg-red-600 text-white'
                             : 'bg-slate-200 text-slate-600'
-                        }`}>
+                          }`}>
                           <report.icon className="w-4 h-4" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h4 className={`font-semibold text-sm mb-1 ${
-                            activeReport === report.id ? 'text-red-900' : 'text-slate-900'
-                          }`}>
+                          <h4 className={`font-semibold text-sm mb-1 ${activeReport === report.id ? 'text-red-900' : 'text-slate-900'
+                            }`}>
                             {report.title}
                           </h4>
-                          <p className={`text-xs leading-relaxed ${
-                            activeReport === report.id ? 'text-red-700' : 'text-slate-600'
-                          }`}>
+                          <p className={`text-xs leading-relaxed ${activeReport === report.id ? 'text-red-700' : 'text-slate-600'
+                            }`}>
                             {report.description}
                           </p>
                           {activeReport === report.id && (
@@ -552,17 +548,15 @@ export default function Reports() {
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: index * 0.05 }}
                           onClick={() => setActiveReport(report.id)}
-                          className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all duration-200 ${
-                            activeReport === report.id
+                          className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all duration-200 ${activeReport === report.id
                               ? 'bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg'
                               : 'bg-slate-50 hover:bg-slate-100 text-slate-700'
-                          }`}
+                            }`}
                         >
-                          <div className={`p-2 rounded-md ${
-                            activeReport === report.id
+                          <div className={`p-2 rounded-md ${activeReport === report.id
                               ? 'bg-white/20'
                               : 'bg-slate-200'
-                          }`}>
+                            }`}>
                             <report.icon className="w-4 h-4" />
                           </div>
                           <div className="flex-1 min-w-0">
@@ -649,9 +643,8 @@ export default function Reports() {
                       <button
                         onClick={generateReport}
                         disabled={loading || !activeReport}
-                        className={`px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-red-500/30 ${
-                          loading || !activeReport ? 'opacity-50 cursor-not-allowed' : ''
-                        }`}
+                        className={`px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-red-500/30 ${loading || !activeReport ? 'opacity-50 cursor-not-allowed' : ''
+                          }`}
                       >
                         {loading ? (
                           <>
@@ -668,9 +661,8 @@ export default function Reports() {
                       <button
                         onClick={downloadPDF}
                         disabled={filteredData.length === 0 || pdfLoading}
-                        className={`px-6 py-3 bg-white border-2 border-red-200 text-red-600 hover:bg-red-50 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
-                          filteredData.length === 0 || pdfLoading ? 'opacity-50 cursor-not-allowed' : ''
-                        }`}
+                        className={`px-6 py-3 bg-white border-2 border-red-200 text-red-600 hover:bg-red-50 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${filteredData.length === 0 || pdfLoading ? 'opacity-50 cursor-not-allowed' : ''
+                          }`}
                       >
                         {pdfLoading ? (
                           <>
@@ -687,9 +679,8 @@ export default function Reports() {
                       <button
                         onClick={printReport}
                         disabled={filteredData.length === 0}
-                        className={`px-6 py-3 bg-white border-2 border-red-200 text-red-600 hover:bg-red-50 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
-                          filteredData.length === 0 ? 'opacity-50 cursor-not-allowed' : ''
-                        }`}
+                        className={`px-6 py-3 bg-white border-2 border-red-200 text-red-600 hover:bg-red-50 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${filteredData.length === 0 ? 'opacity-50 cursor-not-allowed' : ''
+                          }`}
                       >
                         <Printer className="w-5 h-5" />
                         Print Report
@@ -730,41 +721,41 @@ export default function Reports() {
               {/* Report Results Table */}
               {activeReport && (
                 <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.8 }}
-          >
-            <Card className="bg-white/80 backdrop-blur-sm border-slate-200 shadow-xl">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-red-600" />
-                  {reportTypes.find(r => r.id === activeReport)?.title || 'Report Results'}
-                  {filteredData.length > 0 && (
-                    <span className="ml-auto text-sm font-normal text-slate-600 bg-slate-100 px-3 py-1 rounded-full">
-                      Showing {filteredData.length} of {reportData.length} records
-                    </span>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div id="report-table" className="overflow-x-auto">
-                  {loading ? (
-                    <div className="space-y-4">
-                      {Array(5).fill(0).map((_, i) => (
-                        <div key={i} className="h-16 bg-slate-200 animate-pulse rounded-xl" />
-                      ))}
-                    </div>
-                  ) : filteredData.length === 0 ? (
-                    <div className="text-center py-8 md:py-12 text-slate-500">
-                      <FileText className="w-12 h-12 md:w-16 md:h-16 mx-auto mb-3 md:mb-4 opacity-50" />
-                      <p className="text-base md:text-lg font-medium mb-1 md:mb-2">No Data Available</p>
-                      <p className="text-xs md:text-sm px-4">Try adjusting your filters or generate a new report</p>
-                    </div>
-                  ) : (
-                    <>
-                      {/* Desktop Table View */}
-                      <div className="hidden md:block">
-                        <style jsx>{`
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.8 }}
+                >
+                  <Card className="bg-white/80 backdrop-blur-sm border-slate-200 shadow-xl">
+                    <CardHeader className="pb-4">
+                      <CardTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                        <FileText className="w-5 h-5 text-red-600" />
+                        {reportTypes.find(r => r.id === activeReport)?.title || 'Report Results'}
+                        {filteredData.length > 0 && (
+                          <span className="ml-auto text-sm font-normal text-slate-600 bg-slate-100 px-3 py-1 rounded-full">
+                            Showing {filteredData.length} of {reportData.length} records
+                          </span>
+                        )}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div id="report-table" className="overflow-x-auto">
+                        {loading ? (
+                          <div className="space-y-4">
+                            {Array(5).fill(0).map((_, i) => (
+                              <div key={i} className="h-16 bg-slate-200 animate-pulse rounded-xl" />
+                            ))}
+                          </div>
+                        ) : filteredData.length === 0 ? (
+                          <div className="text-center py-8 md:py-12 text-slate-500">
+                            <FileText className="w-12 h-12 md:w-16 md:h-16 mx-auto mb-3 md:mb-4 opacity-50" />
+                            <p className="text-base md:text-lg font-medium mb-1 md:mb-2">No Data Available</p>
+                            <p className="text-xs md:text-sm px-4">Try adjusting your filters or generate a new report</p>
+                          </div>
+                        ) : (
+                          <>
+                            {/* Desktop Table View */}
+                            <div className="hidden md:block">
+                              <style jsx>{`
                           .custom-scrollbar::-webkit-scrollbar {
                             height: 6px;
                           }
@@ -780,51 +771,211 @@ export default function Reports() {
                             background: #94a3b8;
                           }
                         `}</style>
-                        <div className="w-full overflow-x-auto custom-scrollbar rounded-xl border border-slate-200 shadow-sm bg-white">
-                          <div className="inline-block min-w-full align-middle">
-                            <table className="min-w-full divide-y divide-slate-200">
-                              <thead>
-                                <tr className="bg-gradient-to-r from-red-500 to-red-600">
-                                  {Object.keys(filteredData[0])
-                                    .filter(key =>
-                                      !key.includes('id') &&
-                                      !key.includes('password') &&
-                                      key !== 'created_at' &&
-                                      key !== 'updated_at'
-                                    )
-                                    .map((key, index) => {
-                                      // Define responsive column width classes based on content type
-                                      let widthClass = 'min-w-[100px] md:min-w-[120px]'; // default
-                                      if (key === 'email') widthClass = 'min-w-[150px] md:min-w-[200px] lg:min-w-[220px]';
-                                      if (key === 'phone') widthClass = 'min-w-[120px] md:min-w-[140px]';
-                                      if (key === 'address' || key === 'description' || key === 'message') widthClass = 'min-w-[180px] md:min-w-[250px] lg:min-w-[280px]';
-                                      if (key === 'status' || key === 'priority') widthClass = 'min-w-[80px] md:min-w-[100px]';
-                                      if (key.includes('date')) widthClass = 'min-w-[120px] md:min-w-[140px] lg:min-w-[160px]';
-                                      if (key === 'amount' || key.includes('cost') || key.includes('fee')) widthClass = 'min-w-[100px] md:min-w-[120px]';
-                                      if (key === 'full_name' || key === 'name') widthClass = 'min-w-[120px] md:min-w-[160px] lg:min-w-[180px]';
-                                      if (key === 'title' || key === 'subject') widthClass = 'min-w-[140px] md:min-w-[200px] lg:min-w-[240px]';
+                              <div className="w-full overflow-x-auto custom-scrollbar rounded-xl border border-slate-200 shadow-sm bg-white">
+                                <div className="inline-block min-w-full align-middle">
+                                  <table className="min-w-full divide-y divide-slate-200">
+                                    <thead>
+                                      <tr className="bg-gradient-to-r from-red-500 to-red-600">
+                                        {Object.keys(filteredData[0])
+                                          .filter(key =>
+                                            !key.includes('id') &&
+                                            !key.includes('password') &&
+                                            key !== 'created_at' &&
+                                            key !== 'updated_at'
+                                          )
+                                          .map((key, index) => {
+                                            // Define responsive column width classes based on content type
+                                            let widthClass = 'min-w-[100px] md:min-w-[120px]'; // default
+                                            if (key === 'email') widthClass = 'min-w-[150px] md:min-w-[200px] lg:min-w-[220px]';
+                                            if (key === 'phone') widthClass = 'min-w-[120px] md:min-w-[140px]';
+                                            if (key === 'address' || key === 'description' || key === 'message') widthClass = 'min-w-[180px] md:min-w-[250px] lg:min-w-[280px]';
+                                            if (key === 'status' || key === 'priority') widthClass = 'min-w-[80px] md:min-w-[100px]';
+                                            if (key.includes('date')) widthClass = 'min-w-[120px] md:min-w-[140px] lg:min-w-[160px]';
+                                            if (key === 'amount' || key.includes('cost') || key.includes('fee')) widthClass = 'min-w-[100px] md:min-w-[120px]';
+                                            if (key === 'full_name' || key === 'name') widthClass = 'min-w-[120px] md:min-w-[160px] lg:min-w-[180px]';
+                                            if (key === 'title' || key === 'subject') widthClass = 'min-w-[140px] md:min-w-[200px] lg:min-w-[240px]';
 
-                                      return (
-                                        <th
-                                          key={key}
-                                          className={`${widthClass} px-3 md:px-4 lg:px-6 py-3 md:py-4 text-left font-semibold text-white text-xs md:text-sm uppercase tracking-wider whitespace-nowrap sticky-header`}
+                                            return (
+                                              <th
+                                                key={key}
+                                                className={`${widthClass} px-3 md:px-4 lg:px-6 py-3 md:py-4 text-left font-semibold text-white text-xs md:text-sm uppercase tracking-wider whitespace-nowrap sticky-header`}
+                                              >
+                                                <div className="flex items-center space-x-1">
+                                                  <span className="truncate">{key.replace(/_/g, ' ')}</span>
+                                                </div>
+                                              </th>
+                                            );
+                                          })}
+                                      </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-slate-200">
+                                      {filteredData.map((item, index) => (
+                                        <tr
+                                          key={index}
+                                          className={`transition-colors duration-200 hover:bg-red-50 ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'
+                                            }`}
                                         >
-                                          <div className="flex items-center space-x-1">
-                                            <span className="truncate">{key.replace(/_/g, ' ')}</span>
-                                          </div>
-                                        </th>
-                                      );
-                                    })}
-                                </tr>
-                              </thead>
-                              <tbody className="bg-white divide-y divide-slate-200">
-                                {filteredData.map((item, index) => (
-                                  <tr
-                                    key={index}
-                                    className={`transition-colors duration-200 hover:bg-red-50 ${
-                                      index % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'
-                                    }`}
-                                  >
+                                          {Object.keys(item)
+                                            .filter(key =>
+                                              !key.includes('id') &&
+                                              !key.includes('password') &&
+                                              key !== 'created_at' &&
+                                              key !== 'updated_at'
+                                            )
+                                            .map((key, cellIndex) => {
+                                              // Match the same responsive width classes as headers
+                                              let widthClass = 'min-w-[100px] md:min-w-[120px]'; // default
+                                              if (key === 'email') widthClass = 'min-w-[150px] md:min-w-[200px] lg:min-w-[220px]';
+                                              if (key === 'phone') widthClass = 'min-w-[120px] md:min-w-[140px]';
+                                              if (key === 'address' || key === 'description' || key === 'message') widthClass = 'min-w-[180px] md:min-w-[250px] lg:min-w-[280px]';
+                                              if (key === 'status' || key === 'priority') widthClass = 'min-w-[80px] md:min-w-[100px]';
+                                              if (key.includes('date')) widthClass = 'min-w-[120px] md:min-w-[140px] lg:min-w-[160px]';
+                                              if (key === 'amount' || key.includes('cost') || key.includes('fee')) widthClass = 'min-w-[100px] md:min-w-[120px]';
+                                              if (key === 'full_name' || key === 'name') widthClass = 'min-w-[120px] md:min-w-[160px] lg:min-w-[180px]';
+                                              if (key === 'title' || key === 'subject') widthClass = 'min-w-[140px] md:min-w-[200px] lg:min-w-[240px]';
+
+                                              return (
+                                                <td
+                                                  key={key}
+                                                  className={`${widthClass} px-3 md:px-4 lg:px-6 py-3 md:py-4 text-slate-700 text-xs md:text-sm border-b border-slate-100 whitespace-nowrap`}
+                                                >
+                                                  <div className="flex items-center">
+                                                    {(() => {
+                                                      let value = item[key];
+                                                      if (value === null || value === undefined) return <span className="text-slate-400">-</span>;
+
+                                                      if (typeof value === 'boolean') {
+                                                        return (
+                                                          <Badge className={`text-xs ${value ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                                                            {value ? 'Yes' : 'No'}
+                                                          </Badge>
+                                                        );
+                                                      }
+
+                                                      if (typeof value === 'object') {
+                                                        return <span className="text-slate-500 text-xs">Object</span>;
+                                                      }
+
+                                                      if (key.includes('date') && value) {
+                                                        try {
+                                                          return (
+                                                            <span className="text-slate-600">
+                                                              {format(new Date(value), 'MMM dd, yyyy')}
+                                                            </span>
+                                                          );
+                                                        } catch {
+                                                          return <span className="text-slate-600">{value}</span>;
+                                                        }
+                                                      }
+
+                                                      if (key === 'status') {
+                                                        return (
+                                                          <Badge className={`text-xs font-medium ${value === 'active' || value === 'completed' || value === 'paid' ?
+                                                              'bg-green-100 text-green-800 border-green-200' :
+                                                              value === 'pending' || value === 'unpaid' ?
+                                                                'bg-yellow-100 text-yellow-800 border-yellow-200' :
+                                                                'bg-red-100 text-red-800 border-red-200'
+                                                            } border`}>
+                                                            {value.toString().charAt(0).toUpperCase() + value.toString().slice(1)}
+                                                          </Badge>
+                                                        );
+                                                      }
+
+                                                      if (key === 'priority') {
+                                                        return (
+                                                          <Badge className={`text-xs font-medium border ${value === 'urgent' || value === 'high' ?
+                                                              'bg-red-100 text-red-800 border-red-200' :
+                                                              value === 'medium' ?
+                                                                'bg-yellow-100 text-yellow-800 border-yellow-200' :
+                                                                'bg-green-100 text-green-800 border-green-200'
+                                                            }`}>
+                                                            {value.toString().charAt(0).toUpperCase() + value.toString().slice(1)}
+                                                          </Badge>
+                                                        );
+                                                      }
+
+                                                      if (key === 'amount' || key.includes('cost') || key.includes('fee')) {
+                                                        return (
+                                                          <span className="font-medium text-slate-900">
+                                                            {typeof value === 'number' ? `₱${value.toLocaleString()}` : value}
+                                                          </span>
+                                                        );
+                                                      }
+
+                                                      if (key === 'email') {
+                                                        return (
+                                                          <span className="text-blue-600 hover:text-blue-800 cursor-pointer truncate max-w-[180px]" title={value.toString()}>
+                                                            {value.toString()}
+                                                          </span>
+                                                        );
+                                                      }
+
+                                                      if (key === 'phone') {
+                                                        return (
+                                                          <span className="text-slate-600 font-mono text-sm">
+                                                            {value.toString()}
+                                                          </span>
+                                                        );
+                                                      }
+
+                                                      // Long text fields with truncation
+                                                      if (key === 'address' || key === 'description' || key === 'message') {
+                                                        return (
+                                                          <span className="text-slate-600 truncate max-w-[200px]" title={value.toString()}>
+                                                            {value.toString()}
+                                                          </span>
+                                                        );
+                                                      }
+
+                                                      return (
+                                                        <span className="text-slate-600 truncate max-w-[150px]" title={value.toString()}>
+                                                          {value.toString()}
+                                                        </span>
+                                                      );
+                                                    })()}
+                                                  </div>
+                                                </td>
+                                              );
+                                            })}
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+
+                              {/* Table Info Banner */}
+                              <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex items-center justify-between text-sm">
+                                <div className="flex items-center space-x-4">
+                                  <span className="text-slate-600 font-medium">
+                                    {filteredData.length} {filteredData.length === 1 ? 'record' : 'records'} found
+                                  </span>
+                                  {searchTerm && (
+                                    <span className="text-slate-500 text-xs">
+                                      Filtered by: "{searchTerm}"
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="hidden md:flex items-center space-x-2 text-xs text-slate-500">
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  <span>Scroll horizontally to view all columns</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Mobile Card View */}
+                            <div className="block md:hidden space-y-4">
+                              {filteredData.map((item, index) => (
+                                <motion.div
+                                  key={index}
+                                  initial={{ opacity: 0, y: 10 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ delay: index * 0.05 }}
+                                  className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:shadow-md transition-shadow"
+                                >
+                                  <div className="space-y-3">
                                     {Object.keys(item)
                                       .filter(key =>
                                         !key.includes('id') &&
@@ -832,28 +983,17 @@ export default function Reports() {
                                         key !== 'created_at' &&
                                         key !== 'updated_at'
                                       )
-                                      .map((key, cellIndex) => {
-                                        // Match the same responsive width classes as headers
-                                        let widthClass = 'min-w-[100px] md:min-w-[120px]'; // default
-                                        if (key === 'email') widthClass = 'min-w-[150px] md:min-w-[200px] lg:min-w-[220px]';
-                                        if (key === 'phone') widthClass = 'min-w-[120px] md:min-w-[140px]';
-                                        if (key === 'address' || key === 'description' || key === 'message') widthClass = 'min-w-[180px] md:min-w-[250px] lg:min-w-[280px]';
-                                        if (key === 'status' || key === 'priority') widthClass = 'min-w-[80px] md:min-w-[100px]';
-                                        if (key.includes('date')) widthClass = 'min-w-[120px] md:min-w-[140px] lg:min-w-[160px]';
-                                        if (key === 'amount' || key.includes('cost') || key.includes('fee')) widthClass = 'min-w-[100px] md:min-w-[120px]';
-                                        if (key === 'full_name' || key === 'name') widthClass = 'min-w-[120px] md:min-w-[160px] lg:min-w-[180px]';
-                                        if (key === 'title' || key === 'subject') widthClass = 'min-w-[140px] md:min-w-[200px] lg:min-w-[240px]';
+                                      .map((key, keyIndex) => {
+                                        let value = item[key];
+                                        if (value === null || value === undefined) value = '-';
 
                                         return (
-                                          <td
-                                            key={key}
-                                            className={`${widthClass} px-3 md:px-4 lg:px-6 py-3 md:py-4 text-slate-700 text-xs md:text-sm border-b border-slate-100 whitespace-nowrap`}
-                                          >
-                                            <div className="flex items-center">
+                                          <div key={key} className={`flex justify-between items-center ${keyIndex === 0 ? 'pb-2 border-b border-slate-100' : ''}`}>
+                                            <span className="text-xs font-medium text-slate-600 uppercase tracking-wider">
+                                              {key.replace(/_/g, ' ')}
+                                            </span>
+                                            <span className="text-sm font-medium text-slate-900 text-right max-w-[60%]">
                                               {(() => {
-                                                let value = item[key];
-                                                if (value === null || value === undefined) return <span className="text-slate-400">-</span>;
-
                                                 if (typeof value === 'boolean') {
                                                   return (
                                                     <Badge className={`text-xs ${value ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
@@ -861,200 +1001,47 @@ export default function Reports() {
                                                     </Badge>
                                                   );
                                                 }
-
-                                                if (typeof value === 'object') {
-                                                  return <span className="text-slate-500 text-xs">Object</span>;
-                                                }
-
-                                                if (key.includes('date') && value) {
+                                                if (typeof value === 'object') return JSON.stringify(value);
+                                                if (key.includes('date') && value !== '-') {
                                                   try {
-                                                    return (
-                                                      <span className="text-slate-600">
-                                                        {format(new Date(value), 'MMM dd, yyyy')}
-                                                      </span>
-                                                    );
+                                                    return format(new Date(value), 'PP');
                                                   } catch {
-                                                    return <span className="text-slate-600">{value}</span>;
+                                                    return value;
                                                   }
                                                 }
-
                                                 if (key === 'status') {
                                                   return (
-                                                    <Badge className={`text-xs font-medium ${
-                                                      value === 'active' || value === 'completed' || value === 'paid' ?
-                                                      'bg-green-100 text-green-800 border-green-200' :
-                                                      value === 'pending' || value === 'unpaid' ?
-                                                      'bg-yellow-100 text-yellow-800 border-yellow-200' :
-                                                      'bg-red-100 text-red-800 border-red-200'
-                                                    } border`}>
-                                                      {value.toString().charAt(0).toUpperCase() + value.toString().slice(1)}
+                                                    <Badge className={`text-xs ${value === 'active' || value === 'completed' || value === 'paid' ?
+                                                        'bg-green-100 text-green-800' :
+                                                        value === 'pending' || value === 'unpaid' ?
+                                                          'bg-yellow-100 text-yellow-800' :
+                                                          'bg-red-100 text-red-800'
+                                                      }`}>
+                                                      {value.toString()}
                                                     </Badge>
                                                   );
                                                 }
-
-                                                if (key === 'priority') {
-                                                  return (
-                                                    <Badge className={`text-xs font-medium border ${
-                                                      value === 'urgent' || value === 'high' ?
-                                                      'bg-red-100 text-red-800 border-red-200' :
-                                                      value === 'medium' ?
-                                                      'bg-yellow-100 text-yellow-800 border-yellow-200' :
-                                                      'bg-green-100 text-green-800 border-green-200'
-                                                    }`}>
-                                                      {value.toString().charAt(0).toUpperCase() + value.toString().slice(1)}
-                                                    </Badge>
-                                                  );
-                                                }
-
-                                                if (key === 'amount' || key.includes('cost') || key.includes('fee')) {
-                                                  return (
-                                                    <span className="font-medium text-slate-900">
-                                                      {typeof value === 'number' ? `₱${value.toLocaleString()}` : value}
-                                                    </span>
-                                                  );
-                                                }
-
-                                                if (key === 'email') {
-                                                  return (
-                                                    <span className="text-blue-600 hover:text-blue-800 cursor-pointer truncate max-w-[180px]" title={value.toString()}>
-                                                      {value.toString()}
-                                                    </span>
-                                                  );
-                                                }
-
-                                                if (key === 'phone') {
-                                                  return (
-                                                    <span className="text-slate-600 font-mono text-sm">
-                                                      {value.toString()}
-                                                    </span>
-                                                  );
-                                                }
-
-                                                // Long text fields with truncation
-                                                if (key === 'address' || key === 'description' || key === 'message') {
-                                                  return (
-                                                    <span className="text-slate-600 truncate max-w-[200px]" title={value.toString()}>
-                                                      {value.toString()}
-                                                    </span>
-                                                  );
-                                                }
-
                                                 return (
-                                                  <span className="text-slate-600 truncate max-w-[150px]" title={value.toString()}>
+                                                  <span className="break-words">
                                                     {value.toString()}
                                                   </span>
                                                 );
                                               })()}
-                                            </div>
-                                          </td>
+                                            </span>
+                                          </div>
                                         );
                                       })}
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-
-                        {/* Table Info Banner */}
-                        <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex items-center justify-between text-sm">
-                          <div className="flex items-center space-x-4">
-                            <span className="text-slate-600 font-medium">
-                              {filteredData.length} {filteredData.length === 1 ? 'record' : 'records'} found
-                            </span>
-                            {searchTerm && (
-                              <span className="text-slate-500 text-xs">
-                                Filtered by: "{searchTerm}"
-                              </span>
-                            )}
-                          </div>
-                          <div className="hidden md:flex items-center space-x-2 text-xs text-slate-500">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <span>Scroll horizontally to view all columns</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Mobile Card View */}
-                      <div className="block md:hidden space-y-4">
-                        {filteredData.map((item, index) => (
-                          <motion.div
-                            key={index}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.05 }}
-                            className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:shadow-md transition-shadow"
-                          >
-                            <div className="space-y-3">
-                              {Object.keys(item)
-                                .filter(key =>
-                                  !key.includes('id') &&
-                                  !key.includes('password') &&
-                                  key !== 'created_at' &&
-                                  key !== 'updated_at'
-                                )
-                                .map((key, keyIndex) => {
-                                  let value = item[key];
-                                  if (value === null || value === undefined) value = '-';
-
-                                  return (
-                                    <div key={key} className={`flex justify-between items-center ${keyIndex === 0 ? 'pb-2 border-b border-slate-100' : ''}`}>
-                                      <span className="text-xs font-medium text-slate-600 uppercase tracking-wider">
-                                        {key.replace(/_/g, ' ')}
-                                      </span>
-                                      <span className="text-sm font-medium text-slate-900 text-right max-w-[60%]">
-                                        {(() => {
-                                          if (typeof value === 'boolean') {
-                                            return (
-                                              <Badge className={`text-xs ${value ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                                                {value ? 'Yes' : 'No'}
-                                              </Badge>
-                                            );
-                                          }
-                                          if (typeof value === 'object') return JSON.stringify(value);
-                                          if (key.includes('date') && value !== '-') {
-                                            try {
-                                              return format(new Date(value), 'PP');
-                                            } catch {
-                                              return value;
-                                            }
-                                          }
-                                          if (key === 'status') {
-                                            return (
-                                              <Badge className={`text-xs ${
-                                                value === 'active' || value === 'completed' || value === 'paid' ?
-                                                'bg-green-100 text-green-800' :
-                                                value === 'pending' || value === 'unpaid' ?
-                                                'bg-yellow-100 text-yellow-800' :
-                                                'bg-red-100 text-red-800'
-                                              }`}>
-                                                {value.toString()}
-                                              </Badge>
-                                            );
-                                          }
-                                          return (
-                                            <span className="break-words">
-                                              {value.toString()}
-                                            </span>
-                                          );
-                                        })()}
-                                      </span>
-                                    </div>
-                                  );
-                                })}
+                                  </div>
+                                </motion.div>
+                              ))}
                             </div>
-                          </motion.div>
-                        ))}
+                          </>
+                        )}
                       </div>
-                    </>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              )}
 
             </div>
           </div>

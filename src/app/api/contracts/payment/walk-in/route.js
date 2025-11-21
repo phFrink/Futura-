@@ -41,7 +41,7 @@ function calculatePenalty(schedule) {
   gracePeriodEnd.setDate(gracePeriodEnd.getDate() + 3);
   gracePeriodEnd.setHours(23, 59, 59, 999); // End of grace period day
 
-  console.log("📅 Penalty calculation dates:", {
+  console.log("Penalty calculation dates:", {
     due_date: dueDate.toISOString(),
     grace_period_end: gracePeriodEnd.toISOString(),
     current_date: currentDate.toISOString(),
@@ -50,7 +50,7 @@ function calculatePenalty(schedule) {
 
   // Check if payment is overdue (beyond grace period)
   if (currentDate <= gracePeriodEnd) {
-    console.log("✅ Within grace period - no penalty");
+    console.log("Within grace period - no penalty");
     return 0; // No penalty within grace period
   }
 
@@ -60,7 +60,7 @@ function calculatePenalty(schedule) {
   gracePeriodEndDate.setHours(0, 0, 0, 0);
   const daysOverdue = Math.floor((currentDate - gracePeriodEndDate) / msPerDay);
 
-  console.log("⏰ Days overdue:", daysOverdue);
+  console.log("Days overdue:", daysOverdue);
 
   if (daysOverdue <= 0) {
     return 0;
@@ -77,7 +77,7 @@ function calculatePenalty(schedule) {
   const dailyPenaltyRate = penaltyRate / 30;
   const penaltyAmount = baseAmount * dailyPenaltyRate * daysOverdue;
 
-  console.log("💰 Penalty calculation:", {
+  console.log("Penalty calculation:", {
     base_amount: baseAmount,
     penalty_rate: penaltyRate,
     daily_rate: dailyPenaltyRate,
@@ -94,7 +94,7 @@ function calculatePenalty(schedule) {
  */
 export async function POST(request) {
   try {
-    console.log("🔷 Walk-in payment API called");
+    console.log("Walk-in payment API called");
 
     // Check if Supabase admin client is available
     if (!supabaseAdmin) {
@@ -124,7 +124,7 @@ export async function POST(request) {
       notes = null,
     } = body;
 
-    console.log("📝 Received payment details:", {
+    console.log("Received payment details:", {
       schedule_id,
       contract_id,
       payment_type,
@@ -152,7 +152,7 @@ export async function POST(request) {
       .single();
 
     if (scheduleError || !scheduleData) {
-      console.error("❌ Schedule not found:", scheduleError);
+      console.error("Schedule not found:", scheduleError);
       return NextResponse.json(
         {
           success: false,
@@ -203,7 +203,7 @@ export async function POST(request) {
     const calculatedPenalty = calculatePenalty(scheduleData);
     const penalty_paid = calculatedPenalty; // Always use calculated penalty
 
-    console.log("💰 Payment calculation:", {
+    console.log("Payment calculation:", {
       payment_type,
       received_amount_paid,
       actual_amount_paid: amount_paid,
@@ -241,11 +241,11 @@ export async function POST(request) {
         .update({ penalty_amount: calculatedPenalty })
         .eq("schedule_id", schedule_id);
 
-      console.log("✅ Updated penalty_amount in schedule:", calculatedPenalty);
+      console.log("Updated penalty_amount in schedule:", calculatedPenalty);
     }
 
     // Call the database function to record payment with the correct amounts
-    console.log("✅ Proceeding to record payment with SERVER-CALCULATED amounts");
+    console.log("Proceeding to record payment with SERVER-CALCULATED amounts");
 
     const { data: paymentResult, error: paymentError } = await supabaseAdmin.rpc(
       "record_walk_in_payment",
@@ -263,7 +263,7 @@ export async function POST(request) {
     );
 
     if (paymentError) {
-      console.error("❌ Payment recording error:", paymentError);
+      console.error("Payment recording error:", paymentError);
       return NextResponse.json(
         {
           success: false,
@@ -274,7 +274,7 @@ export async function POST(request) {
       );
     }
 
-    console.log("💰 Payment recorded:", paymentResult);
+    console.log("Payment recorded:", paymentResult);
 
     // If we have check/bank details, update the transaction
     if (paymentResult && paymentResult.length > 0) {
@@ -295,10 +295,10 @@ export async function POST(request) {
     // Fetch all payment schedules to calculate total paid
     const { data: allSchedules } = await supabaseAdmin
       .from("contract_payment_schedules")
-      .select("paid_amount, scheduled_amount")
+      .select("paid_amount, scheduled_amount, remaining_amount")
       .eq("contract_id", scheduleData.contract_id);
 
-    if (allSchedules) {
+    if (allSchedules && allSchedules.length > 0) {
       const totalPaid = allSchedules.reduce(
         (sum, s) => sum + (parseFloat(s.paid_amount) || 0),
         0
@@ -307,18 +307,23 @@ export async function POST(request) {
         (sum, s) => sum + (parseFloat(s.scheduled_amount) || 0),
         0
       );
+      const totalRemaining = allSchedules.reduce(
+        (sum, s) => sum + (parseFloat(s.remaining_amount) || 0),
+        0
+      );
       const downpaymentTotal = scheduleData.contract.downpayment_total || 0;
 
-      // Calculate remaining balance
-      let newRemainingBalance = Math.max(0, downpaymentTotal - totalPaid);
+      // Calculate remaining balance: Total Downpayment - Total Paid
+      // This equals the sum of all remaining_amount fields in schedules
+      let newRemainingBalance = Math.max(0, totalRemaining);
 
-      // If all installments are paid (totalPaid >= totalScheduled), explicitly set to 0
-      if (totalPaid >= totalScheduled && totalScheduled > 0) {
+      // Additional verification: If calculation shows all paid, set to 0
+      if (totalPaid >= downpaymentTotal) {
         newRemainingBalance = 0;
       }
 
       // Update contract with new remaining balance
-      await supabaseAdmin
+      const { error: updateError } = await supabaseAdmin
         .from("property_contracts")
         .update({
           remaining_balance: newRemainingBalance,
@@ -327,12 +332,17 @@ export async function POST(request) {
         })
         .eq("contract_id", scheduleData.contract_id);
 
-      console.log("✅ Updated contract remaining_balance:", {
-        total_paid: totalPaid,
-        total_scheduled: totalScheduled,
-        downpayment_total: downpaymentTotal,
-        new_remaining_balance: newRemainingBalance,
-      });
+      if (updateError) {
+        console.error("Error updating remaining balance:", updateError);
+      } else {
+        console.log("Updated contract remaining_balance:", {
+          total_paid: totalPaid,
+          total_scheduled: totalScheduled,
+          total_remaining: totalRemaining,
+          downpayment_total: downpaymentTotal,
+          new_remaining_balance: newRemainingBalance,
+        });
+      }
     }
 
     // Fetch updated schedule and contract data
@@ -369,14 +379,14 @@ export async function POST(request) {
           sourceTableDisplayName: "Payment Receipt",
         });
 
-        console.log("✅ Payment notification sent to homeowner");
+        console.log("Payment notification sent to homeowner");
       }
     } catch (notificationError) {
-      console.error("⚠️ Warning: Failed to send payment notification:", notificationError);
+      console.error("Warning: Failed to send payment notification:", notificationError);
       // Don't fail the payment if notification fails
     }
 
-    console.log("✅ Walk-in payment processed successfully");
+    console.log("Walk-in payment processed successfully");
 
     return NextResponse.json({
       success: true,
@@ -388,7 +398,7 @@ export async function POST(request) {
       },
     });
   } catch (error) {
-    console.error("❌ Walk-in payment API error:", error);
+    console.error("Walk-in payment API error:", error);
     return NextResponse.json(
       {
         success: false,
@@ -482,7 +492,7 @@ export async function GET(request) {
 
     const daysOverdue = Math.max(0, Math.floor((currentDate - gracePeriodEndForCalc) / (1000 * 60 * 60 * 24)));
 
-    console.log("📊 GET endpoint penalty info:", {
+    console.log("GET endpoint penalty info:", {
       due_date: schedule.due_date,
       grace_period_end: gracePeriodEnd.toISOString(),
       current_date: currentDate.toISOString(),
@@ -497,7 +507,7 @@ export async function GET(request) {
         .update({ penalty_amount: calculatedPenalty })
         .eq("schedule_id", scheduleId);
 
-      console.log("✅ Updated penalty_amount in schedule:", calculatedPenalty);
+      console.log("Updated penalty_amount in schedule:", calculatedPenalty);
     }
 
     return NextResponse.json({
@@ -514,7 +524,7 @@ export async function GET(request) {
       },
     });
   } catch (error) {
-    console.error("❌ Get payment details error:", error);
+    console.error("Get payment details error:", error);
     return NextResponse.json(
       {
         success: false,
