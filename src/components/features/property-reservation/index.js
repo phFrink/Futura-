@@ -1807,7 +1807,7 @@ export default function ReservationDetails() {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                    <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
                       {reservation.status === "pending" && (
                         <>
                           <Button
@@ -1882,7 +1882,7 @@ export default function ReservationDetails() {
                                 setContractData(reservation);
                                 setShowContractModal(true);
                               }}
-                              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 text-xs flex-1"
+                              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 text-xs"
                               title="Create contract (Admin & Customer Service only)"
                             >
                               <FileSignature className="h-3 w-3 mr-1" />
