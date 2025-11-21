@@ -70,37 +70,26 @@ export async function GET(request, { params }) {
     const pendingCount = schedules?.filter(s => s.payment_status === 'pending').length || 0;
     const overdueCount = schedules?.filter(s => s.is_overdue).length || 0;
     const nextPayment = schedules?.find(s => s.payment_status === 'pending');
+    const totalInstallments = schedules?.length || 0;
 
-    // Calculate total scheduled and total paid dynamically from actual schedules
-    const totalScheduledAmount = schedules?.reduce(
-      (sum, s) => sum + (parseFloat(s.scheduled_amount) || 0),
-      0
-    ) || 0;
-
-    const totalPaidFromSchedules = schedules?.reduce(
-      (sum, s) => sum + (parseFloat(s.paid_amount) || 0),
-      0
-    ) || 0;
-
-    // Add reservation fee to both total and paid amounts
-    const reservationFeePaid = parseFloat(contract.reservation_fee_paid || 0);
-    const totalDownpaymentFromSchedules = reservationFeePaid + totalScheduledAmount;
-    const totalPaidAmount = totalPaidFromSchedules + reservationFeePaid;
+    // Calculate payment progress based on count of paid vs total installments
+    const paymentProgress =
+      totalInstallments > 0
+        ? Math.min(
+            100,
+            Math.round((paidCount / totalInstallments) * 100)
+          )
+        : 100;
 
     const result = {
       contract: contract,
       payment_schedules: schedules || [],
       statistics: {
-        total_installments: schedules?.length || 0,
+        total_installments: totalInstallments,
         paid_installments: paidCount,
         pending_installments: pendingCount,
         overdue_installments: overdueCount,
-        payment_progress_percent: totalDownpaymentFromSchedules > 0
-          ? Math.min(
-              100,
-              Math.round((totalPaidAmount / totalDownpaymentFromSchedules) * 100)
-            )
-          : 100,
+        payment_progress_percent: paymentProgress,
       },
       next_payment: nextPayment || null,
     };

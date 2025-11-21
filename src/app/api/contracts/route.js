@@ -146,29 +146,17 @@ export async function GET(request) {
           (s) => s.payment_status === "pending"
         );
 
-        // Calculate total scheduled and total paid dynamically from actual schedules
-        const totalScheduledAmount = schedules?.reduce(
-          (sum, s) => sum + (parseFloat(s.scheduled_amount) || 0),
-          0
-        ) || 0;
+        // Calculate payment progress based on count of paid vs total installments
+        const totalInstallments = schedules?.length || 0;
+        const paidInstallments = paidCount;
 
-        const totalPaidFromSchedules = schedules?.reduce(
-          (sum, s) => sum + (parseFloat(s.paid_amount) || 0),
-          0
-        ) || 0;
-
-        // Add reservation fee to both total and paid amounts
-        const reservationFeePaid = parseFloat(contract.reservation_fee_paid || 0);
-        const totalDownpaymentFromSchedules = reservationFeePaid + totalScheduledAmount;
-        const totalPaidAmount = totalPaidFromSchedules + reservationFeePaid;
-
-        // Calculate payment progress based on actual totals from schedules
+        // Payment progress = (paid count / total count) * 100
         const paymentProgress =
-          totalDownpaymentFromSchedules > 0
+          totalInstallments > 0
             ? Math.min(
                 100,
                 Math.round(
-                  (totalPaidAmount / totalDownpaymentFromSchedules) * 100
+                  (paidInstallments / totalInstallments) * 100
                 )
               )
             : 100;
